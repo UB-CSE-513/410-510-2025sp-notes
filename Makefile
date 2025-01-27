@@ -12,7 +12,7 @@ export TEXINPUTS = .::$TEXMF/tex::../pl-syntax
 all: $(TEX_FILES:.tex=.pdf)
 
 %.pdf: %.tex $(STYLES)
-	latexmk -pdf -synctex=1 -pdflatex=lualatex $<
+	latexmk -pdf -shell-escape -synctex=1 -pdflatex=lualatex $<
 
 %.tex: %.lagda.tex
 	agda --latex --latex-dir=. $<
