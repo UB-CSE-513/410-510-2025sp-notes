@@ -1,0 +1,203 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+\newcommand{\agdaempty}{\textsf{⊥}\xspace}
+
+\title{Negation}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{7}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec07 where
+
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Data.Nat using (ℕ; zero; suc)
+open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Sum using (_⊎_; inj₁; inj₂) --*
+
+postulate
+  extensionality : ∀ {A B : Set} {f g : A → B}
+    → (∀ (x : A) → f x ≡ g x)
+    -------------------------
+    → f ≡ g
+\end{code}
+{\tiny* Firacode does not support \uplus}
+
+\section{Negation}
+\label{sec:neg}
+
+\begin{itemize}
+\item Negation key-binding in Agda-mode is \texttt{\textbackslash lnot}. 
+\item We can define negation as follows:
+\begin{code}
+¬_ : Set → Set
+¬ A = A → ⊥
+\end{code}
+\item Here, \texttt{\lnot} is a function that takes a proposition \texttt{A} and returns a \agdaempty.
+\item Because there is no way to construct an impossible promise \agdaempty, this means that \texttt{A} cannot be true.
+
+\item If we have evidence for both \texttt{\lnot A} and \texttt{A}, we can derive a contradiction:
+\begin{code}
+¬-elim : ∀ {A : Set}
+    → ¬ A
+    → A
+    --------
+    → ⊥
+¬-elim fx x = fx x
+\end{code}
+\item We can prove this by applying \texttt{fx} to \texttt{x}, which gives us \agdaempty.
+      This is returning something impossible by combining something impossible we received together.
+
+\item The previous example is \textbf{not an example of proof by contradiction}.
+      In proof by contradiction, we assume the proposition is false and derive \agdaempty.
+      In \texttt{\lnot -elim}, we assume the propositions are true and derive \agdaempty.
+      Therefore, it is a direct proof.
+
+\item If we have evidence for \texttt{A}, it implies \texttt{\lnot \lnot A}:
+\begin{code}
+¬¬-intro : ∀ {A : Set}
+    → A
+    --------
+    → ¬ ¬ A
+¬¬-intro a = λ {¬a → ¬a a}
+
+-- ¬ ¬ A → A
+\end{code}
+\item Here, \texttt{a} is evidence of \texttt{A} we provide. We also have a lambda function that 
+      takes \texttt{¬a} and returns \texttt{¬a a} which is \agdaempty. And we take that as evidence for \texttt{\lnot A}. 
+      Now we have \texttt{A} and \texttt{\lnot A}, which is impossible. Therefore, we have \texttt{\lnot \lnot A}.
+\item \textbf{But we cannot prove \texttt{A} from \texttt{\lnot \lnot A} in Agda}, we will discuss it later on.
+
+\item We can negate the buttom:
+\begin{code}
+id-⊥ : ¬ ⊥ 
+id-⊥ = λ {x → x}
+\end{code}
+\item If we receive evidence for \agdaempty, we just return it. 
+      So \texttt{\lnot \agdaempty} is equivalent to \texttt{\agdaempty \rightarrow \agdaempty}.
+
+\item Another way to do this is using pattern matching:
+\begin{code}
+id-⊥′ : ⊥ → ⊥
+id-⊥′ ()
+\end{code}
+\item Since \agdaempty does not have any constructors, so there's no possible pattern match.
+
+\item Extensionality means that if two functions are pointwise equal, then they are equal.
+      Since we don't have constructors for \agdaempty, there is no element in their domains,
+      we can obviously use extensionality to prove that they are equal:
+\begin{code}
+id≡id′ : id-⊥ ≡ id-⊥′
+id≡id′ = extensionality (λ())
+\end{code}
+
+\item Any proofs of a negation are equal:
+\begin{code}
+assimilation : ∀ {A : Set} (¬x ¬y : ¬ A) → ¬x ≡ ¬y
+assimilation ¬x ¬y = extensionality (λ x → ⊥-elim (¬x x))
+\end{code}
+
+\item We can define inequality by negating equality:
+\begin{code}
+_≢_ : ∀ {A : Set} → A → A → Set
+x ≢ y = ¬ (x ≡ y)
+
+_ : 1 ≢ 2
+_ = λ ()
+\end{code}
+\item Agda has the property that objects of different constructors will never be the same.
+      In \agdanats, since \texttt{zero} is not the successor of anything, we can prove that:
+
+\begin{code}
+peano : ∀ {m : ℕ} → zero ≢ suc m
+peano = λ () -- There is no possible pattern for m s.t. zero is equal to suc m
+\end{code}
+\end{itemize} % End of Section 1
+
+\section{Intuitionistic Logic}
+\label{sec:intui-logic}
+
+\begin{itemize}
+\item Previously, we have seen that \texttt{\lnot \lnot A} does not imply \texttt{A} in Agda.
+\item This is because Agda is an \textbf{intuitionistic logic} system. 
+      In intuitionistic logic, we cannot prove a proposition is true by proving that its negation is false.
+      Therefore, given a double negation, we cannot conclude that the proposition is true.
+\item In proof by contradiction, we have a goal \texttt{P}, we first assume \texttt{\lnot P} and derive \agdaempty.
+      Then we can conclude that \texttt{P} holds. When \texttt{\lnot P} leads to \agdaempty, we are saying that 
+      \texttt{\lnot \lnot A} implies \texttt{P}. Therefore, for similar reason, proof by contradiction is not supported in Agda.
+
+\item But trible-negation can implies negation:
+\begin{code}
+¬¬¬-intro : ∀ {A : Set}
+    → ¬ ¬ ¬ A
+    --------
+    → ¬ A
+¬¬¬-intro ¬¬¬x x = ¬¬¬x (¬¬-intro x)
+\end{code}
+\item Here, we assume \texttt{x} is an evidence for \texttt{A}. We can use \texttt{¬¬-intro} with \texttt{x} to prove \texttt{\lnot \lnot A},
+      and then we use this result as an argument for \texttt{¬¬¬x}, which gives us a contradiction.
+      So if we assume \texttt{A} is true and it leads to a contradiction, we can conclude that \texttt{\lnot A} is true.
+
+\item Another interesting property of intuitionistic logic system or Agda, is that
+      \textbf{we cannot prove the law of excluded middle}:
+\begin{code}
+postulate
+  lem : ∀ {A : Set} →  A ⊎ ¬ A -- A or not A
+\end{code}
+\item As we discussed before, we cannot prove a proposition is true by proving that its negation is false.
+
+\item But, we can show that \textbf{law of excluded middle is irrefutable}:
+\begin{code}
+lem-irrefutable : ∀ {A : Set} → ¬ ¬ (A ⊎ ¬ A) -- not not (A \or not A)
+lem-irrefutable k = k (inj₂ (λ x → k (inj₁ x)))
+\end{code}
+
+\begin{enumerate}
+\item At the beginning when we build the proof of \texttt{lem-irrefutable},
+      we have an evidence \texttt{k} that leads to \texttt{\lnot (A \uplus \lnot A)}:
+      \\ \texttt{lem-irrefutable k = \{!!\} -- Goal : \agdaempty}
+
+\item The evidence \texttt{k} is a function that given a value of type \texttt{A \uplus \lnot A},
+      returns \agdaempty. So we apply \texttt{k} to the hole to get \agdaempty :
+      \\ \texttt{lem-irrefutable k = k \{!!\} -- Goal : lem A} 
+
+\item The goal of the hole now becomes \texttt{lem}. Since we have no evidence of \texttt{A},
+      we start from the right side, and assume \texttt{\lnot A}:
+      \\ \texttt{lem-irrefutable k = k (inj₂ (λ x → \{!!\})) -- Goal : \agdaempty}
+
+\item The second disjunct of \texttt{lem} accepts evidence \texttt{\lnot A}, in this lambda function, we bind \texttt{x}
+      to \texttt{A}, and return \agdaempty. Again, we apply \texttt{k} to the hole to get \agdaempty :
+      \\ \texttt{lem-irrefutable k = k (inj₂ (λ x → K \{!!\})) -- Goal : lem A}
+
+\item The goal of the hole is again \texttt{lem}, but this time we have the evidence of \texttt{A},
+      so we go to the left side, assume \texttt{A} and give it \texttt{x}:
+      \\ \texttt{lem-irrefutable k = k (inj₂ (λ x → k (inj₁ x))) -- no hole left}
+\end{enumerate}
+\end{itemize} % End of Section 2
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
