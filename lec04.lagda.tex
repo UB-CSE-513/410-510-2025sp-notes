@@ -1,0 +1,242 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\title{Relations}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{4}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\begin{code}
+module lec04 where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; cong; sym; refl)
+open Eq.≡-Reasoning using (begin_; step-≡-∣; step-≡-⟩; _∎)
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
+open import Data.Nat.Properties using
+  (+-assoc; +-comm; +-identityˡ; +-identityʳ;
+  *-assoc; *-identityˡ; *-identityʳ; *-distribʳ-+)
+\end{code}
+\end{center}
+
+\section{What is a Relation?}
+
+A relation is describes a property of or relationship between 0 or more members, however, for this class, we will only consider relations that talk about 1 or more members.
+We typically first learn about relations from a set theory perspective.
+From the set theory perspective, a relation is a set of ordered tuples.
+An arbitrary relation $R \subseteq A \times B$ is a set of ordered pairs $(a, b)$.
+For example, the less-than-or-equal-to relation on natural numbers is the set of ordered pairs of natural numbers $(x, y)$ such that $x \le y$.
+More formally, we say $\le \subseteq \mathbb{N}$.
+
+For a pair of numbers $x$ and $y$, we say that:
+
+\begin{mathpar}
+  x \le y \stackrel{\triangle}{\iff} (x, y) \in \le
+\end{mathpar}
+
+We can also define $\le$ over integers and real numbers:
+
+\begin{mathpar}
+  \le \subseteq \begin{array}[t]{@{}l@{}}
+    \mathbb{Z} \times \mathbb{Z} \\
+    \mathbb{R} \times \mathbb{R}
+  \end{array}
+\end{mathpar}
+
+We can talk about \emph{unary} relations, that takes in only one argument.
+Unary relations can be thought of as \emph{properties} about objects.
+For example, consider the unary relation $\text{prime}$.
+$\text{prime}$ is a set of natural numbers:
+
+\begin{mathpar}
+  \text{prime} \subseteq \mathbb{N}
+\end{mathpar}
+
+What does it mean for there to be a natural number $n$ such that $n \in \text{prime}$?
+It means that $\text{prime}$ holds for the number $n$, i.e., that $n$ is a prime number.
+
+How do we represent relations in Agda?
+We represent them as functions into the \textsf{Set} type.
+For example, here is a binary relation in Agda.
+
+\begin{code}
+  -- Example of a binary relation in Agda:
+  -- R : {A B : Set} -> A -> B -> Set
+\end{code}
+
+The relation \textsf{R} takes in two arguments where the first argument has type \textsf{A} and the second argument has type \textsf{B}.
+The \textsf{\{A B : Set\}} part tells Agda to infer what the types \textsf{A} and \textsf{B} should be.
+
+In Agda, \textsf{R a b : Set} is evidence that the relation \textsf{R} holds on \textsf{a} and \textsf{b}.
+
+\section{Inductive Relations}
+
+A special kind of relation is called an \emph{inductive} relation (also known as a recursive relation).
+The evidence of inhabitance in an inductive relation is a tree.
+We can define inductive relations using \emph{inference rules}.
+Usually, an inference rule is depicted as a number of \emph{hypotheses} or \emph{premises}, followed by a bar below the hypotheses, and then a conclusion below the bar.
+
+Inference rules have the following form:
+
+\begin{mathpar}
+  \infer[Rule-name]{H_1 \dots H_n}{P}
+\end{mathpar}
+
+Here, $H_1$ through $H_n$ are hypotheses and $P$ is the conclusion.
+The way you read an inference rule is if the hypotheses above the line hold, then the conclusion below the line holds.
+An example of an inductive relation is the $\le$ relation on natural numbers.
+It is defined by two inference rules, where $suc(n)$ means the successor of $n$ (i.e., the next number after $n$):
+
+\begin{mathpar}
+  \infer[z\le n]{ }{0 \le n}
+  \and
+ \infer[s\le s]{n \le m}{suc(n) \le suc(m)}
+\end{mathpar}
+
+In the inference rules above, the z$\le$n rule states that $0$ is less-than-or-equal-to any natural number $n$.
+It has no hypotheses, since it is just true that $0$ is less-than-or-equal-to any natural number $n$.
+The s$\le$s rule states that, for any natural numbers $n$ and $m$, if $n \le m$, then it must be true that $n + 1 \le m + 1$.
+
+We can use these inference rules to prove things.
+For example, we can prove that $2 \le 3$:
+
+\begin{mathpar}
+  \inferrule*[right=s\le s]{
+    \inferrule*[right=s\le s]{
+    \inferrule*[right=z\le n]{ }{0 \le 1}
+  }{1 \le 2}
+  }{2 \le 3}
+\end{mathpar}
+
+If we start at $2 \le 3$, note that there is only one rule that can be applied, being the $s\le s$ rule.
+We apply this rule with a premise of $1 \le 2$, which we must now prove.
+Again, only the rule that can be applied is the $s\le s$ rule with a premise of $0 \le 1$.
+To prove $0 \le 1$, our only option is to apply the $z\le n$ rule, which completes the proof.
+
+In Agda, we can define $\le$ like this:
+
+\begin{center}
+\begin{code}
+-- define the less-than-or-equal-to relation as an inductive datatype
+data _≤_ : ℕ -> ℕ -> Set where
+  z≤n : ∀ {n : ℕ} ->
+        zero ≤ n
+  s≤s : ∀ {n m : ℕ} ->
+        n ≤ m ->
+        suc n ≤ suc m
+
+infix 4 _≤_
+\end{code}
+\end{center}
+
+z$\le$n and s$le$s are the two constructors that can be used to construct evidence for a type n$\le$m.
+
+Let's prove $2 \le 3$ in Agda.
+The proof is very similar to the pen-and-paper proof we did above:
+
+\begin{center}
+\begin{code}
+-- use underscore since don't care about what we call the value here
+_ : 2 ≤ 3 -- declaration
+_ = s≤s (s≤s z≤n) -- definition
+\end{code}
+\end{center}
+
+We can also prove that the $s\le s$ inference rule can be inverted.
+I.e., if we are given that the conclusion of the rule holds, then so does the premise.
+
+\begin{center}
+\begin{code}
+-- inversion on the s≤s inference rule
+inv-s≤s : ∀ {n m : ℕ} -> suc n ≤ suc m -> n ≤ m
+inv-s≤s (s≤s n≤m) = n≤m
+\end{code}
+\end{center}
+
+Finally, let's define and prove the inductive principle for $\le$.
+
+\begin{center}
+\begin{code}
+-- inductive principle for ≤
+≤-ind : ∀ (P : ℕ -> ℕ -> Set) ->
+  (Pz : ∀ (n : ℕ) -> P zero n) ->
+  (Ps : ∀ (n m : ℕ) -> n ≤ m -> P n m -> P (suc n) (suc m)) ->
+  ∀ (n m : ℕ) -> n ≤ m -> P n m
+≤-ind P Pz Ps n m z≤n = Pz m
+≤-ind P Pz Ps n m (s≤s Pnm) = Ps _ _ Pnm (≤-ind P Pz Ps _ _ Pnm)
+\end{code}
+\end{center}
+
+\section{Properties of Relations}
+
+There are several properties that relations can have which are important enough to have names.
+There are a number of them that will show up consistently in this course, and which you must have memorized.
+Here are most of them:
+
+\begin{center}
+\begin{tabular}{|c | c|}
+  \hline
+  Reflexivity & For every $x$, $x R x$ \\
+  \hline
+  Symmetry & For every $x$ and $y$, if $x R y$ then $y R x$ \\
+  \hline
+  Antisymmetry & For every $x$ and $y$, if $x R y$ and $y R x$, then $x = y$ \\
+  \hline
+  Transitivity & For every $x$, $y$, and $z$, if $x R y$ and $y R z$, then $x R z$ \\
+  \hline
+  Totality & For every $x$ and $y$, either $x R y$ or $y R x$ \\
+  \hline
+\end{tabular}
+\end{center}
+
+We say that $R$ is reflexive if it has the property of reflexivity, symmetric if it has the property of symmetry, etc.
+
+Different collections of these properties also have names.
+In the following table, we say that $R$ is a ...if it has all of the checked properties:
+
+\begin{center}
+  \begin{tabular}{|c | c | c | c | c | c|}
+    \hline
+    Name & Reflexivity & Symmetry & Antisymmetry & Transitivity & Totality \\
+    \hline
+    Preorder & \checkmark & \times & \times & \checkmark & \times \\
+    \hline
+    Partial Order & \checkmark & \times & \checkmark & \checkmark & \times \\
+    \hline
+    Total Order & \checkmark & \times & \checkmark & \checkmark & \checkmark \\
+    \hline
+    Equivalence & \checkmark & \checkmark & \times & \checkmark & \times \\
+    \hline
+  \end{tabular}
+\end{center}
+
+Note: Every total order is a partial order, and every partial order is a preorder.
+Any relation that is both symmetric and antisymmetric can only relate pairs of the form $(x, x)$.
+I.e., if $R$ is both symmetric and antisymmetric then for any $x$ and $y$, $x R y$ implies $x = y$.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
