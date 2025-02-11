@@ -1,0 +1,481 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+
+\title{Relations}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{4}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec04-akh where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; cong; sym; refl)
+open Eq.≡-Reasoning using (begin_; step-≡-∣; step-≡-⟩; _∎)
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
+open import Data.Nat.Properties using
+  (+-assoc; +-comm; +-identityˡ; +-identityʳ; *-assoc; *-identityˡ; *-identityʳ; *-distribʳ-+)
+\end{code}
+
+\section{What are Relations?}
+\label{sec:what-are-relations}
+
+\begin{itemize}
+\item Recall that a relation is some statement about one or more mathematical objects.
+  \begin{itemize}
+  \item One-argument relations are often called \emph{predicates}.
+  \end{itemize}
+\item In set theory, a relation is just a subset of a set of tuples, so $R \subseteq A \times B$ is a relation between $A$ and $B$, while $R \subseteq A$ is a predicate on $A$ and $R \subseteq A \times B \times C$ is a relations between $A$, $B$, and $C$.
+  We write $R(x,y)$ to mean that $(x, y) \in R$, $R(x)$ to mean $x \in R$, and $R(x,y,z)$ to mean $(x, y, z) \in R$, respectively.
+  \begin{itemize}
+  \item In the case of two-argument relations, we often use infix notation: $x \mathrel{R} y$.
+  \item \LaTeX{} Note: you should use \textbackslash{}mathrel around letters and symbols that are intended to be infix relations.
+    This is already done for you for common relation symbols.    
+  \end{itemize}
+\item In type theory, we don't have such a thing as a subset. Instead, we have functions into set.
+  So a binary relation is $R \colon A \to B \to \textsf{Set}$, a predicate is $R \colon A \to \textsf{Set}$, and a ternary relation is $R \colon A \to B \to C \to \textsf{Set}$.
+\item You can think of it this way: a binary relation $R \colon A \to B \to \textsf{Set}$ gives, for every $x \colon A$ and $y \colon B$, a set of (pieces of) \emph{evidence} that $x \mathrel{R} y$ holds.
+\item What is evidence that a relation holds?
+  \begin{itemize}
+  \item Depends on the relation!
+  \item A lot of relations have as evidence a special type of trees.
+  \item These are \emph{inductive relations}, and they are quite special.
+  \end{itemize}
+\end{itemize}
+
+\section{Inductive Relations}
+\label{sec:inductive-relations}
+
+\begin{itemize}
+\item \emph{Inductive relations} are relations with tree-like evidence.
+\item They are called this because they allow us to prove things about them by building and analyzing these trees.
+  \begin{itemize}
+  \item We can prove that the relation holds by building a tree.
+  \item We can use the fact that it holds by using induction on the tree.
+  \end{itemize}
+\item To see what these trees look like, let's consider a familiar relation: the ``less-than-or-equal-to'' relation on natural numbers:
+  \begin{mathpar}
+    \infer*[left=$z\mathord{\leq}n$]{ }{0 \leq n} \and
+    \infer*[right=$s\mathord{\leq}s$]{m \leq n}{\textsf{suc}(m) \leq \textsf{suc}(n)}
+  \end{mathpar}
+  \begin{itemize}
+  \item \LaTeX{} note: use the \textsf{mathpartir} package for best results.
+    I use \textsf{\textbackslash{}infer\ast} to typeset a rule with a name.
+  \end{itemize}
+\item This is a set of \emph{rules}, each of which describes a way to build evidence for $\leq$.
+\item You can read this as: if everything on top is true, then the thing on bottom is true.
+\item Evidence for $m \leq n$ then is a way of nesting these so that everything on top is empty, and on the bottom you get $m \leq n$.
+  \begin{itemize}
+  \item An example:
+    \begin{mathpar}
+      \infer*[Left=$s\mathord{\leq}s$]{
+        \infer*[Left=$s\mathord{\leq}s$]{
+          \infer*[Left=$z\mathord{\leq}n$]{
+          }{
+            0 \leq 2
+          }
+        }
+        {
+          1 \leq 3
+        }
+      }{
+        2 \leq 4
+      }
+    \end{mathpar}
+  \item Note how on top there's nothing left to prove, and on bottom we have $2 \leq 4$.
+  \item In the case of $\leq$, the proofs will always be linear like this!
+  \end{itemize}
+\item In agda, a collection of rules corresponds to an inductive type (or ADT) definition.
+\begin{code}
+data _≤_ : ℕ -> ℕ -> Set where
+  z≤n : ∀ {n : ℕ} ->
+       -----------
+        zero ≤ n
+
+  s≤s : ∀ {m n : ℕ} ->
+           m ≤ n ->
+        ---------------
+         suc m ≤ suc n
+
+infix 4 _≤_
+\end{code}
+\item A proof like the tree above is then just repeated application of the constructors.
+  The tree above can be written as follows:
+\begin{code}
+_ : 2 ≤ 4
+_ = s≤s (s≤s z≤n)
+\end{code}
+  
+\end{itemize}
+
+\subsection{Inversion}
+\label{sec:inversion}
+
+\begin{itemize}
+\item Note that there's only one way to prove that $\textsf{suc}(m) \leq \textsf{suc}(n)$: the outermost constructor (bottommost rule in the tree) must be $s\mathord{\leq}s$.
+\item But then, the proof must itself already contain a proof that $m \leq n$.
+\item We just proved that if $\textsf{suc}(m) \leq \textsf{suc}(n)$, then $m \leq n$.
+  \begin{thm}[Inversion for $s\mathord{\leq}s$]
+    If $\textsf{suc}(m) \leq \textsf{suc}(n)$, then $m \leq n$.
+  \end{thm}
+  \begin{proof}
+    Imagine that we have evidence for $\textsf{suc}(m) \leq \textsf{suc}(n)$.
+    Then the bottommost rule in that tree must be $s\mathord{\leq}s$, which requires that the tree above it be evidence that $m \leq n$.
+    Thus, we know that $m \leq n$.
+  \end{proof}
+  \pagebreak
+\item We can do this in agda as well:
+\begin{code}
+inv-s≤s : ∀ {m n : ℕ} ->
+          suc m ≤ suc n ->
+          ----------------
+               m ≤ n
+inv-s≤s (s≤s m≤n) = m≤n
+\end{code}
+\begin{itemize}
+\item Note that we don't have to give a \textsf{z≤n} case here.
+  Agda does not require you to give cases that are ``obviously'' impossible.
+\item Note also the difference between \textsf{m≤n} and $m \le n$.
+  With spaces, it's a relation.
+  Without spaces, it's a variable.
+\item It is common practice in agda to remove spaces from a relationship to get a name for evidence of that relationship.
+\end{itemize}
+\item Note that this is just reading the rule~\textsf{s≤s} ``bottom up''.
+  That's why we call it an ``inversion rule.''
+\item Inverting the \textsf{z≤n}~rule doesn't make as much sense, because there is nothing up top.
+  Still, you can similarly prove that if $n \leq 0$, then $n = 0$, since the only rule that can possibly be at the bottom of the evidence~tree is the \textsf{z≤n}~rule.
+\begin{code}
+inv-n≤z : ∀ {m : ℕ} ->
+            m ≤ zero ->
+          ------------
+            m ≡ zero
+inv-n≤z z≤n = refl
+\end{code}
+\item We can use this to build a proof template:
+  \begin{thm}
+    For any $m$ and $n$, if $m \le n$ then $P(m, n)$.
+  \end{thm}
+  \begin{proof}
+    By induction on the evidence that $m \leq n$.
+
+    \noindent\textbf{Base case (\textsf{z≤n}):} \dots
+
+    \noindent\textbf{Inductive case (\textsf{s≤s}):}
+    $$H = m \le n$$
+    $$IH = P(m, n)$$
+    $$\text{To prove: } P(\textsf{suc}(m), \textsf{suc}(n))$$
+    \dots
+  \end{proof}
+\item Here, you get to assume $H$ as well as $IH$ in the inductive case.
+\end{itemize}
+
+\subsection{Induction Over Evidence for~$\le$}
+\label{sec:induct-over-evid}
+
+\begin{itemize}
+\item Looking at the agda definition, we can build an induction principle for evidence of $\leq$.
+\begin{code}
+≤-ind : ∀ (P : ℕ -> ℕ -> Set) ->
+  (∀ (n : ℕ) -> P zero n) ->
+  (∀ {m n : ℕ} -> m ≤ n -> P m n -> P (suc m) (suc n)) ->
+  ∀ {m n : ℕ} -> m ≤ n -> P m n
+≤-ind P Pz Ps .{zero} {n} z≤n = Pz n
+≤-ind P Pz Ps {suc m} {suc n} (s≤s m≤n) = Ps m≤n (≤-ind P Pz Ps m≤n)
+\end{code}
+\begin{itemize}
+\item In fact, we can prove something a little stronger
+\begin{code}
+≤-ind-str : ∀ (P : ∀ {m n : ℕ} -> m ≤ n -> Set) ->
+  (∀ (n : ℕ) -> P z≤n) ->
+  (∀ {m n : ℕ} -> ∀ (m≤n : m ≤ n) -> P m≤n -> P (s≤s m≤n)) ->
+  ∀ {m n : ℕ} -> ∀ (m≤n : m ≤ n) -> P m≤n
+≤-ind-str P Pz Ps {m} {n} z≤n = Pz n
+≤-ind-str P Pz Ps {suc m} {suc n} (s≤s m≤n) = Ps m≤n (≤-ind-str P Pz Ps m≤n)
+\end{code}
+\item But, in mathematics, we usually avoid properties that use particular pieces of evidence.
+  So the first is more useful.
+\item The name for this is that we prefer \emph{proof irrelevant} properties.
+\end{itemize}
+\end{itemize}
+
+\section{Properties of Relations}
+\label{sec:properties-relations}
+
+There are several properties that relations can have which are important enough to have names.
+There are a number of them that will show up consistently in this course, and which you must have memorized.
+Here are most of them:
+\begin{center}
+  \begin{tabular}{|l|l|}
+    \hline
+    Reflexivity & For every $x$, $x \mathrel{R} x$\\
+    \hline
+    Symmetry & For every $x$ and $y$, if $x \mathrel{R} y$ then $y \mathrel{R} x$\\
+    \hline
+    Antisymmetry & For every $x$ and $y$, if $x \mathrel{R} y$ and $y \mathrel{R} x$, then $x = y$\\
+    \hline
+    Transitivity & For every $x$, $y$, and $z$, if $x \mathrel{R} y$ and $y \mathrel{R} z$, then $x \mathrel{R} z$\\
+    \hline
+    Totality & For every $x$ and $y$, either $x \mathrel{R} y$ or $y \mathrel{R} x$\\
+    \hline
+  \end{tabular}
+\end{center}
+We say that $R$ is \emph{reflexive} is it has the property of reflexivity, \emph{symmetric} if it has the property of symmetry, etc.
+
+Different collections of these properties also have names.
+In the following table, we say that $R$ is a \dots if it has all of the checked properties:
+\begin{center}
+  \begin{tabular}{|l|c|c|c|c|c|}
+    \hline
+    Name & Reflexivity & Symmetry & Antisymmetry & Transitivity & Totality\\
+    \hline
+    Preorder & \checkmark & \times & \times & \checkmark & \times\\
+    \hline
+    Partial Order & \checkmark & \times & \checkmark & \checkmark & \times \\
+    \hline
+    Total Order & \checkmark & \times & \checkmark & \checkmark & \checkmark \\
+    \hline
+    Equivalence & \checkmark & \checkmark & \times & \checkmark & \times\\
+    \hline
+  \end{tabular}
+\end{center}
+Again, \emph{you must have these memorized}.
+
+\noindent \textbf{N.B.:} Every total order is a partial order, and every partial order is a preorder.
+Any relation that is both symmetric and antisymmetric can only relate pairs of the form $(x, x)$.
+I.e., if $R$ is both symmetric and antisymmetric then for any $x$ and $y$, $x \mathrel{R} y$ implies $x = y$.
+
+\section{$\le$ is a Total Order}
+\label{sec:le-total-order}
+
+\begin{itemize}
+\item It's easy to show that $\le$ is a total order.
+\item Let's start with reflexivity, which we prove by induction on a number:
+\begin{code}
+≤-refl : ∀ {n : ℕ} ->
+         ------------
+           n ≤ n
+≤-refl {zero} = z≤n
+≤-refl {suc n} = s≤s ≤-refl
+\end{code}
+\item Transitivity we prove by induction on evidence:
+  \begin{thm}
+    For any $m$, $n$, and $p \in \mathbb{N}$, if $m \le n$ and $n \le p$, then $m \le p$.
+  \end{thm}
+  \begin{proof}
+    By induction on the evidence that $m \le n$.
+
+    \noindent \textbf{Base case:}
+    We know that $m = 0$, so we want to prove that $0 \le p$.
+    But then we can just build the tree
+    $$\infer*[Right=$z\le{}n$]{ }{0 \le p}$$
+
+    \noindent \textbf{Inductive case:}
+    We know that $m = \textsf{suc}(m')$, $n = \textsf{suc}(n')$, and $m' \leq n'$.
+    $$IH = \text{for any } p \in \mathbb{N} \mathrel{\text{if}} n' \leq p \mathrel{\text{then}} m' \leq p$$
+    Since we have evidence for $\textsf{suc}(n') = n \le p$, we know that the bottommost rule in this must be \textsf{s≤s}.
+    Thus, we must also have evidence that $n' \leq p'$, where $p = \textsf{suc}(p')$.
+    That means that we can apply the IH to get that $m' \leq p'$, and then use \textsf{s≤s} to get the desired result.
+    Pictorially:
+    $$
+    \infer*[Right=\textsf{s≤s}]{
+      \infer*[Right=IH]{
+        m' \leq n'\\
+        n' \leq p'
+      }{
+        m' \leq p'
+      }
+    }{
+      \textsf{suc}(m') = m \leq p = \textsf{suc}(p')
+    }
+    $$
+  \end{proof}
+\item Notice that we used the inductive hypothesis as if it were a rule.
+\item In fact, we can use any appropriate implication as a rule.
+  If we prove an implication, we say that we proved the resulting rule \emph{admissable}.
+  Thus, we have proven these two rules admissable:
+  \begin{mathpar}
+    \infer*[Left=\textsf{$\leq$-refl}]{ }{n \leq n} \and
+    \infer*[Right=\textsf{$\leq$-trans}]{m \leq n \\ n \leq p}{m \leq p}
+  \end{mathpar}
+\item We can use admissable rules when building proofs.
+  But we don't have to take care of them when doing case analysis.
+  \begin{itemize}
+  \item This is easy to see in agda: admissable rules are functions, while non-admissable rules are constructors.
+  \end{itemize}
+\item The code:
+\begin{code}
+≤-trans : ∀ {m n p : ℕ} ->
+                m ≤ n ->
+                n ≤ p ->
+          -------------------
+                m ≤ p
+≤-trans z≤n n≤p = z≤n
+≤-trans (s≤s m≤n) (s≤s n≤p) = s≤s (≤-trans m≤n n≤p)
+\end{code}
+\item For antisymmetry, we will just show the code:
+\begin{code}
+≤-antisym : ∀ {m n : ℕ} ->
+                m ≤ n ->
+                n ≤ m ->
+            ---------------
+                m ≡ n
+≤-antisym z≤n n≤m = sym (inv-n≤z n≤m)
+≤-antisym (s≤s m≤n) (s≤s n≤m) = cong suc (≤-antisym m≤n n≤m)
+\end{code}
+\item For totality, we first have to state what it means to be total on one pair of numbers.
+\begin{code}
+data Total (m n : ℕ) : Set where
+  forward :
+      m ≤ n ->
+    ----------
+    Total m n
+
+  backward :
+      n ≤ m ->
+    ----------
+    Total m n
+
+≤-total : ∀ (m n : ℕ) -> Total m n
+≤-total zero n = forward z≤n
+≤-total (suc m) zero = backward z≤n
+≤-total (suc m) (suc n) with ≤-total m n
+...                        | forward  m≤n = forward  (s≤s m≤n)
+...                        | backward n≤m = backward (s≤s n≤m)
+\end{code}
+\begin{itemize}
+\item In order to finish the proof, we need to match on an intermediate result
+\item In OCaml, we'd use a \textsf{match \dots with} construct
+\item In agda, instead we use a \textsf{with} clause in our pattern matching
+\end{itemize}
+
+\end{itemize}
+
+\section{Monotonicity}
+\label{sec:monotonicity}
+
+\begin{itemize}
+\item We say that a function $f \colon X \to Y$ is monotonic with respect to $\leq \colon X \to X \to \textsf{Set}$ and $\sqsubseteq \colon Y \to Y \to Set$ (where $\leq$ and $\sqsubseteq$ are preorders) if $x \leq y$ implies $f(x) \sqsubseteq f(y)$.
+  \begin{itemize}
+  \item Usually, we don't specify $\leq$ and $\sqsubseteq$, and just say \emph{$f$ is monotonic}.
+  \end{itemize}
+\item Addition is monotonic on both sides.
+  We can write this as follows:
+\begin{code}
++-mono-≤ : ∀ {m n p q : ℕ} ->
+             m ≤ n ->
+             p ≤ q ->
+           -----------------
+             m + p ≤ n + q
+\end{code}
+\item To prove it, it helps to prove both sides directly:
+\begin{code}
++-monoʳ-≤ : ∀ (n : ℕ) -> {p q : ℕ} ->
+              p ≤ q ->
+            ------------------
+              n + p ≤ n + q
++-monoʳ-≤ zero p≤q = p≤q
++-monoʳ-≤ (suc n) p≤q = s≤s (+-monoʳ-≤ n p≤q)
+
++-monoˡ-≤ : ∀ {m n : ℕ} -> (p : ℕ) ->
+              m ≤ n ->
+            -----------------
+              m + p ≤ n + p
++-monoˡ-≤ {m} {n} p m≤n rewrite +-comm m p | +-comm n p = +-monoʳ-≤ p m≤n
+
++-mono-≤ {m} {n} {p} {q} m≤n p≤q = ≤-trans (+-monoʳ-≤ m p≤q) (+-monoˡ-≤ q m≤n)
+\end{code}
+\begin{itemize}
+\item Here, we use \emph{\textsf{rewrite}} to change $m + p$ to $p + m$ in \textsf{+-monoˡ-≤}.
+\item In general, \textsf{rewrite eq} where \textsf{eq} has type $t \equiv u$ changes every occurence of $t$ to an occurence of $u$ in the expected type of the result
+\end{itemize}
+  
+\end{itemize}
+
+\section{Odd and Even}
+\label{sec:odd-even}
+
+\begin{itemize}
+\item Of course, $\leq$ is not the only relation.
+\item Oddness and evenness are both one-argument relations.
+\item However, the most natural way to state them reference each other.
+\item We can build such \emph{mutually inductive} terms naturally in agda:
+\begin{code}
+data even : ℕ -> Set
+data odd : ℕ -> Set
+
+data even where
+  zero :
+       -------------
+         even zero
+
+  suc : ∀ {n : ℕ} ->
+             odd n ->
+        ---------------
+          even (suc n)
+
+
+data odd where
+  suc : ∀ {n : ℕ} ->
+             even n ->
+        -----------------
+           odd (suc n)
+\end{code}
+\item Note that we start by declaring both of their types, before we give any constructors.
+\item Then, when we give constructors, we don't state the types.
+\item This means that \textsf{even} knows the type of \textsf{odd} and vice-versa.
+\item In order to prove anything about these, we need \emph{mutual induction} (\emph{mutual recursion}).
+  Again, we can do this by pre-declaring types:
+\begin{code}
+e+e≡e : ∀ {m n : ℕ} ->
+             even m ->
+             even n ->
+        ----------------
+          even (m + n)
+
+o+e≡o : ∀ {m n : ℕ} ->
+             odd m ->
+             even n ->
+        ----------------
+          odd (m + n)
+
+e+e≡e zero en = en
+e+e≡e (suc om) en = suc (o+e≡o om en)
+
+o+e≡o (suc em) en = suc (e+e≡e em en)
+\end{code}
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
