@@ -109,7 +109,7 @@ Usually, an inference rule is depicted as a number of \emph{hypotheses} or \emph
 Inference rules have the following form:
 
 \begin{mathpar}
-  \infer*[left=\textsc{Rule-name}]{H_1 \dots H_n}{P}
+  \infer*[left=Rule-name]{H_1 \dots H_n}{P}
 \end{mathpar}
 
 Here, $H_1$ through $H_n$ are hypotheses and $P$ is the conclusion.
@@ -118,22 +118,22 @@ An example of an inductive relation is the $\le$ relation on natural numbers.
 It is defined by two inference rules, where $suc(n)$ means the successor of $n$ (i.e., the next number after $n$):
 
 \begin{mathpar}
-  \infer*[left=\textsc{z\le n}]{ }{0 \le n}
+  \infer*[left=z\le n]{ }{0 \le n}
   \and
- \infer*[left=\textsc{s\le s}]{n \le m}{suc(n) \le suc(m)}
+ \infer*[left=s\le s]{n \le m}{suc(n) \le suc(m)}
 \end{mathpar}
 
-In the inference rules above, the z$\le$n rule states that $0$ is less-than-or-equal-to any natural number $n$.
+In the inference rules above, the $\textsc{z\le n}$ rule states that $0$ is less-than-or-equal-to any natural number $n$.
 It has no hypotheses, since it is just true that $0$ is less-than-or-equal-to any natural number $n$.
-The s$\le$s rule states that, for any natural numbers $n$ and $m$, if $n \le m$, then it must be true that $n + 1 \le m + 1$.
+The $\textsc{s\le s}$ rule states that, for any natural numbers $n$ and $m$, if $n \le m$, then it must be true that $n + 1 \le m + 1$.
 
 We can use these inference rules to prove things.
 For example, we can prove that $2 \le 3$:
 
 \begin{mathpar}
-  \inferrule*[left=\textsc{s\le s}]{
-    \inferrule*[left=\textsc{s\le s}]{
-    \inferrule*[left=\textsc{z\le n}]{ }{0 \le 1}
+  \inferrule*[left=s\le s]{
+    \inferrule*[left=s\le s]{
+    \inferrule*[left=z\le n]{ }{0 \le 1}
   }{1 \le 2}
   }{2 \le 3}
 \end{mathpar}
