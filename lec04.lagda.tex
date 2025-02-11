@@ -13,6 +13,18 @@
 
 \newcommand{\agdanats}{\textsf{ℕ}\xspace}
 
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{ᵣ}{\ensuremath{{}_{\textsf{r}}}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{∷}{\ensuremath{\mathrel{::}}}
+\newunicodechar{∀}{\ensuremath{\textsf{\forall}}}
+\newunicodechar{∎}{\ensuremath{\textsf{\blacksquare}}}
+\newunicodechar{ℕ}{\ensuremath{\mathbb{N}}}
+\newunicodechar{≤}{\ensuremath{\textsf{\le}}}
+
 \title{Relations}
 \coursenumber{CSE 410/510}
 \coursename{Programming Language Theory}
@@ -44,7 +56,7 @@ We typically first learn about relations from a set theory perspective.
 From the set theory perspective, a relation is a set of ordered tuples.
 An arbitrary relation $R \subseteq A \times B$ is a set of ordered pairs $(a, b)$.
 For example, the less-than-or-equal-to relation on natural numbers is the set of ordered pairs of natural numbers $(x, y)$ such that $x \le y$.
-More formally, we say $\le \subseteq \mathbb{N}$.
+More formally, we say $\le \subseteq \mathbb{N} \times \mathbb{N}$.
 
 For a pair of numbers $x$ and $y$, we say that:
 
@@ -62,7 +74,7 @@ We can also define $\le$ over integers and real numbers:
 \end{mathpar}
 
 We can talk about \emph{unary} relations, that takes in only one argument.
-Unary relations can be thought of as \emph{properties} about objects.
+Unary relations can be thought of as \emph{predicates}.
 For example, consider the unary relation $\text{prime}$.
 $\text{prime}$ is a set of natural numbers:
 
@@ -89,7 +101,7 @@ In Agda, \textsf{R a b : Set} is evidence that the relation \textsf{R} holds on 
 
 \section{Inductive Relations}
 
-A special kind of relation is called an \emph{inductive} relation (also known as a recursive relation).
+A special kind of relation is called an \emph{inductive} relation.
 The evidence of inhabitance in an inductive relation is a tree.
 We can define inductive relations using \emph{inference rules}.
 Usually, an inference rule is depicted as a number of \emph{hypotheses} or \emph{premises}, followed by a bar below the hypotheses, and then a conclusion below the bar.
@@ -97,7 +109,7 @@ Usually, an inference rule is depicted as a number of \emph{hypotheses} or \emph
 Inference rules have the following form:
 
 \begin{mathpar}
-  \infer[Rule-name]{H_1 \dots H_n}{P}
+  \infer*[left=\textsc{Rule-name}]{H_1 \dots H_n}{P}
 \end{mathpar}
 
 Here, $H_1$ through $H_n$ are hypotheses and $P$ is the conclusion.
@@ -106,9 +118,9 @@ An example of an inductive relation is the $\le$ relation on natural numbers.
 It is defined by two inference rules, where $suc(n)$ means the successor of $n$ (i.e., the next number after $n$):
 
 \begin{mathpar}
-  \infer[z\le n]{ }{0 \le n}
+  \infer*[left=\textsc{z\le n}]{ }{0 \le n}
   \and
- \infer[s\le s]{n \le m}{suc(n) \le suc(m)}
+ \infer*[left=\textsc{s\le s}]{n \le m}{suc(n) \le suc(m)}
 \end{mathpar}
 
 In the inference rules above, the z$\le$n rule states that $0$ is less-than-or-equal-to any natural number $n$.
@@ -119,17 +131,17 @@ We can use these inference rules to prove things.
 For example, we can prove that $2 \le 3$:
 
 \begin{mathpar}
-  \inferrule*[right=s\le s]{
-    \inferrule*[right=s\le s]{
-    \inferrule*[right=z\le n]{ }{0 \le 1}
+  \inferrule*[left=\textsc{s\le s}]{
+    \inferrule*[left=\textsc{s\le s}]{
+    \inferrule*[left=\textsc{z\le n}]{ }{0 \le 1}
   }{1 \le 2}
   }{2 \le 3}
 \end{mathpar}
 
-If we start at $2 \le 3$, note that there is only one rule that can be applied, being the $s\le s$ rule.
+If we start at $2 \le 3$, note that there is only one rule that can be applied, being the $\textsc{s\le s}$ rule.
 We apply this rule with a premise of $1 \le 2$, which we must now prove.
-Again, only the rule that can be applied is the $s\le s$ rule with a premise of $0 \le 1$.
-To prove $0 \le 1$, our only option is to apply the $z\le n$ rule, which completes the proof.
+Again, only the rule that can be applied is the $\textsc{s\le s}$ rule with a premise of $0 \le 1$.
+To prove $0 \le 1$, our only option is to apply the $\textsc{z\le n}$ rule, which completes the proof.
 
 In Agda, we can define $\le$ like this:
 
@@ -147,7 +159,7 @@ infix 4 _≤_
 \end{code}
 \end{center}
 
-z$\le$n and s$le$s are the two constructors that can be used to construct evidence for a type n$\le$m.
+$\textsf{z\le n}$ and $\textsf{s\le s}$ are the two constructors that can be used to construct evidence for a type $\textsf{n\le m}$.
 
 Let's prove $2 \le 3$ in Agda.
 The proof is very similar to the pen-and-paper proof we did above:
@@ -160,7 +172,7 @@ _ = s≤s (s≤s z≤n) -- definition
 \end{code}
 \end{center}
 
-We can also prove that the $s\le s$ inference rule can be inverted.
+We can also prove that the $\textsf{s\le s}$ inference rule can be inverted.
 I.e., if we are given that the conclusion of the rule holds, then so does the premise.
 
 \begin{center}
