@@ -1,0 +1,587 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+
+\title{Equality}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{5}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec05-akh where
+\end{code}
+
+\section{Equality as an Inductive Data Type}
+\label{sec:equality-inductive}
+
+\begin{itemize}
+\item Up until now, we've treated equalities \textsf{t ≡ u} as special and different.
+\item We have two ways to prove equalities: \textsf{refl} and chains of equations.
+\item But secretly, equality is just an inductive data type!
+\begin{code}
+data _≡_ {A : Set} (x : A) : A → Set where
+  refl : x ≡ x
+
+infix 4 _≡_
+
+{-# BUILTIN EQUALITY _≡_ #-}
+\end{code}
+\item What does this say? It says that for any type \textsf{A} and \textsf{x : A}, there is a predicate \textsf{x ≡\_} of ``equal to \textsf{x}.''
+\item Any \textsf{y : A} is equal to \textsf{x} exactly when it is, in fact, \textsf{x}
+  \begin{itemize}
+  \item This is the refl constructor
+  \end{itemize}
+\item Why is the first argument a parameter, while the other an index?
+  \begin{itemize}
+  \item Because the first one doesn't change, while the second varies.
+  \item In the predicate ``equality to \textsf{x}'', \textsf{x} is always the same
+  \end{itemize}
+\end{itemize}
+
+\section{Equality as an Equivalence Relation}
+\label{sec:equality-as-an}
+
+\begin{itemize}
+\item Equality should be an equivalence relation.
+\item Remember: an equivalence relation is reflexive, symmetric, and transitive.
+\item We've already said that equality is reflexive---that's its defining feature!
+\item It's relatively easy to prove that it's symmetric and transitive.
+  In the following, it's worth going through things step-by-step using C-c C-, to see the state of the proof.
+\begin{code}
+sym : ∀ {A : Set} {x y : A} →
+  x ≡ y →
+  ------
+  y ≡ x
+sym refl = refl
+
+trans : ∀ {A : Set} {x y z : A} →
+  x ≡ y →
+  y ≡ z →
+  --------
+  x ≡ z
+trans refl e2 = e2
+\end{code}
+\end{itemize}
+
+\section{Congruence and Substitution}
+\label{sec:congr-subst}
+
+\begin{itemize}
+\item Recall that congruence says that if you give a function~$f$ equal arguments, you get back equal results.
+\item We now have the technology we need to prove congruence:
+\begin{code}
+cong : ∀ {A B : Set} (f : A → B) {x y : A} →
+    x ≡ y →
+  ----------
+  f x ≡ f y
+cong f refl = refl
+
+cong₂ : ∀ {A B C : Set} (f : A → B → C) {u x : A} {v y : B} →
+      u ≡ x →
+      v ≡ y →
+  --------------
+  f u v ≡ f x y
+cong₂ f refl refl = refl
+
+cong-app : ∀ {A B : Set} {f g : A → B} (x : A) →
+     f ≡ g →
+  -----------
+   f x ≡ g x
+cong-app x refl = refl
+\end{code}
+\item We can also prove \emph{substitution}, which says that if $x$ and $y$ are equal, than any predicate that holds of $y$ also holds of $x$.
+\begin{code}
+subst : ∀ {A : Set} {x y : A} (P : A → Set) ->
+      x ≡ y ->
+      ----------
+      P x -> P y
+subst P refl Px = Px
+\end{code}
+\end{itemize}
+
+\section{Chains of Equations}
+\label{sec:chains-equations}
+
+\begin{itemize}
+\item But what about these chains of equations?
+  How do they work?
+\item They are just functions with some special syntax!
+\item We can program them using a nested module:
+\begin{code}
+module ≡-Reasoning {A : Set} where
+
+  infix 1 begin_
+  infixr 2 step-≡-∣ step-≡-⟩
+  infix 3 _∎
+\end{code}
+\begin{itemize}
+\item In a nested module, you can have all sorts of declarations.
+\item In our case, we're going to build some infix equations.
+\item We declare \textsf{begin} as infix, but it's actually prefix.
+  By declaring it prefix, we can have it bind tightly.
+\end{itemize}
+\item The actual definitions are not hard, though maybe it's hard to see what's going on:
+\begin{code}
+  begin_ : ∀ {x y : A} → x ≡ y → x ≡ y
+  begin_ x≡y = x≡y
+
+  step-≡-∣ : ∀ (x : A) {y : A} → x ≡ y → x ≡ y
+  step-≡-∣ x x≡y = x≡y
+
+  step-≡-⟩ : ∀ (x : A) {y z : A} → y ≡ z → x ≡ y → x ≡ z
+  step-≡-⟩ x y≡z x≡y = trans x≡y y≡z
+
+  syntax step-≡-∣ x x≡y = x ≡⟨⟩ x≡y
+  syntax step-≡-⟩ x y≡z x≡y = x ≡⟨ x≡y ⟩ y≡z
+
+  _∎ : ∀ (x : A) → x ≡ x
+  x ∎ = refl
+
+open ≡-Reasoning
+\end{code}
+\item As you can see, the only interesting function is \textsf{step-≡-⟩}, which is just transitivity by another name.
+\item The function~\textsf{\_∎} is just reflexivity.
+\item Everything else just returns its argument.
+\item The secret sauce is in the \textsf{syntax} declarations.
+\item Let's take a look at an example:
+\begin{code}
+trans′ : ∀ {A : Set} {x y z : A} →
+  x ≡ y →
+  y ≡ z →
+  -------
+  x ≡ z
+trans′ {A} {x} {y} {z} x≡y y≡z =
+  begin
+    x
+  ≡⟨ x≡y ⟩
+    y
+  ≡⟨ y≡z ⟩
+    z
+  ∎    
+\end{code}
+\item That parses as:
+\begin{code}
+trans′′ : ∀ {A : Set} {x y z : A} →
+  x ≡ y →
+  y ≡ z →
+  -------
+  x ≡ z
+trans′′ {A} {x} {y} {z} x≡y y≡z = begin (x ≡⟨ x≡y ⟩ (y ≡⟨ y≡z ⟩ (z ∎)))    
+\end{code}
+\item Another example comes from lecture 2:
+\begin{code}
+data ℕ : Set where
+  zero : ℕ
+  suc  : ℕ → ℕ
+
+_+_ : ℕ → ℕ → ℕ
+zero    + n = n
+(suc m) + n = suc (m + n)
+
+postulate
+  +-identity : ∀ (m : ℕ) -> m + zero ≡ m
+  +-suc : ∀ (m n : ℕ) -> m + suc n ≡ suc (m + n)
+\end{code}
+\item Here \textsf{postulate} means that we assume the theorems are true, rather than needing to prove them.
+\item Now, we can prove commutativity of plus:
+\begin{code}
++-comm : ∀ (m n : ℕ) -> m + n ≡ n + m
++-comm m zero =
+  begin
+   m + zero
+  ≡⟨ +-identity m ⟩
+    m
+  ≡⟨⟩
+   zero + m
+  ∎
++-comm m (suc n) =
+  begin
+    m + suc n
+  ≡⟨ +-suc m n ⟩
+   suc (m + n)
+  ≡⟨ cong suc (+-comm m n) ⟩
+    suc (n + m)
+  ≡⟨⟩
+    suc n + m
+  ∎
+\end{code}
+\item Remember: a term is always equal to itself, even after doing computation.
+\item Thus, \textsf{≡⟨⟩} is the same as \textsf{≡⟨ refl ⟩}.
+
+\end{itemize}
+
+\section{Paper and Pencil Proofs}
+\label{sec:paper-pencil-proofs}
+
+\begin{itemize}
+\item Paper-and-pencil proofs of equality should usually use the chains-of-equations formulation.
+\item The idea of equality as an inductive type is weird!
+\item However, you can also use congruence, substitution, and more ``for free'' on paper.
+  \begin{itemize}
+  \item In agda, you have to do case analysis on the evidence that they are equal.
+  \item That evidence is always trivial%IMPORTANT FOR SPACING
+    \footnote{Some more modern forms of type theory, like Homotopy Type Theory, break this.
+      We will ignore them for this course.}.
+  \end{itemize}
+\end{itemize}
+
+\section{Rewriting}
+\label{sec:rewriting}
+
+\begin{itemize}
+\item Last lecture, we learned about \textsf{rewrite}, which allows us to change the goal by an equality.
+\item For instance, we can write proofs like the following:
+\begin{code}
+data even : ℕ → Set
+data odd : ℕ → Set
+
+data even where
+  zero : even zero
+  suc : ∀ {n : ℕ} →
+        odd n →
+    -------------
+    even (suc n)
+
+data odd where
+  suc : ∀ {n : ℕ} →
+     even n →
+  -------------
+   odd (suc n)
+
+
+even-comm : ∀ (m n : ℕ) →
+  even (m + n) →
+  --------------
+  even (n + m)
+even-comm m n ev rewrite +-comm n m = ev 
+
++-comm′ : ∀ (m n : ℕ) -> m + n ≡ n + m
++-comm′ zero n rewrite +-identity n = refl
++-comm′ (suc m) n rewrite +-suc n m | +-comm′ m n = refl    
+\end{code}
+\item This is really powerful! 
+\item Is this just something built into agda?
+\item No! It's actually just shorthand for a \textsf{with} clause.
+\item Recall that we can match on a term (instead of just a variable) by adding it to the list of things we're pattern matching on:
+\begin{code}
+even-comm′ : ∀ (m n : ℕ) →
+  even (m + n) →
+  ------------
+  even (n + m)
+even-comm′ m n ev with   m + n  | +-comm m n
+...                  | .(n + m) |       refl = ev
+\end{code}
+\item Every use of rewrite is short for a similar \textsf{with} clause to the above.
+\item \textsf{With} clauses themselves are shorthand for defining an auxiliary function.
+\begin{code}
+even-comm′′ :  ∀ (m n : ℕ) →
+  even (m + n) →
+  ------------
+  even (n + m)
+even-comm′′ m n ev = f (n + m) (+-comm m n)
+  where
+    f : ∀ (x : ℕ) → m + n ≡ x → even x
+    f .(m + n) refl = ev
+\end{code}
+\item Believe me, \textsf{with} is easier than the auxiliary function, and \textsf{rewrite} is even easier.
+\end{itemize}
+
+\section{Liebniz Equality}
+\label{sec:liebniz-equality}
+
+\begin{itemize}
+\item The notion of equality that we've been using so far is due to Per~Martin-L\"of.
+\item However, Gottfried Leibniz had a different notion of equality: two things are equal if they satisfy all of the same predicates.
+\item We can write this in agda as a function (not using inductive types).
+\begin{code}
+_≐_ : ∀ {A : Set} (x y : A) → Set₁
+_≐_ {A} x y = ∀ (P : A → Set) → P x → P y
+\end{code}
+\item It's relatively easy to show that Leibniz equality is reflexive and transitive:
+\begin{code}
+refl-≐ : ∀ {A : Set} {x : A} →
+  x ≐ x
+refl-≐ P Px = Px
+
+trans-≐ : ∀ {A : Set} {x y z : A} →
+   x ≐ y →
+   y ≐ z →
+  -------
+   x ≐ z
+trans-≐ x≐y y≐z P Px = y≐z P (x≐y P Px)
+\end{code}
+\item However, symmetry is harder.
+\item We know that if \textsf{P x} holds, then so does \textsf{P y}, and then we need to show that if we know that \textsf{P y} holds, then so does \textsf{P x}.
+\item Strategy: since this holds for any \textsf{P}, come up with a \textsf{P} that ``bakes in'' x and transport it to \textsf{y}.
+\begin{code}
+sym-≐ : ∀ {A : Set} {x y : A} →
+  x ≐ y →
+  -------
+  y ≐ x
+sym-≐ {A} {x} {y} x≐y P = Qy
+  where
+    Q : A → Set
+    Q z = P z → P x
+    Qx : Q x
+    Qx = refl-≐ P
+    Qy : Q y
+    Qy = x≐y Q Qx -- create as hole first
+\end{code}
+\pagebreak
+\item In fact, Leibniz equality is equivalent to Martin-L\"of equality.
+\item It's relatively easy to show one direction:
+\begin{code}
+≡-implies-≐ : ∀ {A : Set} {x y : A} →
+  x ≡ y →
+  --------
+  x ≐ y
+≡-implies-≐ x≡y P = subst P x≡y
+\end{code}
+\item The other way is harder.
+\item We can use the same trick again: come up with a \textsf{P} that ``bakes in'' \textsf{x}, and then transport it to \textsf{y}.
+\begin{code}
+≐-implies-≡ : ∀ {A : Set} {x y : A} →
+  x ≐ y →
+  --------
+  x ≡ y
+≐-implies-≡ {A} {x} {y} x≐y = Qy
+  where
+    Q : A → Set
+    Q z = x ≡ z
+    Qx : Q x
+    Qx = refl
+    Qy : Q y
+    Qy = x≐y Q Qx
+\end{code}
+\end{itemize}
+
+\section{Extensionality}
+\label{sec:extensionality}
+
+\begin{itemize}
+\item When are two functions equal?
+\item Traditionally, they are equal iff given the same inputs, they produce the same outputs.
+\item This is the property of \emph{function extensionality}.
+\item Agda, however, is stricter than that: they have to have exactly the same program text!
+\item We can change this by adding a postulate:
+\begin{code}
+postulate
+  extensionality : ∀ {A B : Set} {f g : A → B} →
+                   (∀ (x : A) → f x ≡ g x) →
+                   -------------------------
+                              f ≡ g
+
+\end{code}
+\item To see this in action, consider a version of addition defined by recursion on the right:
+\begin{code}
+_+′_ : ℕ → ℕ → ℕ
+m +′ zero = m
+m +′ (suc n) = suc (m +′ n)
+\end{code}
+\item It's easy to show that this has the same input-output behavior as plus:
+\begin{code}
+same-app : ∀ (m n : ℕ) → m +′ n ≡ m + n
+same-app m n rewrite +-comm m n = helper m n
+  where
+  helper : ∀ (m n : ℕ) → m +′ n ≡ n + m
+  helper m zero = refl
+  helper m (suc n) = cong suc (helper m n)
+\end{code}
+\item However, in order to prove that the functions are \emph{equal}, we must use extensionality.
+\begin{code}
+same : _+′_ ≡ _+_
+same = extensionality λ x → extensionality λ y → same-app x y
+\end{code}
+\end{itemize}
+
+\section{Isomorphism}
+\label{sec:isomorphism}
+
+\begin{itemize}
+\item For two types to be \emph{equal}, they have to be syntactically the same.
+\item We often care about something weaker: we can \emph{transform} data from one type to another \emph{losslessly}.
+\item I.e., the two types are \emph{isomorphic} (written $A \simeq B$):
+\begin{code}
+infix 0 _≃_
+record _≃_ (A B : Set) : Set where
+  field
+    to : A → B
+    from : B → A
+    from∘to : ∀ (x : A) → from (to x) ≡ x
+    to∘from : ∀ (x : B) → to (from x) ≡ x
+
+open _≃_
+\end{code}
+\item This is our first time seeing an agda record type.
+  They work pretty much just like ocaml types.
+\item Isomorphism is an equivalence relation.
+  Proving reflexivity and symmetry are pretty easy:
+\begin{code}
+≃-refl : ∀ {A : Set} → A ≃ A
+≃-refl =
+  record
+  {
+    to      = λ x → x
+  ; from    = λ y → y
+  ; from∘to = λ x → refl
+  ; to∘from = λ y → refl
+  }
+
+-- Another syntax, which agda-mode will help you with
+-- We tend to prefer the record syntax above
+≃-sym : ∀ {A B : Set} → A ≃ B → B ≃ A
+≃-sym A≃B .to = from A≃B
+≃-sym A≃B .from = to A≃B
+≃-sym A≃B .from∘to = to∘from A≃B
+≃-sym A≃B .to∘from = from∘to A≃B
+\end{code}
+\item You can use either syntax, but should probably prefer the former more ocaml-like one.
+\item Transitivity is a little harder, and requires defining function composition.
+  (Or at least, it's a lot easier if you define function composition.)
+\begin{code}
+_∘_ : ∀ {A B C : Set} → (B → C) → (A → B) → A → C
+g ∘ f = λ x → g (f x)
+
+
+≃-trans : ∀ {A B C : Set} → A ≃ B → B ≃ C → A ≃ C
+≃-trans A≃B B≃C =
+  record
+  {
+    to      = to B≃C ∘ to A≃B
+  ; from    = from A≃B ∘ from B≃C
+  ; from∘to = λ {x →
+      begin
+        (from A≃B ∘ from B≃C) ((to B≃C ∘ to A≃B) x)
+      ≡⟨⟩
+        from A≃B (from B≃C (to B≃C (to A≃B x)))
+      ≡⟨ cong (from A≃B) (from∘to B≃C (to A≃B x)) ⟩
+        from A≃B (to A≃B x)
+      ≡⟨ from∘to A≃B x ⟩
+        x
+      ∎}
+  ; to∘from = λ {x → 
+     begin
+       (to B≃C ∘ to A≃B) ((from A≃B ∘ from B≃C) x)
+     ≡⟨⟩
+       to B≃C (to A≃B (from A≃B (from B≃C x)))
+     ≡⟨ cong (to B≃C) (to∘from A≃B (from B≃C x)) ⟩
+       to B≃C (from B≃C x)
+     ≡⟨ to∘from B≃C x ⟩
+       x
+     ∎}
+  }
+\end{code}
+\end{itemize}
+
+\newpage
+\section{Embedding}
+\label{sec:embedding}
+
+\begin{itemize}
+\item Sometimes, we can transform data from one type to another, but it's not lossless in both directions.
+\item This is an \emph{embedding}, and it is also important.
+\begin{code}
+infix 0 _≲_
+record _≲_ (A B : Set) : Set where
+  field
+    to      : A → B
+    from    : B → A
+    from∘to : ∀ (x : A) → from (to x) ≡ x
+open _≲_
+\end{code}
+\item It is easy to see that embedding is a preorder:
+\begin{code}
+≲-refl : ∀ {A : Set} → A ≲ A
+≲-refl =
+  record
+  {
+    to = λ{x → x}
+  ; from = λ{x → x}
+  ; from∘to = λ{x → refl}
+  }
+
+≲-trans : ∀ {A B C : Set} → A ≲ B → B ≲ C → A ≲ C
+≲-trans A≲B B≲C =
+  record
+  {
+    to      = to B≲C ∘ to A≲B
+  ; from    = from A≲B ∘ from B≲C
+  ; from∘to = λ {x →
+    begin
+      (from A≲B ∘ from B≲C) ((to B≲C ∘ to A≲B) x)
+    ≡⟨⟩
+      from A≲B (from B≲C (to B≲C (to A≲B x)))
+    ≡⟨ cong (from A≲B) (from∘to B≲C (to A≲B x)) ⟩
+      from A≲B (to A≲B x)
+    ≡⟨ from∘to A≲B x ⟩
+      x
+    ∎}
+  }
+\end{code}
+\item However, it is not quite a partial order, even up to isomorphism.
+  \newpage
+\item Instead, we only get antisymmetry if the evidence for each direction is dual:
+\begin{code}
+≲-antisym : ∀ {A B : Set} →
+  (A≲B : A ≲ B) →
+  (B≲A : B ≲ A) →
+  (to A≲B ≡ from B≲A) →
+  (from A≲B ≡ to B≲A) →
+  A ≃ B
+≲-antisym A≲B B≲A to≡from from≡to =
+  record
+  {
+    to      = to A≲B
+  ; from    = from A≲B
+  ; from∘to = from∘to A≲B
+  ; to∘from = λ {y →
+     begin
+       to A≲B (from A≲B y)
+     ≡⟨ cong (to A≲B) (cong-app y from≡to) ⟩
+       to A≲B (to B≲A y)
+     ≡⟨ cong-app (to B≲A y) to≡from ⟩
+       from B≲A (to B≲A y)
+     ≡⟨ from∘to B≲A y ⟩
+       y
+     ∎}
+  }
+\end{code}
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

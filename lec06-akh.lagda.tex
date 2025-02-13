@@ -1,0 +1,404 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+
+\title{Connectives}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{6}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec06-akh where
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl)
+open Eq.≡-Reasoning
+open import Data.Nat using (ℕ)
+open import Function using (_∘_)
+open import Isomorphism using (_≃_; _≲_; extensionality)
+open Isomorphism.≃-Reasoning
+\end{code}
+
+\section{Conjunction}
+\label{sec:conjunction}
+
+\begin{itemize}
+\item In logic, we say that $A$ and $B$ (written $A \land B$) is true if both $A$ is true and $B$ is true.
+\item In agda, we need to reason about evidence.
+  What should evidence of $A \land B$ be?
+\item It's a pair of evidence for $A$ and evidence for $B$.
+\item This is called a \emph{product type}.
+\begin{code}
+record _×_ (A B : Set) : Set where
+  constructor ⟨_,_⟩
+  field
+    proj₁ : A
+    proj₂ : B
+
+open _×_
+
+infixr 2 _×_
+\end{code}
+\item Here, \textsf{⟨\_,\_⟩} is the constructor for the record.
+\item We say that it \emph{introduces} the conjunction, while \textsf{proj₁} and \textsf{proj₂} \emph{eliminate} it.
+\item Importantly, if we eliminate a product type and then rebuild it, we get the same thing back:
+\begin{code}
+η-× : ∀ {A B : Set} (w : A × B) → ⟨ proj₁ w , proj₂ w ⟩ ≡ w
+η-× w = refl
+\end{code}
+\pagebreak
+\item Note that the $\eta$ law holds \emph{by definition}.
+  We could use a one-constructor data type instead of a record, but then \textsf{η-×} requires a pattern match.
+  This is why we prefer records over one-constructor data types; otherwise, they are equivalent.
+\begin{code}
+data _×′_ (A B : Set) : Set where
+  ⟨_,_⟩′ :
+     A →
+     B →
+  --------
+   A ×′ B
+
+proj₁′ : ∀ {A B : Set} →
+  A ×′ B →
+  --------
+     A
+proj₁′ ⟨ a , b ⟩′ = a
+
+proj₂′ : ∀ {A B : Set} →
+  A ×′ B →
+  --------
+      B
+proj₂′ ⟨ a , b ⟩′ = b
+
+η-×′ : ∀ {A B : Set} (w : A ×′ B) → ⟨ proj₁′ w , proj₂′ w ⟩′ ≡ w
+η-×′ ⟨ a , b ⟩′ = refl --note that we have to pattern match here!
+\end{code}
+\item You might wonder why product types are called that.
+  On types with a finite number of values, product types multiply the number of values, so they ``act like'' products!
+\begin{code}
+data Bool : Set where
+  true : Bool
+  false : Bool
+
+data Tri : Set where
+  aa : Tri
+  bb : Tri
+  cc : Tri
+
+×-count : Bool × Tri → ℕ
+×-count ⟨ true , aa ⟩  = 1
+×-count ⟨ true , bb ⟩  = 2
+×-count ⟨ true , cc ⟩  = 3
+×-count ⟨ false , aa ⟩ = 4
+×-count ⟨ false , bb ⟩ = 5
+×-count ⟨ false , cc ⟩ = 6
+\end{code}
+\pagebreak
+\item They act like products in other ways, too.
+  In particular, type-level product is commutative and associative, just like multiplication.
+  However, this is not true on the nose.
+  After all \textsf{Bool × Tri} is different than \textsf{Tri × Bool}, since the order of elements changes.
+  Commutativity and associativity, then, are weakened to be \emph{up to isomorphism}.
+\begin{code}
+×-comm : ∀ {A B : Set} → A × B ≃ B × A
+×-comm =
+  record
+  {
+    to      = λ { ⟨ x , y ⟩ →  ⟨ y , x ⟩ }
+  ; from    =  λ { ⟨ y , x ⟩ → ⟨ x , y ⟩ }
+  ; to∘from = λ {w → refl } 
+  ; from∘to = λ {w → refl}
+  }
+
+×-assoc : ∀ {A B C : Set} → (A × B) × C ≃ A × (B × C)
+×-assoc =
+  record
+  {
+    to      =  λ { ⟨ ⟨ x , y ⟩ , z ⟩ →  ⟨ x , ⟨ y , z ⟩ ⟩ }
+  ; from    =  λ { ⟨ x , ⟨ y , z ⟩ ⟩ →  ⟨ ⟨ x , y ⟩ , z ⟩ }
+  ; from∘to = λ {w → refl}
+  ; to∘from = λ {w → refl}
+  }
+\end{code}
+\end{itemize}
+
+\section{Truth}
+\label{sec:truth}
+
+\begin{itemize}
+\item In logic, the proposition $\top$ is always true.
+  \begin{itemize}
+  \item Note this is not a capital~T!
+    Instead, it is written \textsf{\textbackslash{}top}, in both \LaTeX and agda.
+  \end{itemize}
+\item In terms of evidence, the evidence for $\top$ is trivial to find.
+\begin{code}
+record ⊤ : Set where
+  constructor tt
+\end{code}
+\item Importantly, there is only one way to build a value of $\top$.
+  We formalize this with another $\eta$ law.
+\begin{code}
+η-⊤ : ∀ (w : ⊤) → tt ≡ w
+η-⊤ w = refl    
+\end{code}
+\item $\top$ acts for $\times$ like $1$ does for multiplication.
+  In some settings, people use $1$ to mean $\top$.
+\begin{code}
+⊤-identityˡ : ∀ {A : Set} → ⊤ × A ≃ A
+⊤-identityˡ =
+  record
+  {
+    to      =  λ { ⟨ w , x ⟩ → x }
+  ; from    =  λ {x → ⟨ tt , x ⟩ }
+  ; from∘to = λ { w → refl}
+  ; to∘from = λ {x → refl}
+  }
+
+⊤-identityʳ : ∀ {A : Set} → A × ⊤ ≃ A
+⊤-identityʳ {A} =
+  ≃-begin
+    (A × ⊤)
+  ≃⟨ ×-comm ⟩
+    (⊤ × A)
+  ≃⟨ ⊤-identityˡ ⟩
+    A
+  ≃-∎    
+\end{code}
+\begin{itemize}
+\item We wrote \textsf{⊤-identityʳ} using chains of isomorphisms.
+  We could have written it explicitly, and we would have gotten the same thing.
+\begin{code}
+⊤-identityʳ′ : ∀ {A : Set} → A × ⊤ ≃ A
+⊤-identityʳ′ =
+  record
+  {
+    to      =  λ { ⟨ x , w ⟩ → x }
+  ; from    = λ { x → ⟨ x , tt ⟩ }
+  ; from∘to =  λ { w → refl}
+  ; to∘from =  λ {x → refl}
+  }
+
+⊤-identity-≡ : ∀ {A : Set} → ⊤-identityʳ {A} ≡ ⊤-identityʳ′ {A}
+⊤-identity-≡ = refl
+\end{code}
+\end{itemize}
+\end{itemize}
+
+\section{Disjunction}
+\label{sec:disjunction}
+
+\begin{itemize}
+\item In logic, we write $A \lor B$ to mean that either $A$ is true or $B$ is true.
+\item Evidence-wise, we need to give evidence of either $A$ or $B$.
+  In agda, we do this by using an inductive type:
+\begin{code}
+data _⊎_ (A B : Set) : Set where
+  inj₁ :
+       A →
+    -------
+     A ⊎ B
+
+  inj₂ :
+       B →
+    -------
+     A ⊎ B
+
+infixr 1 _⊎_ -- A × C ⊎ B × C ≡ (A × C) ⊎ (B × C)    
+\end{code}
+\item Just like how $\times$ acts like multiplication, $\uplus$ acts like addition.
+\begin{code}
+⊎-count : Bool ⊎ Tri → ℕ
+⊎-count (inj₁ true)  = 1
+⊎-count (inj₁ false) = 2
+⊎-count (inj₂ aa)    = 3
+⊎-count (inj₂ bb)    = 4
+⊎-count (inj₂ cc)    = 5
+\end{code}
+\item It is also associative and commutative, which you will prove in your homework.
+\end{itemize}
+
+\section{Falsity}
+\label{sec:falsity}
+
+\begin{itemize}
+\item The logical statement $\bot$ is never true.
+  In fact, it is false!
+\item From an evidence perspective, there is no possible evidence of falsity.
+  In agda, we can write this as a data type with no constructors:
+\begin{code}
+data ⊥ : Set where
+--nothing!    
+\end{code}
+\item If you can give me evidence for something for which there is no evidence, then I can give you anything you like.
+  After all, you'll never fulfill your side of the bargain.
+\begin{code}
+⊥-elim : ∀ {A : Set} →
+   ⊥ →
+  ---
+   A
+⊥-elim () -- absurd pattern    
+\end{code}
+\begin{itemize}
+\item Here, the pattern \textsf{()} is an \emph{absurd pattern}.
+  \begin{itemize}
+  \item Absurd patterns are used when there are no possible patterns for something.
+  \end{itemize}
+\item \textsf{⊥-elim} is also known as \emph{ex falso} (short for \emph{ex falso quod libet}) meaning ``from false comes anything.''
+\item You can think of it like ``if pigs had wings, then I'd be the Queen of Sheba.''
+\end{itemize}
+\item Since there are no elements of $\bot$, \textsf{⊥-elim} is in fact the \emph{only} function out of $\bot$!
+\begin{code}
+uniq-⊥ : ∀ {C : Set} (h : ⊥ → C) (w : ⊥) → ⊥-elim w ≡ h w
+uniq-⊥ h ()    
+\end{code}
+\end{itemize}
+
+\section{Implication}
+\label{sec:implication}
+
+\begin{itemize}
+\item In logic, $A \to B$ means ``if $A$, then $B$.''
+\item In agda, we can think of this as ``if you give me evidence of $A$, I'll give you evidence of $B$.''
+  \begin{itemize}
+  \item But that's just functions!
+  \item We've been using functions this way all along.
+  \end{itemize}
+\item Function spaces (i.e., types $A \to B$) are sometimes known as ``exponentials.''
+  They can be written $B^A$.
+\item In fact, they act a lot like exponentials!
+  \begin{itemize}
+  \item On finite sets, they give an exponential number of elements.
+\begin{code}
+→-count : (Bool → Tri) → ℕ
+→-count f with f true | f false 
+... | aa | aa = 1
+... | aa | bb = 2
+... | aa | cc = 3
+... | bb | aa = 4
+... | bb | bb = 5
+... | bb | cc = 6
+... | cc | aa = 7
+... | cc | bb = 8
+... | cc | cc = 9      
+\end{code}
+\item They follow the law $(p^n)^m = p^{(nm)}$:
+\begin{code}
+currying : ∀ {A B C : Set} → (A → B → C) ≃ (A × B → C)
+currying =
+  record
+  {
+    to      = λ {f → λ { ⟨ x , y ⟩ → f x y}}
+  ; from    = λ {g → λ {x → λ {y → g ⟨ x , y ⟩}}}
+  ; from∘to = λ {f → refl }
+  ; to∘from = λ {g → refl }
+  }    
+\end{code}
+\begin{itemize}
+\item You should recognize currying from OCaml!
+\end{itemize}
+\item They follow the law $p^{n + m} = p^n p^m$:
+\begin{code}
+→-distrib-⊎ : ∀ {A B C : Set} → (A ⊎ B → C) ≃ ((A → C) × (B → C))
+→-distrib-⊎ =
+  record
+  {
+    to      = λ {f → ⟨ f ∘ inj₁ , f ∘ inj₂ ⟩}
+  ; from    = λ { ⟨ g , h ⟩ → λ { (inj₁ x) → g x ; (inj₂ y) → h y}}
+  ; from∘to = λ {f → extensionality λ { (inj₁ x) → refl ; (inj₂ y) → refl}}
+  ; to∘from = λ {_ → refl}
+  }    
+\end{code}
+\item Finally, they follow the law $(pn)^m = p^m n^m$:
+\begin{code}
+→-distrib-× : ∀ {A B C : Set} → (A → B × C) ≃ (A → B) × (A → C)
+→-distrib-× =
+  record
+  {
+    to      = λ {f → ⟨ proj₁ ∘ f , proj₂ ∘ f ⟩}
+  ; from    = λ { ⟨ g , h ⟩ → λ x → ⟨ g x , h x ⟩}
+  ; from∘to = λ {f → refl}
+  ; to∘from =  λ { ⟨ g , h ⟩ → refl }
+  }    
+\end{code}
+  \end{itemize}
+\end{itemize}
+
+\newpage
+\section{Distribution}
+\label{sec:distribution}
+
+\begin{itemize}
+\item Product and sum act \emph{with respect to each other} like multiplication and addition... almost.
+\item Product distributes over sum up to isomorphism:
+\begin{code}
+×-distrib-⊎ : ∀ {A B C : Set} → (A ⊎ B) × C ≃ (A × C) ⊎ (B × C)
+×-distrib-⊎ =
+  record
+  {
+    to      = λ { ⟨ inj₁ x , z ⟩ → inj₁ ⟨ x , z ⟩ ; ⟨ inj₂ y , z ⟩ → inj₂ ⟨ y , z ⟩}
+  ; from    = λ { (inj₁ ⟨ x , z ⟩) → ⟨ inj₁ x , z ⟩ ; (inj₂ ⟨ y , z ⟩) → ⟨ inj₂ y , z ⟩}
+  ; from∘to = λ { ⟨ inj₁ x , z ⟩ → refl
+                ; ⟨ inj₂ y , z ⟩ → refl
+                }
+  ; to∘from = λ { (inj₁ ⟨ x , z ⟩) → refl
+                ; (inj₂ ⟨ y , z ⟩) → refl
+                }
+  }    
+\end{code}
+\item While sum only distributes over sum up to \emph{embedding}.
+  Why is it only an embedding?
+\begin{code}
+⊎-distrib-× : ∀ {A B C : Set} → (A × B) ⊎ C ≲ (A ⊎ C) × (B ⊎ C)
+⊎-distrib-× =
+  record
+  {
+    to      = λ { (inj₁ ⟨ x , y ⟩) → ⟨ inj₁ x , inj₁ y ⟩ ; (inj₂ z) → ⟨ inj₂ z , inj₂ z ⟩}
+  ; from    = λ { ⟨ inj₁ x , inj₁ y ⟩ → inj₁ ⟨ x , y ⟩
+                ; ⟨ inj₁ x , inj₂ z ⟩ → inj₂ z
+                ; ⟨ inj₂ z , _ ⟩ → inj₂ z
+                }
+  ; from∘to = λ { (inj₁ ⟨ x , y ⟩) → refl
+                ; (inj₂ z) → refl
+                }
+  }    
+\end{code}
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
