@@ -1,0 +1,248 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+
+\title{Negation}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{7}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec07-akh where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl)
+open Eq.≡-Reasoning
+open import Data.Nat using (ℕ; zero; suc; _+_)
+open import Data.Nat.Properties using (+-comm)
+open import Isomorphism using (_≃_; _≲_; extensionality; _⇔_)
+open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+\end{code}
+
+\section{Defining Negation}
+\label{sec:defining-negation}
+
+\begin{itemize}
+\item In logic, if $A$ is true, then $\lnot A$ is false, and vice-versa.
+\item In agda, we have to come up with something that has evidence when $A$ does not have any evidence, but does not have evidence when $A$ has evidence.
+  \begin{itemize}
+  \item The only type we know without evidence is $\bot$.
+  \item If you can produce $\bot$ from evidence of an $A$, then $A$ must not have any evidence.
+  \item Conversely, if $A$ has no evidence, you can build a function $A \to \bot$ by pattern matching.    
+  \end{itemize}
+\item We can formalize this as follows:
+\begin{code}
+¬_ : Set → Set
+¬ A = A → ⊥
+
+infix 3 ¬_    
+\end{code}
+\item It is impossible to have evidence of both $A$ and $\lnot A$.
+\begin{code}
+¬-elim : ∀ {A : Set} →
+  ¬ A →
+    A →
+  ------
+    ⊥
+¬-elim ¬x x = ¬x x  
+\end{code}
+\item Moreover, if we have evidence of $A$, it's impossible to get evidence of $\lnot A$.
+\begin{code}
+¬¬-intro : ∀ {A : Set} →
+     A →
+  -------
+   ¬ ¬ A
+¬¬-intro x = λ {¬x → ¬x x}    
+\end{code}
+\item That's exactly what we wanted to say that this is evidence of negation!
+\item One logical principle that can be very useful is \emph{contraposition}: if $A$ implies $B$, then $\lnot B$ implies $\lnot A$.
+  Note the switch!
+  It's easy to prove this in agda.
+\end{itemize}
+
+\section{Proofs of Negation}
+\label{sec:proofs-negation}
+\begin{itemize}
+\item If we assume function extensionality, then the fact that there are no proofs of $\bot$ means that proofs of negation are unique.
+\item For instance, there is exactly one proof of $\bot \to \bot$.
+\item There are two obvious ways to prove such a thing, but they are equal.
+\begin{code}
+id-⊥ : ⊥ → ⊥
+id-⊥ x = x
+
+id-⊥′ : ⊥ → ⊥
+id-⊥′ ()
+
+id≡id′ : id-⊥ ≡ id-⊥′
+id≡id′ = extensionality (λ())    
+\end{code}
+\item In fact, for any proposition there is at most one proof of negation.
+  \begin{itemize}
+  \item To see this, imagine that I have two proofs~$f$ and~$g$ of $\lnot \varphi$.
+  \item Then, imagine that I have evidence~$x$ of $\varphi$.
+  \item We need to prove that $f(x)$ and $g(x)$ are equal.
+  \item We can prove this by ex~falso, since $f(x) : \bot$!
+  \end{itemize}
+\item We can formalize this as follows:
+\begin{code}
+assimilation : ∀ {A : Set} (¬x ¬y : ¬ A) → ¬x ≡ ¬y
+assimilation ¬x ¬y = extensionality (λ x → ⊥-elim (¬x x))    
+\end{code}
+\end{itemize}
+
+\section{Inequality}
+\label{sec:inequality}
+
+\begin{itemize}
+\item We can easily define inequality using negation:
+\begin{code}
+_≢_ : ∀ {A : Set} → A → A → Set
+t ≢ u = ¬ (t ≡ u)    
+\end{code}
+\item Proving concrete things inequal can be done via absurd patterns.
+\begin{code}
+_ : 1 ≢ 2
+_ = λ ()    
+\end{code}
+\begin{itemize}
+\item This is the first time we've seen an absurd pattern in a lambda.
+  It is not any different any other place we've seen it.
+\end{itemize}
+\item In fact, agda can see that anything with different constructors is different, without fuss.
+\begin{code}
+peano : ∀ {m : ℕ} → zero ≢ suc m
+peano = λ()    
+\end{code}
+\item However, not everything is like this.
+  If we try to prove $\forall m.\,m \not\equiv (m + 1)$ with \textsf{λ()}, agda will not accept it.
+  After all, it doesn't know whether they have different constructors!
+\item However, we can use +-comm to convince agda that they do.
+\begin{code}
+plus-inequal : ∀ {m : ℕ} → m ≢ (m + 1)
+plus-inequal {m} rewrite +-comm m 1 = λ()    
+\end{code}
+\end{itemize}
+
+\pagebreak
+\section{Double Negation}
+\label{sec:double-negation}
+
+\begin{itemize}
+\item One important operator in logic is the \emph{double negation} operator.
+  It's just two applications of negation.
+\begin{code}
+¬¬ : Set → Set
+¬¬ A = ¬ ¬ A    
+\end{code}
+\item In English, negating something twice makes it positive again.
+  \begin{itemize}
+  \item ``It's not not good'' means it's bad.
+  \end{itemize}
+\item This is \emph{double-negation elimination}.
+\item However, this doesn't work in agda. (Why not?)
+\item If it was and you knew that $\lnot A$ had no evidence, then you'd have to be able to find evidence of $A$.
+\item But that's just not how it works!
+  \begin{itemize}
+  \item This is a really important point in science: just because you've found there is no evidence something isn't there, doesn't mean you have evidence it is there.
+  \end{itemize}
+\item The idea that you cannot magic up evidence is the core idea of \emph{intuitionistic} or \emph{constructive} logic, as opposed to \emph{classical} logic.
+\item This also means that intuitionistic logic rejects \emph{the law of the excluded middle} (which states that $A \lor \lnot A$ holds for any $A$).
+  \begin{itemize}
+  \item Otherwise, we're magicking up evidence for either $A$ or $\lnot A$.
+  \item This is related to the \emph{decision problem}: there are true-or-false questions that no program can reliably answer.
+  \end{itemize}
+\item One consequence of this: if you have evidence of $A \lor B$, then you can read from that evidence \emph{which} of $A$ or $B$ holds.
+\item While we can't get rid of double negation in general, we can get rid of it on top of another negation.
+\begin{code}
+¬¬¬-elim : ∀ {A : Set} →
+  ¬¬ (¬ A) →
+  ---------
+    ¬ A
+¬¬¬-elim ¬¬¬x x = ¬¬¬x (¬¬-intro x)    
+\end{code}
+\item Moreover, we can do our reasoning under double negation:
+\begin{code}
+¬¬-bind : ∀ {A B : Set} →
+   (A → ¬¬ B) →
+     ¬¬ A →
+  ------------
+     ¬¬ B
+       
+¬¬-bind f ¬¬x ¬y = ¬¬x (λ {x → f x ¬y})    
+\end{code}
+\begin{itemize}
+\item Those of you that took CSE~505 with me will recognize that this makes $\mathord{\lnot}\mathord{\lnot}$ a \emph{monad}.
+\end{itemize}
+\newpage
+\item In particular, we can do \emph{classical} reasoning under $\mathord{\lnot}\mathord{\lnot}$.
+\begin{code}
+em-irrefutable : ∀ {A : Set} → ¬¬ (A ⊎ ¬ A)
+em-irrefutable = λ {k → k (inj₂ (λ {x → k (inj₁ x)}))}
+\end{code}
+  \begin{itemize}
+  \item This is hard to understand without walking through it.
+    Luckily, we have agda to help!
+  \item We start out by creating a hole:
+
+    \begin{center}\textsf{em-irrefutable k = ?}\end{center}
+  \item We now have $k \colon \textsf{¬ (A ⊎ ¬ A)}$, and we need to prove $\bot$.
+  \item The only chance we have is applying \textsf{k}.
+
+    \begin{center}\textsf{em-irrefutable k = k ?}\end{center}
+  \item Now, we need to prove \textsf{A ⊎ ¬ A}.
+    We don't have any chance of proving $A$, so let's take the second option.
+
+    \begin{center}\textsf{em-irrefutable k = k (inj₂ (λ {x → ?}))}\end{center}
+  \item Now we have $x \colon \textsf{A}$, and we need to prove $\bot$ again.
+    Yet again, the only chance we have is to apply $k$.
+
+    \begin{center}\textsf{em-irrefutable = λ {k → k (inj₂ (λ {x → k ?}))}}\end{center}
+  \item Now we need to prove \textsf{A ⊎ ¬ A} again.
+    This may be worrying: it feels like we're caught in a loop!
+    But now, we know that \textsf{A} holds, so we can take the other option.
+
+    \begin{center}\textsf{em-irrefutable = λ {k → k (inj₂ (λ {x → k (inj₁ x)}))}}\end{center}
+  \item And we're done!
+  \end{itemize}
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
