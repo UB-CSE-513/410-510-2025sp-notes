@@ -1,0 +1,191 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathtools}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+\newcommand{\funcdef}[4]{#1 \colon #2 #3 #4}
+\newcommand{\totfunc}[3]{\funcdef{#1}{#2}{\rightarrow}{#3}}
+\newcommand{\parfunc}[3]{\funcdef{#1}{#2}{\rightharpoonup}{#3}}
+\newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+\newcommand{\lift}[1]{#1_\bot}
+\newcommand{\semapp}[2]{\sem{#1}(#2)}
+\newcommand{\semappsig}[1]{\semapp{#1}{\sigma}}
+\newcommand{\imp}[1]{\textsf{#1}}
+
+
+\title{Denotational Semantics}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{11}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Motivation}
+With operational semantics, we expressed evaluation in ``the way a computer does it".
+However, in practice, we often want to consider our programs as being members in a mathematical space.
+This provides us with several benefits:
+\begin{itemize}
+  \item We can apply abstractions that don't exist within programming.
+  \item We can talk about mathematical objects rather than programs,
+    which allows us to leverage potentially thousands of years of intuitions versus a few decades of programming intuitions.
+\end{itemize}
+
+As an example, functions in a programming language generally take in inputs of a certain type and produce outputs of a certain type.
+Modeling functions in a programming language as mathematical functions gives us access to insights about functions as well as language-agnostic ways of speaking about concepts like recursion, higher-order functions, or currying.
+
+\section{Denotational Semantics}
+Let $a, b, c$ be any AExpr, BExpr, or CExpr, respectively.
+We can define denotational semantics for each of them as
+\begin{align*}
+  \totfunc{\sem{a}&}{\text{state}}{\mathbb{N}}\\
+  \totfunc{\sem{b}&}{\text{state}}{\textbf{2}}\\
+  \parfunc{\sem{c}&}{\text{state}}{\text{state}}
+\end{align*}
+
+One should notice that the semantics $\sem{c}$ are defined as a partial function.
+This is done because there are certain commands that produce non-terminating programs.
+We will say $\semappsig{c} = \bot$ if the command does not terminate.
+All that's left is to define each function.
+
+\subsection{AExpr}
+\[
+  \semappsig{a} = \begin{cases}
+    n & a = \widetilde{n}\\
+    \sigma(x)  & a = x\\
+    \semappsig{a_1} + \semappsig{a_2}  & a = a_1 + a_2\\
+    \semappsig{a_1} - \semappsig{a_2}  & a = a_1 - a_2\\
+    \semappsig{a_1} * \semappsig{a_2}  & a = a_1 * a_2
+  \end{cases}
+\]
+
+\subsection{BExpr}
+\[
+  \semappsig{b} = \begin{cases}
+   \imp{false} & b = \imp{false}\\
+   \imp{true}  & b = \imp{true}\\
+    \semappsig{b_1} \wedge \semappsig{b_2} & b = b_1\wedge b_2\\
+    \semappsig{b_1} \vee \semappsig{b_2} & b = b_1\vee b_2\\
+   \imp{true} & b = a_1 == a_2~\&~\semappsig{a_1} = \semappsig{a_2}\\
+   \imp{false} & b = a_1 == a_2~\&~\semappsig{a_1} \ne \semappsig{a_2}\\
+   \imp{true} & b = a_1 < a_2~\&~\semappsig{a_1} < \semappsig{a_2}\\
+   \imp{false} & b = a_1 < a_2~\&~\semappsig{a_1} \nless \semappsig{a_2}\\
+   \imp{true} & b = !b_1~\&~\semappsig{b_1} = \imp{false}\\
+   \imp{false} & b = !b_1~\&~\semappsig{b_1} = \imp{true}\\
+  \end{cases}
+\]
+
+\subsection{CExpr}
+The semantics for commands follows a similar structure, with the only deviation occuring with the semantics for a $\imp{while}$ loop.
+
+\[
+  \semappsig{c} = \begin{cases}
+    \sigma & c = \imp{skip}\\
+    \sigma[x \mapsto \semappsig{e}]  & c = x \coloneq e \\
+    \semapp{c_2}{\semappsig{c_1}} & c = c_1; c_2\\
+    % \semapp{c_2}{\semappsig{c_1}} & c = c_1; c_2~\&~\semappsig{c_1} \neq \bot\\
+    % \bot & c = c_1; c_2~\&~\semappsig{c_1} = \bot\\
+    \sem{c_1}(\sigma) & c = \imp{if}~b~\imp{then}~c_1~\imp{else}~c_2~\&~\sem{b}(\sigma)~=~\imp{true}\\
+    \sem{c_2}(\sigma) & c = \imp{if}~b~\imp{then}~c_1~\imp{else}~c_2~\&~\sem{b}(\sigma)~=~\imp{false}\\
+    \text{fix}(\Gamma) & c = \imp{while}~b~\imp{do}~c'\\
+  \end{cases}
+\]
+
+\noindent We can define $\Gamma$ as
+\[
+  \Gamma(f)(\sigma) = \begin{cases}
+    f(\semappsig{c}) & \semappsig{b} = true \\
+    \sigma  & \semappsig{b} = false \\
+  \end{cases}
+\]
+
+\noindent This may make more sense by looking at an equivalent program.
+\begin{gather*}
+  w \equiv \imp{while}~b~\imp{do}~c \\
+  w \sim \imp{if}~b~\imp{then}~c;w~\imp{else}~\imp{skip}
+\end{gather*}
+
+\noindent The semantics of both of these programs should be equivalent, which means $\sem{w} = \sem{\imp{if}~b~\imp{then}~c;w~\imp{else}~\imp{skip}}$.
+However, it is hopefully obvious to see that
+
+\[
+  \semappsig{w} = \semappsig{\imp{if}~b~\imp{then}~c;w~\imp{else}~\imp{skip}} = \Gamma(\sem{w})(\sigma)
+\]
+
+\noindent This means $\sem{w}$ should be a fixed point of $\Gamma$.
+\begin{defn}[Fixed Point]
+  For a function $\totfunc{f}{X}{X}$, a fixed point of $f$ is an element $x \in X$ such that
+  \[
+    x = f(x)
+  \]
+\end{defn}
+
+\noindent More specifically, we want $\sem{w}$ to be a \textit{least fixed-point} of $\Gamma$, which we denote as $\text{fix}(\Gamma)$.
+If we have a least fixed point $x$ of a function $f$, given any other fixed point $y$ for $f$, we have
+\[
+  x \leq y 
+\]
+
+\subsubsection{Partial Function Ordering}
+\noindent It's easy to see the type of $\totfunc{\Gamma}
+                                                {(\text{state}\rightharpoonup\text{state})}
+                                                {(\text{state}\rightharpoonup\text{state})}$.
+How do we order partial functions so that we can find a least fixed-point?
+
+\begin{defn}[Order for Partial Functions]
+  Given $\parfunc{f,g}{X}{Y}$, $f \leq g$ if $\forall x,y$ $f(x) = y$, then $g(x) = y$.
+\end{defn}
+
+\subsubsection{fix(\Gamma) Examples}
+Let's look at a few example programs to get a feel for $\text{fix}(\Gamma)$.
+Take the following program
+\[
+  \sem{\imp{while}~\imp{true}~\imp{do}~\imp{i}\coloneq\imp{i+1}}
+\]
+
+We can write $\Gamma$ as
+\[
+  \Gamma(f)(\sigma) = \begin{cases}
+    f(\sigma[i \mapsto \sigma(i) + 1]) & true \\
+    \sigma & false
+  \end{cases}
+\]
+
+\noindent Our semantics require a least fixed point, so the smallest $g$ such that $g(\sigma) = \Gamma(g)(\sigma)$.
+A good candidate is $g(\sigma)~=~\bot$.
+We therefore have $\Gamma(g)(\sigma) = g(\sigma) = \bot$.
+There is no partial function less than $g$, so this is a least fixed-point.
+Intuitely, this means the semantics of the loop are that it never terminates.
+(Try to convince yourself that another function $h$ doesn't work as a fixed point.)
+
+For another example, let's look at the following program.
+\[
+  \left\llbracket
+  \begin{aligned}
+    & \imp{i}~\coloneq 0;\\
+    & \imp{while}~\imp{i}<5~\imp{do}~\imp{i}\coloneq~\imp{i+1}
+  \end{aligned}
+  \right\rrbracket
+\]
+
+$\Gamma$ is then
+\[
+  \Gamma(f)(\sigma) = \begin{cases}
+    f(\sigma[i \mapsto \sigma(i) + 1]) & \sigma(i) < 5 \\
+    \sigma & \sigma(i) \ge 5
+  \end{cases}
+\]
+We then find $\text{fix}(\Gamma)$ to be $\text{fix}(\Gamma)(\sigma) = \sigma[\imp{i} \mapsto 5]$.
+In other words, the semantics of this loop are the same as just setting the state of our program to have an $\imp{i}$ of 5.
+\end{document}
