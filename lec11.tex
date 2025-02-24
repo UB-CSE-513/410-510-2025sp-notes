@@ -98,7 +98,7 @@ The semantics for commands follows a similar structure, with the only deviation 
     % \bot & c = c_1; c_2~\&~\semappsig{c_1} = \bot\\
     \sem{c_1}(\sigma) & c = \imp{if}~b~\imp{then}~c_1~\imp{else}~c_2~\&~\sem{b}(\sigma)~=~\imp{true}\\
     \sem{c_2}(\sigma) & c = \imp{if}~b~\imp{then}~c_1~\imp{else}~c_2~\&~\sem{b}(\sigma)~=~\imp{false}\\
-    \text{fix}(\Gamma) & c = \imp{while}~b~\imp{do}~c'\\
+    \text{fix}(\Gamma)(\sigma) & c = \imp{while}~b~\imp{do}~c'\\
   \end{cases}
 \]
 
@@ -169,23 +169,53 @@ There is no partial function less than $g$, so this is a least fixed-point.
 Intuitely, this means the semantics of the loop are that it never terminates.
 (Try to convince yourself that another function $h$ doesn't work as a fixed point.)
 
-For another example, let's look at the following program.
+\noindent For another example, let's step through the semantics for the following program.
 \[
-  \left\llbracket
+  p = \left\llbracket
   \begin{aligned}
-    & \imp{i}~\coloneq 0;\\
+    & \imp{i}~\coloneq \imp{0};\\
     & \imp{while}~\imp{i}<5~\imp{do}~\imp{i}\coloneq~\imp{i+1}
   \end{aligned}
   \right\rrbracket
 \]
-
-$\Gamma$ is then
+Taking $w = \imp{while}~\imp{i}<5~\imp{do}~\imp{i}\coloneq~\imp{i+1}$, we compute
+\begin{align*}
+  \semappsig{p} & = \semapp{w}{\semappsig{\imp{i}\coloneq~\imp{0}}}\\
+  & = \semapp{w}{\sigma[i \mapsto 0]}\\
+  & = \text{fix}(\Gamma)(\sigma[i \mapsto 0])
+\end{align*}
+As a reminder, we have
 \[
   \Gamma(f)(\sigma) = \begin{cases}
     f(\sigma[i \mapsto \sigma(i) + 1]) & \sigma(i) < 5 \\
     \sigma & \sigma(i) \ge 5
   \end{cases}
 \]
-We then find $\text{fix}(\Gamma)$ to be $\text{fix}(\Gamma)(\sigma) = \sigma[\imp{i} \mapsto 5]$.
-In other words, the semantics of this loop are the same as just setting the state of our program to have an $\imp{i}$ of 5.
+and we want an $f$ such that $f = \Gamma(f)$.
+A valid choice for $f$ is then
+\[
+  g(\sigma) = \begin{cases}
+    \sigma[i \mapsto 5] & \sigma(i) < 5\\
+    \sigma & \sigma(i) \ge 5
+  \end{cases}
+\]
+It can be easily verified that $g = \Gamma(g)$, and therefore $g$ is a fixed-point for $\Gamma$.
+Choose a state $\sigma$ such that $\sigma(i) < 5$.
+\[
+  g(\sigma) = \sigma[i \mapsto 5] = g(\sigma[i \mapsto \sigma(i) + 1]) = \Gamma(g)(\sigma)
+\]
+Now choose a state such that $\sigma(i) \ge 5$.
+\[
+  g(\sigma) = \sigma = \Gamma(g)(\sigma)
+\]
+We ignore the details of why, but it is also the least-fixed point, meaning fix($\Gamma$) = $g$.
+Rewriting our original semantics with this information gives us
+\begin{align*}
+  \semappsig{p} & = \semapp{w}{\semappsig{\imp{i}\coloneq~\imp{0}}}\\
+  & = \semapp{w}{\sigma[i \mapsto 0]}\\
+  & = \text{fix}(\Gamma)(\sigma[i \mapsto 0])\\
+  & = g(\sigma[i \mapsto 0])\\
+  & = \sigma[i \mapsto 5]
+\end{align*}
+In other words, the semantics of this program are the same as having a state where $\imp{i}$ is 5.
 \end{document}
