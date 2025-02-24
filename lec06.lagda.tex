@@ -1,0 +1,269 @@
+ 
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+
+\title{Connectives}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{6}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+
+After many kinds of induction seen in the previous lectures, it is the time for logic in a very formal way.
+Logic is the basis of proof, and so far we have been proving things, in fact. How do proofs really work in the background?
+Much must be covered to understand this. Today we will talk of conjunctions and other logical connectives, of acidity two or zero.
+These connective appear somewhat in natural language, like with terms as "and" or "or".
+We will study these connectives without talking about semantics and truth, mind that, as it is usually done with truth tables and similar structures. 
+Let us start with the logical syntax. The language we will employ comprises atomic propositions like φ (phi) and ψ (psy), which can be further composed with the connectives.
+In order for g-for a formula "to hold", or for it "to be true" , we need evidence of that.
+The various logical connectives will be defined given the combinations of their being true or not in some metalanguage, as seen here:
+If φ  holds and ψ hods, then phi AND spy also holds
+If $\phi$ holds, then phi OR spy is also holds
+Phi then Psy holds, despite in the case where phi holds and pst does not hold.
+T (True) is a proposition that always holds, anddoes that trivially.
+$\bot$ (False) is a proposition that never holds.
+In this class we will try not to talk about truth and the metaphysical assumptions related to it, but we will prefer to talk about the evidence of a proposition.
+The zero-place connective T, for example, is a formula you always have evidence for, instead of being the formula that is always true.
+We might add that for everything your have evidence, that is true, but we leave this discussion to the epistemologists.
+In Agda, we define conjunction in this way, with the symbol of "times":
+
+\begin{code}
+record _×_ (A B : Set) : Set where
+  constructor ⟨_,_⟩
+  field
+    proj₁ : A
+    proj₂ : B
+open _×_
+\end{code}
+
+Now we can introduce the conjunction in an infix notation in this example, in which we give proof of the conjunction.
+To do this we add in the holes Agda provides us with the poof of the LHS and that of the RHS, which are the arguments of the conjunction function.
+We do not need to write the conjunction again in the goals of Agda.
+Let's try out our new connective with a simple anonymous program, to see how it works: 
+
+\begin{code}
+_: (1 ≡ 1)  x  (2 ≡ 1 + 1)
+_ = ⟨ refl , refl ⟩
+\end{code}
+
+By definition of conjunction as a data type, which is alternative to what we have just seen, we would have the following constructors.
+Mind the upper commas after the symbol of each type:
+
+\begin{code}
+data _×′_ (A B : Set) : Set where
+
+  ⟨_,_⟩′ :
+      A
+    → B
+      -----
+    → A ×′ B
+
+proj₁′ : ∀ {A B : Set}
+  → A ×′ B
+    -----
+  → A
+proj₁′ ⟨ x , y ⟩′ = x
+
+proj₂′ : ∀ {A B : Set}
+  → A ×′ B
+    -----
+  → B
+proj₂′ ⟨ x , y ⟩′ = y
+\end{code}
+
+The two definitions of conjunctions as the function `_×_` and as data type `_×′_` capture the same concept, but we need to bridge them with specific laws, called eta-laws:
+
+\begin{code}
+η-×′ : ∀ {A B : Set} (w : A ×′ B) → ⟨ proj₁′ w , proj₂′ w ⟩′ ≡ w
+η-×′ ⟨ x , y ⟩′ = refl
+\end{code}
+
+As a note, we used the lambda function because Agda prefers to do pattern matching with some function.
+Eta-laws have a similar form and they are even easier to prove for Agda.
+The evidence of A and the evidence of B are enough to prove the `A ×′ B`. Nothing else is asked more.
+Why do we call conjunction as a product? In his days, Boole was playing with a similar idea, that we can explain here.
+Consider the Boolean types and the Tri type below, which we combine in all possible ordered pairs of (Bool, Tri):
+
+\begin{code}
+data Bool : Set where
+  true  : Bool
+  false : Bool
+
+data Tri : Set where
+  aa : Tri
+  bb : Tri
+  cc : Tri
+\end{code}
+
+And instead of counting all the cases by hand, we can have a function that does that for us automatically, resulting in six cases of type `Bool × Tri`.
+
+\begin{code}
+×-count : Bool × Tri → ℕ
+×-count ⟨ true  , aa ⟩  =  1
+×-count ⟨ true  , bb ⟩  =  2
+×-count ⟨ true  , cc ⟩  =  3
+×-count ⟨ false , aa ⟩  =  4
+×-count ⟨ false , bb ⟩  =  5
+×-count ⟨ false , cc ⟩  =  6
+\end{code}
+
+All these types are finite, that is certain. Let us commute them.
+`Bool × Tri` is not the same as `Tri × Bool`, but they are isomorphic. Indeed, the right way to think of equality between types is with isomorphism.
+Let's move to a zero-place connective, truth, also called Top. Truth is trivial, we do not need to provide proof of it.
+In fact, the eta-law for truth says no further expansion is needed.
+
+\begin{code}
+record ⊤ : Set where
+constructor tt
+\end{code}
+
+The eta-laws for True are spelled out in this way:
+
+\begin{code}
+η-⊤ : ∀ (w : ⊤) → tt ≡ w
+η-⊤ w = refl
+\end{code}
+
+Moreover, the truth connective makes conjunction collapse to identity.
+
+\begin{code}
+⊤-identityˡ : ∀ {A : Set} → ⊤ × A ≃ A
+⊤-identityˡ =
+  record
+    { to      = λ{ ⟨ tt , x ⟩ → x }
+    ; from    = λ{ x → ⟨ tt , x ⟩ }
+    ; from∘to = λ{ ⟨ tt , x ⟩ → refl }
+    ; to∘from = λ{ x → refl }
+    }
+\end{code}
+
+Now it is time for disjunction, a two-place connective spelled out as a weird-looking plus with a U on the outside.
+It is a datatype with two constructors, inj1 and inj2. 
+
+\begin{code}
+data _⊎_ (A B : Set) : Set where
+  inj₁ :  A  → A ⊎ B
+  inj₂ : B → A ⊎ B
+\end{code}
+
+On finite sets, this datatype actually sums, so the symbol is appropriate.
+We see this as we did for conjunction, counting the types and their disjunction cases.
+In the case of falsity, also called Bottom, we do not have a constructor, but just a datatype.
+Why so? Because you cannot give evidence for falsity, it is impossible.
+Actually, given the logical rule of explosion, if you find the evidence of falsity, everything goes, you can derive whatever statement.
+In other words, if you are trying to prove something and you hit bottom, there is no reason to carry on with the statement you are considering.
+
+\begin{code}
+data ⊥ : Set where
+  -- no clauses!
+\end{code}
+
+There is no introduction rule for False, which would be very eerie, but there is one for elimination, as we mentioned.
+If we reached False, we can derive any statement we want, and not by chance this is also known as the rule of explosion,
+Another name of it is `ex falso quodlibe', from Latin, since tje law  was discovered in the Middle Ages.
+
+\begin{code}
+⊥-elim : ∀ {A : Set}  → ⊥  → A
+⊥-elim ()
+\end{code}
+
+Moreover, it is easy to prove that is you have two proofs of Bottom, they must be equal.
+
+\begin{code}
+uniq-⊥ : ∀ {C : Set} (h : ⊥ → C) (w : ⊥) → ⊥-elim w ≡ h w
+uniq-⊥ h ()
+\end{code}
+
+Finally, the implication connective is just a function. Given that you have evidence of the antecedent, then you have evidence of the consequent. 
+
+\begin{code}
+→-elim : ∀ {A B : Set}
+  → (A → B)
+  → A
+    -------
+  → B
+→-elim L M = L M
+\end{code}
+
+As we have learnt in baby logic classes with truth tables, there are three cases in which the implication is true, and only one in which it is false.
+This totals to nine possible combinations with the Tri type, or 3 squared.
+
+\begin{code}
+→-count : (Bool → Tri) → ℕ
+→-count f with f true | f false
+...          | aa     | aa      =   1
+...          | aa     | bb      =   2
+...          | aa     | cc      =   3
+...          | bb     | aa      =   4
+...          | bb     | bb      =   5
+...          | bb     | cc      =   6
+...          | cc     | aa      =   7
+...          | cc     | bb      =   8
+...          | cc     | cc      =   9
+\end{code}
+
+This is just a power law, we understand, and it is nothing more than currying in functional programming. 
+A note on the `with` clause appearing in the last code block.
+That special term is used for adding something to the pattern matching, and helps use reusing previous statements, like helper functions.
+It also allows to use the three dots at the beginning of each case of the matching, to avoid repeating the same thing over and over.
+A final mentions is reserved to the fact that conjunction and disjunction distribute over each other, which is spelled out like this in Agda: 
+
+\begin{code}
+×-distrib-⊎ : ∀ {A B C : Set} → (A ⊎ B) × C ≃ (A × C) ⊎ (B × C)
+×-distrib-⊎ =
+  record
+    { to      = λ{ ⟨ inj₁ x , z ⟩ → (inj₁ ⟨ x , z ⟩)
+                 ; ⟨ inj₂ y , z ⟩ → (inj₂ ⟨ y , z ⟩)
+                 }
+    ; from    = λ{ (inj₁ ⟨ x , z ⟩) → ⟨ inj₁ x , z ⟩
+                 ; (inj₂ ⟨ y , z ⟩) → ⟨ inj₂ y , z ⟩
+                 }
+    ; from∘to = λ{ ⟨ inj₁ x , z ⟩ → refl
+                 ; ⟨ inj₂ y , z ⟩ → refl
+                 }
+    ; to∘from = λ{ (inj₁ ⟨ x , z ⟩) → refl
+                 ; (inj₂ ⟨ y , z ⟩) → refl
+                 }
+    }
+\end{code}
+
+
+
+ 
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
