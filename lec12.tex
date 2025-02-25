@@ -1,0 +1,141 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\usepackage{stmaryrd}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{ᵣ}{\ensuremath{{}_{\textsf{r}}}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{∷}{\ensuremath{\mathrel{::}}}
+\newunicodechar{∀}{\ensuremath{\textsf{\forall}}}
+\newunicodechar{∎}{\ensuremath{\textsf{\blacksquare}}}
+\newunicodechar{ℕ}{\ensuremath{\mathbb{N}}}
+\newunicodechar{≤}{\ensuremath{\textsf{\le}}}
+
+\title{Axiomatic Semantics}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{12}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Axiomatic Semantics and Hoare Logic}
+
+Axiomatic semantics and Hoare Logic are similar concepts where Hoare Logic is a specific form of axiomatic semantics.
+Axiomatic semantics refers to a way of giving semantics to a programming language.
+They describe the assertions (invariants) that hold true about its state before and after executing a body of code.
+Hoare Logic uses a system called a Hoare Triple in order to portray this idea.
+A Hoare triple takes the form: \{ $P$ \} $c$ \{ $Q$ \} , where P and Q are of type: state \rightarrow \; set.
+$P$ and $Q$ represent loop invariants, and $c$ is the loop body.
+A loop invariant is a condition that holds before and after each iteration of a loop. \newline \newline
+
+\section{An Example}
+
+Statements inside of curly braces are loop invariants. \newline \newline
+\{ true \} \newline
+$x$ := $\tilde{n}$ ; $y$ := $\tilde{m}$ ; $z$ := $\tilde{o}$; \newline
+while $o$ < $y'$ do \newline
+$z$ := $z$ + $x$ ; \newline
+$y$ := $y$ - $\tilde{1}$ \newline
+\{ $z$ = $nm$ \} \newline
+(computes the value of $z$ = $x$ * $y$, in other words, adding x to z, y times) \newline
+\newline
+\{ true \} (true is a preimposed condition since it must hold prior to running a body) \newline
+$x$ := $\tilde{n}$ \newline
+\{ $x$ = $n$ \} \newline
+$y$ := $\tilde{m}$ \newline
+\{ $x$ = $n$ \wedge \;$y$ = $m$ \} \newline
+$z$ := $\tilde{o}$ \newline
+\{ $x$ = $n$ \wedge \;$y$ = $m$ \wedge \;$z$ = $o$ \} \newline
+\underline{Loop Invariant:} $z$ = $n$ ($m$ - $y$) \wedge \;$o$ \le \;$y$ \le \;$m$ \wedge \;$x$ = $n$ \rightarrow \; true \newline
+\newline
+while $o$ < $y$ do \newline
+\{ $z$ = $n$ ($m$ - $y$) \wedge \;$o$ \le \;$y$ \le \;$m$ \wedge \;$x$ = $n$ \wedge \;$o$ < $y$ \} \newline
+$z$ := $z$ + $x$ ; \newline
+\{ $z$ = ($n$ + 1) ($m$ - $y$) \wedge \;$o$ < $y$ \le \;$m$ \wedge \;$x$ = $n$ \} \newline
+$y$ := $y$ - $\tilde{1}$ ; \newline
+\{ $z$ = $n$ ($m$ - $y$) \wedge \;$o$ \le \;$y$ \le \;$m$ \wedge \;$x$ = $n$ \} \newline
+\newline
+\{ $z$ = $n$ ($m$ - $y$) \wedge \;$o$ = $y$ \wedge \;$x$ = $n$ \} \newline
+\newline
+\{ $z$ = $nm$ \} \newline \newline
+
+\section{Booleans and Hoare Triples}
+
+As mentioned earlier, a Hoare triple takes the form: \{ $P$ \} $c$ \{ $Q$ \} , where P and Q are of type: state \rightarrow \; set.
+$P$ and $Q$ represent loop invariants, and $c$ is the loop body. $P$ and $Q$ can be described as predicates of type: state \rightarrow \; set.
+We can write boolean expressions about the state, \sigma \; , and its relations to the predicates, $P$ and $Q$. \newline
+\newline
+$\uparrow$ : Bexpr $\rightarrow$ State $\rightarrow$ Set \newline
+($\uparrow$ b) $(\sigma)$ = $\llbracket$ $b$ $\rrbracket$ $(\sigma)$ \newline
+\newline
+$\uparrow$ takes a boolean expression and gives us back a predicate about states. \newline
+\newline
+$(P \wedge Q)$ $(\sigma)$ = $P$ $(\sigma)$ $\wedge$ $Q$ $(\sigma)$ \newline
+If $P$ and $Q$ hold about state $\sigma$ then $P$ holds for $\sigma$ and $Q$ hold for $\sigma$ \newline
+\newline
+$P \Rightarrow Q$ = $\forall$ $\sigma$. $P$ $(\sigma)$ $\Rightarrow$ $Q$ $(\sigma)$ \newline
+$P$ implies $Q$ is equal to saying that for all states $\sigma$, $P$ of $\sigma$ implies $Q$ of $\sigma$ \newline
+\newline
+$P$ [$x$ $\mapsto$ $f$] $(\sigma)$ $\stackrel{\triangle}{\iff}$ $P$ ($\sigma$ [$x$ $\mapsto$ $f(\sigma)$]) \newline \newline
+
+
+\section{Inductive Defenition of Hoare Logic}
+
+\begin{mathpar}
+  \infer*[left=Reasoning]{$R$ \Rightarrow $P$ \\ $Q$ \Rightarrow $S$ \\ \vdash \{ $P$ \} \;c \; \{ $Q$ \}}{\vdash \{ $R$ \} \; $c$ \; \{$S$ \}}
+\end{mathpar}
+
+\begin{mathpar}
+  \infer*[left=Skip]{{}}{\vdash \{ $P$ \} \; Skip \; \{ $P$ \}}
+\end{mathpar}
+
+\begin{mathpar}
+  \infer*[left=Assgn]{{}}{\{ $P$ \; [$x$ \; \mapsto \llbracket \; $e$ \; \rrbracket] \}$x$ \; := \; $e$ \; \{ $P$ \}}
+\end{mathpar}
+
+\begin{mathpar}
+\infer*[left=Seq]{\vdash \{ $P$ \} \; c_1 \; \{ $Q$ \} \\ \vdash \{ $Q$ \} \; c_2 \; \{ $R$ \}}{\vdash \{ $P$ \} \; c_1 \; ; c_2 \; \{ $R$ \}}
+\end{mathpar}
+
+\begin{mathpar}
+  \infer*[left=if]{\vdash \{ $P$ \; \wedge \;\uparrow b \} \; c_1 \; \{ $Q$ \} \\ \vdash \{ $P$ \; \wedge \;\uparrow \neg \; b \} \; c_2 \; \{ $Q$ \}}
+  {\vdash \{ $P$ \} \; if \; $b$ \; then \; c_1 \; else \; c_2 \; \{ $Q$ \}}
+\end{mathpar}
+
+\begin{mathpar}
+\infer*[left=while]{\vdash \{ $P$ \; \wedge \;\uparrow b \} \; $c$ \; \{ $P$ \}}{\vdash \{ $P$ \} \; while \; $b$ \; do \; $c$ \; \{ $P$ \; \wedge \;\uparrow \neg \; b \}}
+\end{mathpar}
+\newline \newline
+
+\section{Axiomatic Soundness}
+
+If $\vdash$ \{$P$\} $c$ \{$Q$\} and $P$ $(\sigma)$ \newline
+and $\llbracket$ $c$ $\rrbracket$ $(\sigma)$ = $\sigma'$ \newline
+Then $Q$ $(\sigma')$
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
