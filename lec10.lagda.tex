@@ -58,20 +58,20 @@
 \section{Executive Summary}
 \label{sec:executive-summary}
 
-In the previous lecture we talked about small step semantics, however, we only covered the \textbf{single step relation (\singlestep)}. \\
+We previously covered small step semantics, however, we only covered the \textbf{single step relation (\singlestep)}. \\
 
 \noindent
-In this lecture two new semantic relations were introduced that involve multiple steps:
+In this lecture introduces two \emph{multi-step} semantic relations:
 \begin{itemize}
 \item The \textbf{multi-step relation (\multistep)} (part of small-step semantics)
-\item the \textbf{big-step relation (\bigstep)}
+\item The \textbf{big-step relation (\bigstep)}
 \end{itemize}
 
 \noindent
 The multi-step relation is constructed from the single-step relation using the \textbf{Reflexive-Transitive Closure}. \\
 
 \noindent
-Building on these new relations, three new theorems were also introduced that show that the small-step semantics and big-step semantics are of equivalent power:
+Building on these relations, three theorems are introduced showing small-step semantics and big-step semantics are of equivalent power:
 \begin{itemize}
 \item \textbf{One-Step Completeness}
 \item \textbf{Big-Step Completeness}
@@ -81,15 +81,34 @@ Building on these new relations, three new theorems were also introduced that sh
 \section{The Multi-Step Relation (\multistep)}
 \label{sec:multi-step-relation}
 
-Given the relation $R = \singlestep$, big-step relation (\bigstep) can be emulated by taking the reflexive-transitive closure of $R$:
-$$R \mapsto R^*$$
-The ${}^*$ is the notation for the reflexive-transitive closure of a relation. The reflexive-transitive closure $R^*$ is a super set of $R$ such that for every chain of relations:
-$$x_{0}Rx_{1} \, x_{1}Rx_{2} \, ... \, x_{n-1}Rx_{n}$$
+A ``reflexive-transitive closure'' is a construct from set theory that we use to create the \multistep relation from the \singlestep relation. \\
+
+\noindent
+$R^*$ is the notation for the reflexive-transitive closure of a relation, $R$, and is defined below:
+\noindent
+\begin{mathpar}
+  \infer*[left=R-refl]{ }{xR^*x}
+  \and
+  \infer*[left=R-step]{xRy \\ yR^*z}{xR^*z}
+\end{mathpar} \\
+
+\noindent
+If we let $R = \singlestep $ for single-step (\singlestep), then multi-step (\multistep) is the reflexive-transitive closure of $R$, $R^* = \multistep $:
+\begin{mathpar}
+  R \mapsto R^*
+  \and
+  \singlestep \, \mapsto \, \multistep
+\end{mathpar} \\
+
+\noindent
+Breaking it down, the reflexive-transitive closure $R^*$ is a super set of $R$ such that for every ``chain'' of relations in $R$:
+$$x_{0}Rx_{1}, x_{1}Rx_{2}, ..., x_{n-1}Rx_{n}$$
 $R^*$ also contains the relation:
 $$x_{0}R^*x_{n}$$
+For \singlestep\, the reflexive-transitive closure, \multistep, can be interpreted as the set of every valid sequence of single steps that a program can take. \\
 
-For the \singlestep\ relation, the reflexive-transitive closure, \multistep, can be interpreted as the every valid sequence of single steps that a program can take.
-Later in lecture, we go on to show that the \multistep\ and \bigstep\ relations are equivalent.
+\noindent
+Later in lecture, we show \multistep\ and \bigstep\ are equivalent.
 
 \section{The Big-Step Relation (\bigstep)}
 
@@ -190,7 +209,7 @@ $$\forall e_1,e_2,\sigma,n \textbf{ if [1] } \config{e_1} \singlestep e_2 \textb
   {
     \ \\
     $e_1 = e_{11} \odot e_{12}$ where $\odot \in \{+,-,*\}$  and \\
-    $e_2 = e_{21} \odot e_{22}$ where $\config{e_{11}} \singlestep e_{21}$ and \\
+    $e_2 = e_{21} \odot e_{12}$ where $\config{e_{11}} \singlestep e_{21}$ and \\
     $\config{e_{21}} \bigstep n$ and $\config{e_{12}} \bigstep m$ and $\config{e_2} \bigstep n \odot m$.
   }
   {
