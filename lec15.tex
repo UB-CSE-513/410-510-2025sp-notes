@@ -1,0 +1,488 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+% % \usepackage{agda}
+% \usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathtools}
+% \setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\usepackage{mathpartir}
+\usepackage[dvipsnames]{xcolor}
+
+\newunicodechar{∣}{\ensuremath{\mid}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+\newcommand{\funcdef}[4]{#1 \colon #2 #3 #4}
+\newcommand{\totfunc}[3]{\funcdef{#1}{#2}{\rightarrow}{#3}}
+\newcommand{\parfunc}[3]{\funcdef{#1}{#2}{\rightharpoonup}{#3}}
+\newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+\newcommand{\lift}[1]{#1_\bot}
+\newcommand{\semapp}[2]{\sem{#1}(#2)}
+\newcommand{\semappsig}[1]{\semapp{#1}{\sigma}}
+\newcommand{\imp}[1]{\textsf{#1}}
+
+\newcommand{\bl}[1]{\textcolor{blue}{#1}}
+\newcommand{\g}[1]{\textcolor{Green}{#1}}
+\newcommand{\re}[1]{\textcolor{BrickRed}{#1}}
+\newcommand{\aq}[1]{\textcolor{Aquamarine}{#1}}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\Tt}[1]{\texttt{#1}}
+
+\title{Extending Simply Typed Lambda Calculus}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{15}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+ 
+\section{Simply Typed Lambda Calculus (STLC)}
+
+In previous lessons we talked about a tiny \textbf{lambda calculus}, a small functional language. 
+  From there we expanded lambda calculus to include simple types, giving us \textbf{simply types lambda calculus}.
+  In STLC we discussed progress and preservation, as well as touched more on substitution. 
+
+\subsection{STLC Defined}
+Today we are extending STLC to include 4 other types, but before that, let's take stock of the STLC we are working with. 
+
+\vspace{0.25cm} \noindent 
+$
+\begin{array}{ll}
+  & \text{Types}~ \tau ::= A ~|~ \tau_1 \rightarrow \tau_2 \\ 
+  & \text{Expr}~ e ::= x ~|~ \lambda x:\tau.e ~|~ e_1 e_2 \\
+  & \text{Values}~ v ::= \lambda x:\tau.e \\ 
+  & \text{Typing Context}~ \Gamma ::= \cdot ~|~ \Gamma, x : \tau \\ 
+  & \text {Eval Context}~ \CC ::= [ ~\cdot~ ] ~|~ \CC ~e ~|~ v~\CC \\
+\end{array}
+$  \vspace{0.25cm}
+
+Evaluation Rules 
+  \begin{mathpar}
+    \inferrule* [left = BetaStep]
+      { }
+      { (\lambda x.e) v \rightarrow e [x \mapsto v] }
+
+    \inferrule* [left = ContextStep]
+      { e_1 \rightarrow e_2}
+      { \CC~[ e_1 ] \rightarrow \CC~[ e_2 ] }
+  \end{mathpar}
+
+Typing Rules 
+  \begin{mathpar}
+    \inferrule* [left = T-Var] 
+      { x : \tau \in \Gamma}
+      { \Gamma \vdash x : \tau}
+
+    \inferrule* [left = T-Abs]
+      { \Gamma, x : \tau_1 \vdash e : \tau_2}
+      { \Gamma \vdash \lambda x:\tau_1 .e : \tau_1 \rightarrow \tau_2}
+
+    \inferrule* [left = T-App]
+      { 
+      \Gamma \vdash e_1 : \tau_1 \rightarrow \tau_2 \\ 
+      \Gamma \vdash e_2 : \tau_1
+      }
+      { \Gamma \vdash e_1 e_2 : \tau_2}
+  \end{mathpar}
+
+
+\noindent A few notes on this definition that are different from what we have used before. 
+\begin{itemize}
+  \item Here we are using Chruch style typing so functions (lambdas) now have a type within them. 
+    Before we used $\lambda x.e$, now we have $\lambda x:\tau.e$. 
+    The $\tau$ is the type of the binding variable $x$, the function itself has its own type.
+  \item We are now using evaluation contexts as well. 
+    This simplifies the evaluation and typing rules needed for the language. 
+    Right now our contexts allow us to evaluate an expression $[~\cdot~]$, it also ensures that when we have application $e_1 e_2$, we evaluate the first term to a value ($\mathbb{C}~e$), before we evaluate the second term ($v~\mathbb{C}$).
+  \item Typing rules will all take the form T-Name. 
+    Here we have the rule for variables (\textsc{T-Var}), function abstraction (\textsc{T-Abs}), and function application (\textsc{T-App}). 
+\end{itemize}
+
+\subsection{Extension Motivation}
+
+Originally we started with untyped or unityped which was great, other than the fact that we were allowed to write programs that could never really run. 
+  Then, we added a type system so we could restrict the ``shape'' of the programs that could be written. 
+  STLC does this, but we accidentally restricted the programs too much, making our language too weak.
+  So weak that STLC is not Turing complete (we will talk more about this in later lectures). 
+
+The solution, add more types. Be expanding the type system of STLC we can \textbf{increase expressivity}, while \textbf{maintaining safety}. 
+  Today we will be adding 4 types to STLC, all types that we have seen before, and will see again. 
+
+\section{Unit}
+
+Adding the type $A$ was great to make our simple type system possible, but since we can't have a closed term of type $A$, it is not very useful.
+  Instead we will replace it with the type \textit{unit}. 
+
+\vspace{0.25cm} \noindent  
+$
+\begin{array}{ll}
+  & \text{Types}~ \tau ::= \tau_1 \rightarrow \tau_2 ~|~ \textit{unit}\\ 
+  & \text{Expr}~ e ::= \dots ~|~ \Tt{()}\\
+  & \text{Values}~ v ::= \dots ~|~  \Tt{()}\\
+\end{array}
+$ \vspace{0.25cm}
+
+Typing Rules 
+
+\begin{mathpar}
+  \inferrule* [left = T-Unit] 
+    { }
+    { \Gamma \vdash \Tt{()}:\textit{unit}}
+\end{mathpar}
+
+\noindent\textbf{Note on formatting }
+
+Since we are extending STLC in the interest of keeping these definitions readable and letting us focus on one extension at a time, these new definitions just show the changes. 
+  $A$ is the only entry we will be removing so the above Types are all types, for expressions the $\dots ~|~ \Tt{()}$ should be read all all the previous expressions with the addition of $\Tt{()}$. Similarly for type rules, this type rule is now added to our total collection of type rules. 
+At the end of this document (\ref{sysdefn}) is the full definition with all addition that is color coded, if you prefer to view it in this format. 
+\vspace{0.5cm}
+
+\noindent What is the unit type? 
+\begin{itemize}
+  \item Unit is the type with \textbf{one value} (In agda it was the type with one constructor).
+  \item Unlike $A$ unit has meaning, we can have a closed term with the type \textit{unit}.
+\end{itemize}
+
+\noindent \textbf{Theorem:} (Unit Inversion Theorem) If $\Gamma \vdash v : \textit{unit}$ and $v$ is a value, then $v = \Tt{()}$
+
+\noindent \textbf{Proof:} Only one typing rule allows for this to happen, \textsc{T-Unit}. 
+  The \textsc{T-Var} and \textsc{T-App} rules do not result in values, and while the \textsc{T-Abs} rule results in a value, it does not have type \textit{unit}. 
+
+  Since only one typing rule works, the value $v = \Tt{()}$.
+
+\section{Product Types}
+
+\noindent Now that we have a more meaningful base type, lets talk about expanding the types available. 
+  For simplicity we are only adding pair product types. 
+  Triples and beyond can be built out of pairs, so we lose no expressivity and keep our reasoning simpler. 
+
+\vspace{0.25cm} \noindent 
+$
+\begin{array}{ll}
+  & \text{Types}~ \dots ~|~  \tau_1 \times \tau_2\\ 
+  & \text{Expr}~ \dots ~|~  (e_1,e_2) ~|~ \pi_1~e ~|~ \pi_2~e \\
+  & \text{Values}~ v ::= \dots ~|~ (v_1, v_2) \\
+  & \text {Eval Context}~ \CC ::= \dots ~|~ (\CC,e) ~|~ (v,\CC) ~|~ \pi_1~\CC ~|~ \pi_2~\CC \\
+\end{array}
+$  \vspace{0.25cm}
+
+\noindent Evaluation Rules 
+  \begin{mathpar}
+    \inferrule* [left = ProjL] 
+      { }
+      { \pi_1 (v_1, v_2) \rightarrow v_1 }
+
+    \inferrule* [left = ProjR] 
+      { }
+      { \pi_2 (v_1, v_2) \rightarrow v_2 }
+  \end{mathpar}
+
+\noindent Typing Rules 
+  \begin{mathpar}
+    \inferrule* [left = T-Pair] 
+      { 
+      \Gamma \vdash e_1 : \tau_1 \\ 
+      \Gamma \vdash e_2 : \tau_2 
+      }
+      { \Gamma \vdash (e_1,e_2): \tau_1 \times \tau_2 }
+
+    \inferrule* [left = T-ProjL] 
+      { \Gamma \vdash e : \tau_1 \times \tau_2 }
+      { \Gamma \vdash \pi_1 ~ e : \tau_1 }
+
+    \inferrule* [left = T-ProjR] 
+      { \Gamma \vdash e : \tau_1 \times \tau_2 }
+      { \Gamma \vdash \pi_2 ~ e : \tau_2 }
+  \end{mathpar}
+
+\noindent Notes on the definition
+\begin{itemize}
+  \item In expressions we have the pair $(e_1,e_2)$ and then projection, or proj, left and right. 
+  \item The value of product types is the first value we have seen where every part is also a value.
+  \item Similarly to how we evaluate function application, we use our contexts to dictate that we evaluate the left part of a pair $(\CC,e)$ before the right $(v,\CC)$. 
+  \item Our contexts also allow us to evaluate what we are projecting $(\pi_1~\CC)$. 
+\end{itemize}
+
+\noindent \textbf{Theorem:} (Product Inversion Theorem) If $\Gamma \vdash v : \tau_1 \times \tau_2$ and $v$ is a value, then $v = (v_1,v_2)$.
+
+\noindent \textbf{Proof:} Similarly with the unit inversion theorem there is only one typing rule allows for this to happen.
+
+\vspace{0.25cm}
+
+Why do we need inversion theorems? We organized our language such that the type system correctly restrains our new types, and this theorem is our proof.
+  Later we will use these theorems to prove preservation. 
+  
+\section{Sum Types}
+
+Now we have products, so we should add their dual, Sum types. 
+  In Agda we used the $\uplus$ symbol for sum types. 
+  Sum types are also sometimes referred to as Co-Products, but we will try to stay consistent with Sum types.
+
+\vspace{0.25cm} \noindent 
+$
+\begin{array}{ll}
+  & \text{Types}~ \dots ~|~  \tau_1 + \tau_2 \\ 
+  & \text{Expr}~ \dots ~|~ \Tt{inj}_1~e ~|~ \Tt{inj}_2~e ~|~ 
+    \Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}\\
+  & \text{Values}~ v ::= \dots ~|~ \Tt{inj}_1~v ~|~ \Tt{inj}_2~v \\
+  & \text {Eval Context}~ \mathbb{C} ::= \dots ~|~ \Tt{inj}_1~\CC ~|~ \Tt{inj}_2~\CC ~|~
+    \Tt{case}~\CC~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}\\
+\end{array}
+$  \vspace{0.25cm}
+
+\noindent Evaluation Rules 
+  \begin{mathpar}
+    \inferrule* [left = injL] 
+      { }
+      { ( \Tt{case}~\Tt{inj}_1v~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end})\rightarrow e_1 [x \mapsto v] }
+
+    \inferrule* [left = injR] 
+      { }
+      { ( \Tt{case}~\Tt{inj}_2v~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end})\rightarrow e_2 [y \mapsto v] }
+  \end{mathpar}
+
+\noindent Typing Rules 
+  \begin{mathpar}
+    \inferrule* [left = T-InjL] 
+      { \Gamma \vdash e : \tau_1}
+      { \Gamma \vdash \Tt{inj}_1~e : \tau_1 + \tau_2}
+
+    \inferrule* [left = T-InjR] 
+      { \Gamma \vdash e : \tau_2}
+      { \Gamma \vdash \Tt{inj}_2~e : \tau_1 + \tau_2}
+
+    \inferrule* [left = T-Case] 
+      { 
+      \Gamma \vdash e_1 : \tau_1 + \tau_2  \\ 
+      \Gamma, x : \tau_1 \vdash e_2 : \tau \\
+      \Gamma, y : \tau_2 \vdash e_3 : \tau 
+      }
+      { \Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end} : \tau }
+  \end{mathpar}
+
+\noindent Notes on the definition
+\begin{itemize}
+  \item Products are pairs, but sum types are like an ADT with two branches. 
+    Importantly a sum type has two options, a value can only be one of those options, and we can tell which option it is. 
+  \item We read $\Tt{inj}$ as ``inject''.
+  \item Case can be confusing, it is best explained with the \textsc{InjL} and \textsc{InjR} rules. 
+    When we do case analysis we start with an expression, $e$, that has a product type. 
+    We determine if $e$ is an $\Tt{inj}_1v_1$ or a $\Tt{inj}_2v_2$ and we then we select the appropriate branch. I have rewritten the case statement below, just adding new lines and indents, to make it similar to OCaml's match statements, which I think helps conceptually. 
+
+    $
+    \begin{array}{ll}
+         & \Tt{case}~e_1~\Tt{of} \\ 
+         & ~~~~~\Tt{inj}_1~x \Rightarrow e_2; \\
+         & ~~~~~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end} \\
+    \end{array}
+    $
+
+  \item Look at the \textsc{T-InjL} rule. Where did the type $\tau_2$ come from and what it is?
+    The answer is $\tau_2$ is any type. 
+    We are not concerned with what type it is since we know the $\Tt{inj}_1v$ we have is of type $\tau_1$. (If you tell me I am holding an integer or some other type and I have an integer, do I really care what this other type is?)
+  \item The evaluation contexts we defined allow us to only evaluate the branch we want to take in a case statement. 
+    We can only take on branch, so it make sense to only evaluate the one we will need. 
+\end{itemize}
+
+\noindent \textbf{Theorem:} (Sum Inversion Theorem) If $\Gamma \vdash v : \tau_1 + \tau_2$ and $v$ is a value, then $v = \Tt{inj}_1v_1 : \tau_1$ or $v = \Tt{inj}_2v_2 : \tau_2$.
+
+\noindent \textbf{Proof:} Again, only one typing rule allows for this scenario (which is great. Imagine a value where this is not true, yikes). 
+
+\section{Void}
+
+Our final type is similar to the $A$ we removed, but not quite the same.
+  Next we will add the \textit{void} type.
+
+\vspace{0.25cm} \noindent 
+$
+\begin{array}{ll}
+  & \text{Types}~ \dots ~|~ \textit{void}\\ 
+  & \text{Expr}~ \dots ~|~ \Tt{case}~ e ~\Tt{of end}\\ 
+  & \text {Eval Context}~ \mathbb{C} ::= \dots ~|~ \Tt{case}~ \CC ~\Tt{of end} \\
+\end{array}
+$  \vspace{0.25cm}
+
+Typing Rules 
+
+\begin{mathpar}
+  \inferrule* [left = T-Void]
+    { \Gamma \vdash e : \textit{void}}
+    { \Gamma \vdash \Tt{case}~ e ~\Tt{of end} : \tau}
+\end{mathpar}
+
+\noindent Notes on the definition
+\begin{itemize}
+  \item Again we are using the case of syntax, except here there are no branches. 
+    In the sense that Sum type was an ADT with two constructors , void is an ADT with no constructors. 
+  \item The typing rule \textsc{T-Void} is the ex-falso idea we talked about previously. 
+    If you give me the type \textit{void} I can return to you any type I like.
+\end{itemize}
+
+\noindent \textbf{Theorem:} There is no closed value $v$ such that $\cdot \vdash v : \textit{void}$. 
+
+We did not discuss a formal proof, but did mention that there is no constructor to create a void. 
+  You cannot create a void in our language so how can you have a value of type \textit{void}. 
+
+\vspace{0.25cm} \noindent \textbf{Void vs $A$}
+
+  At surface value the type \textit{void} and the type $A$ that we removed when adding \textit{unit} seem similar. 
+    Neither can have closed terms and sort of serve as the ``nothing'' typing. 
+  
+  However \textit{void} is intentional and we have rules for how we handle receiving a void (although we never expect to). 
+    $A$ however just served to let us write down function types, otherwise we couldn't write any terms in STLC.
+
+\section{Conclusion }
+
+We extended the type system of STLC to include unit, product, sum, and void types. 
+  We now have increased expressivity, but have maintained our safety. (Well the safety is inferred by our inversion theorems, we will probably be proving that safety in later lessons). 
+
+Overall, we are much closer to a practical language such as OCaml with these new types. 
+
+\newpage
+
+\subsection{Full System Definition} \label{sysdefn}
+
+The additions are color coded as \re{Unit}, \g{Product Types}, \bl{Sum Types}, and \aq{Void}
+
+\vspace{0.25cm} \noindent 
+$
+\begin{array}{ll}
+  & \text{Types}~ \tau ::= \tau_1 \rightarrow \tau_2 ~|~ 
+    \re{\textit{unit}} ~|~ 
+    \g{\tau_1 \times \tau_2} ~|~
+    \bl{\tau_1 + \tau_2 } ~|~ 
+    \aq{\textit{void}}\\
+  & \text{Expr}~ e ::= x ~|~ \lambda x:\tau.e ~|~ e_1 e_2 ~|~ 
+    \re{\Tt{()}} ~|~
+    \g{(e_1,e_2)} ~|~ \g{\pi_1~e} ~|~ \g{\pi_2~e} ~|~ 
+    \bl{\Tt{inj}_1~e} ~|~ \bl{\Tt{inj}_2~e} ~|~ \\ 
+  & \hspace{2cm} \bl{\Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}} ~|~ 
+  \aq{\Tt{case}~ e ~\Tt{of end}} \\
+  & \text{Values}~ v ::= \lambda x:\tau.e ~|~ 
+    \re{\Tt{()}} ~|~ 
+    \g{(v_1, v_2)} ~|~ 
+    \bl{\Tt{inj}_1~v} ~|~ \bl{\Tt{inj}_2~v} \\
+  & \text{Typing Context}~ \Gamma ::= \cdot ~|~ \Gamma, x : \tau \\ 
+  & \text {Eval Context}~ \CC ::= [ ~\cdot~ ] ~|~ \CC ~e ~|~ v~\CC ~|~ 
+    \g{(\CC,e)} ~|~ \g{(v,\CC)} ~|~ \g{\pi_1~\CC} ~|~ \g{\pi_2~\CC} ~|~ 
+    \bl{\Tt{inj}_1~\CC} ~|~ \bl{\Tt{inj}_2~\CC} ~|~ \\
+  & \hspace{2cm} \bl{\Tt{case}~\CC~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}} ~|~ 
+  \aq{\Tt{case}~ \CC ~\Tt{of end}}\\
+\end{array}$
+  \vspace{0.25cm}
+
+
+Evaluation Rules 
+  \begin{mathpar}
+    \inferrule* [left = BetaStep]
+      { }
+      { (\lambda x.e) v \rightarrow e [x \mapsto v] }
+
+    \inferrule* [left = ContextStep]
+      { e_1 \rightarrow e_2}
+      { \CC~[ e_1 ] \rightarrow \CC~[ e_2 ] }
+
+    \g{
+    \inferrule* [left = ProjL] 
+      { }
+      { \pi_1 (v_1, v_2) \rightarrow v_1 }
+    }
+
+    \g{
+    \inferrule* [left = ProjR] 
+      { }
+      { \pi_2 (v_1, v_2) \rightarrow v_2 }
+    } 
+
+    \bl{
+    \inferrule* [left = injL] 
+      { }
+      { ( \Tt{case}~\Tt{inj}_1v~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end})\rightarrow e_1 [x \mapsto v] }
+    }
+
+    \bl{
+    \inferrule* [left = injR] 
+      { }
+      { ( \Tt{case}~\Tt{inj}_2v~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end})\rightarrow e_2 [y \mapsto v] }
+    }
+  \end{mathpar}
+
+Typing Rules 
+  \begin{mathpar}
+    \inferrule* [left = T-Var] 
+      { x : \tau \in \Gamma}
+      { \Gamma \vdash x : \tau}
+
+    \inferrule* [left = T-Abs]
+      { \Gamma, x : \tau_1 \vdash e : \tau_2}
+      { \Gamma \vdash \lambda x:\tau_1 .e : \tau_1 \rightarrow \tau_2}
+
+    \inferrule* [left = T-App]
+      {
+      \Gamma \vdash e_1 : \tau_1 \rightarrow \tau_2 \\ 
+      \Gamma \vdash e_2 : \tau_1 
+      }     
+      { \Gamma \vdash e_1 e_2 : \tau_2}   
+      
+    \re{ 
+    \inferrule* [left = T-Unit] 
+      { }
+      { \Gamma \vdash \Tt{()}:\textit{unit}}
+    }
+
+    \g{
+    \inferrule* [left = T-Pair] 
+      { 
+      \Gamma \vdash e_1 : \tau_1 \\ 
+      \Gamma \vdash e_2 : \tau_2 
+      }
+      { \Gamma \vdash (e_1,e_2): \tau_1 \times \tau_2 }
+    } 
+
+    \g{
+    \inferrule* [left = T-ProjL] 
+      { \Gamma \vdash e : \tau_1 \times \tau_2 }
+      { \Gamma \vdash \pi_1 ~ e : \tau_1 }
+    }
+
+    \g{
+    \inferrule* [left = T-ProjR] 
+      { \Gamma \vdash e : \tau_1 \times \tau_2 }
+      { \Gamma \vdash \pi_2 ~ e : \tau_2 }
+     }
+
+    \bl{
+    \inferrule* [left = T-InjL] 
+      { \Gamma \vdash e : \tau_1}
+      { \Gamma \vdash \Tt{inj}_1~e : \tau_1 + \tau_2}
+    }
+
+    \bl{
+    \inferrule* [left = T-InjR] 
+      { \Gamma \vdash e : \tau_2}
+      { \Gamma \vdash \Tt{inj}_2~e : \tau_1 + \tau_2}
+    }
+
+    \bl{
+    \inferrule* [left = T-Case] 
+      { 
+      \Gamma \vdash e_1 : \tau_1 + \tau_2  \\ 
+      \Gamma, x : \tau_1 \vdash e_2 : \tau \\
+      \Gamma, y : \tau_2 \vdash e_3 : \tau 
+      }
+      { \Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end} : \tau }
+    }
+
+    \aq{
+    \inferrule* [left = T-Void]
+      { \Gamma \vdash e : \textit{void}}
+      { \Gamma \vdash \Tt{case}~ e ~\Tt{of end} : \tau}
+    }
+  \end{mathpar}
+  
+\end{document}
