@@ -1,0 +1,267 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+\newcommand{\singlestep}{\ensuremath{\rightarrow}}
+\newcommand{\multistep}{\ensuremath{\rightarrow^*}}
+\newcommand{\bigstep}{\ensuremath{\Downarrow}}
+\newcommand{\config}[1]{\ensuremath{\textlangle #1, \sigma \textrangle}}
+\newcommand{\configp}[1]{\ensuremath{\textlangle #1, \sigma\prime \textrangle}}
+\newcommand{\prog}[1]{\ensuremath{\widetilde{#1}}}
+\newcommand{\case}[3]{
+  \textbf{Case #1:} #2
+  \begin{quote}
+    #3
+  \end{quote}
+}
+\newcommand{\casesc}[3]{
+  \textbf{Case} \textsc{#1}\textbf{:} #2
+  \begin{quote}
+    #3
+  \end{quote}
+}
+
+\title{Big-Step Operational Semantics}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{10}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Executive Summary}
+\label{sec:executive-summary}
+
+We previously covered small step semantics, however, we only covered the \textbf{single step relation (\singlestep)}. \\
+
+\noindent
+In this lecture introduces two \emph{multi-step} semantic relations:
+\begin{itemize}
+\item The \textbf{multi-step relation (\multistep)} (part of small-step semantics)
+\item The \textbf{big-step relation (\bigstep)}
+\end{itemize}
+
+\noindent
+The multi-step relation is constructed from the single-step relation using the \textbf{Reflexive-Transitive Closure}. \\
+
+\noindent
+Building on these relations, three theorems are introduced showing small-step semantics and big-step semantics are of equivalent power:
+\begin{itemize}
+\item \textbf{One-Step Completeness}
+\item \textbf{Big-Step Completeness}
+\item \textbf{Big-Step Soundness}
+\end{itemize}
+
+\section{The Multi-Step Relation (\multistep)}
+\label{sec:multi-step-relation}
+
+A ``reflexive-transitive closure'' is a construct from set theory that we use to create the \multistep relation from the \singlestep relation. \\
+
+\noindent
+$R^*$ is the notation for the reflexive-transitive closure of a relation, $R$, and is defined below:
+\noindent
+\begin{mathpar}
+  \infer*[left=R-refl]{ }{xR^*x}
+  \and
+  \infer*[left=R-step]{xRy \\ yR^*z}{xR^*z}
+\end{mathpar} \\
+
+\noindent
+If we let $R = \singlestep $ for single-step (\singlestep), then multi-step (\multistep) is the reflexive-transitive closure of $R$, $R^* = \multistep $:
+\begin{mathpar}
+  R \mapsto R^*
+  \and
+  \singlestep \, \mapsto \, \multistep
+\end{mathpar} \\
+
+\noindent
+Breaking it down, the reflexive-transitive closure $R^*$ is a super set of $R$ such that for every ``chain'' of relations in $R$:
+$$x_{0}Rx_{1}, x_{1}Rx_{2}, ..., x_{n-1}Rx_{n}$$
+$R^*$ also contains the relation:
+$$x_{0}R^*x_{n}$$
+For \singlestep\, the reflexive-transitive closure, \multistep, can be interpreted as the set of every valid sequence of single steps that a program can take. \\
+
+\noindent
+Later in lecture, we show \multistep\ and \bigstep\ are equivalent.
+
+\section{The Big-Step Relation (\bigstep)}
+
+Unlike the \singlestep\ relation, which describes the sequence of single steps needed for an expression to become a value, the \bigstep\ relation directly encodes the value that a given expression will become. \\
+
+\noindent
+Unlike in \singlestep, constants such as $\prog{n}$, are directly evaluated to values.
+\begin{mathpar}
+  \inferrule* [left=const]
+  { }
+  {\config{\prog{n}} \bigstep n}
+  \and
+  \inferrule* [left=var]
+  { }
+  {\config{x} \bigstep \sigma(x)}
+  \and
+  \inferrule* [left=plus]
+  {\config{e_1} \bigstep n \\ e_2,\sigma\bigstep m}
+  {\config{e_1 + e_2} \bigstep n + m}
+  \and
+  \inferrule* [left=minus]
+  {\config{e_1} \bigstep n \\ \config{e_2} \bigstep m}
+  {\config{e_1 - e_2} \bigstep n - m}
+\end{mathpar}
+The rules for plus and minus can be generalized:
+\begin{mathpar}
+  \inferrule* [left=generalized]
+  {\config{e_1} \bigstep n \\ e_2,\sigma\bigstep m \\ \odot\in\{+,-,*\}}
+  {\config{e_1 \odot e_2} \bigstep n \odot m}
+\end{mathpar}
+
+\section{Big-Step Soundness}
+
+\noindent
+\textbf{Theorem:}
+$$\forall e,\sigma,n \textbf{ if } e,\sigma \bigstep n \textbf{ then } e,\sigma \multistep \prog{n}$$
+That is, if you reason about the result of an expression using \bigstep, then you will always get the same result using \singlestep.
+NOTE: This theorem does not show that this is true the other way around, that is what the big-step completeness theorem does. \\
+
+\noindent
+\textbf{Proof:} By induction on the rules of \bigstep.
+\begin{quote}
+
+  \casesc{const}
+  {$e = n$.}
+  {
+    The reflexive property of \multistep proves that $\prog{n},\sigma \multistep \prog{n}$.
+  }
+
+  \casesc{var}
+  {$e = x$ and $n = \sigma(x)$.}
+  {
+    $\config{x} \singlestep \sigma(x) = \prog{n}$.
+    Since \multistep contains \singlestep, $\config{x} \multistep \sigma(x) = \prog{n}$.
+    NOTE: we are to prove that \multistep\ contains \singlestep\ in homework 2.
+  }
+
+  \casesc{plus,times,minus}
+  {$e = e_1 \odot e_2$ where $\odot \in \{+,-,*\}$ and $\config{e_1} \bigstep n$ and $\config{e_2} \bigstep m$.}
+  {
+    By the Inductive Hypothesis, $\config{e_1} \multistep \prog{n}$ and $\config{e_2} \multistep \prog{m}$:
+    \begin{quote}
+      $e_1 \odot e_1 \multistep \prog{n} \odot e_2 \multistep \prog{n} \odot \prog{m} \singlestep \prog{n \odot m}$ \\
+    \end{quote}
+    This chain of single/multi-step relations can be collapsed via transitivity, thus: \\
+    $e_1 \odot e_2 \multistep \prog{n \odot m}$.
+  }
+
+  \qed
+\end{quote}
+
+\section{Single-Step Completeness}
+
+\textbf{Theorem:}
+$$\forall e_1,e_2,\sigma,n \textbf{ if [1] } \config{e_1} \singlestep e_2 \textbf{ and [2] } \config{e_2} \bigstep n \textbf{ then } \config{e_1} \bigstep n$$
+
+\noindent
+\textbf{Proof:} By induction on the rules of \singlestep.
+
+\begin{quote}
+  \casesc{var}
+  {$e_1 = x$ and $e_2 = \prog{\sigma(x)}$.}
+  {
+    For premise [2], the only \bigstep\ rule that works is the \textsc{const} rule:
+    \begin{mathpar}
+      \inferrule* [left=const]
+      { }
+      {\config{\prog{n}} \bigstep n}
+    \end{mathpar}
+    thus we get $\config{x} \bigstep \sigma(x)$. \\
+
+    By premise [2], $\config{\prog{\sigma(x)}} \bigstep \sigma(x)$. \\
+
+    From [1] and [2], it follows that $\config{x} \bigstep \sigma(x)$
+  }
+  
+  \case{Left-Hand Side}
+  {
+    \ \\
+    $e_1 = e_{11} \odot e_{12}$ where $\odot \in \{+,-,*\}$  and \\
+    $e_2 = e_{21} \odot e_{12}$ where $\config{e_{11}} \singlestep e_{21}$ and \\
+    $\config{e_{21}} \bigstep n$ and $\config{e_{12}} \bigstep m$ and $\config{e_2} \bigstep n \odot m$.
+  }
+  {
+    By the Inductive Hypothesis:
+    \begin{quote}
+      For $e_1$, $\config{e_{11}} \bigstep n$. Thus $\config{e_{11} \odot e_{12}} \bigstep n \odot m$. \\
+    \end{quote}
+  }
+
+  \case{Right-Hand Side} {}
+  {Similar to Left-Hand Side.}
+
+  \case{Operator}
+  {$e_1 = \prog{n} \odot \prog{m}$ and $e_2 = \prog{n \odot m}$.}
+  {
+    \config{$\prog{n} \odot\ \prog{m}} \bigstep n \odot m$ and $\config{\prog{n \odot m}} \bigstep n \odot m$.
+  }
+
+  \qed
+\end{quote}
+
+\section{Big-Step Completeness}
+
+\textbf{Theorem:}
+$$\forall e,\sigma,n \textbf{ if } \config{e} \multistep \prog{n} \textbf{ then } \config{e} \bigstep n$$
+
+\textbf{Proof:} By induction on \multistep.
+
+\begin{quote}
+  \case{refl}
+  {$e = \prog{n}$}
+  {
+    $\config{n} \bigstep n$
+  }
+
+  \case{step}
+  {$\config{e} \singlestep e\prime$ and $\config{e\prime} \multistep \prog{n} $}
+  {
+    By the Inductive Hypothesis: $\config{e\prime} \bigstep n$
+    \begin{quote}
+      By single step completeness $\config{e} \bigstep n$.
+    \end{quote}
+  }
+
+  \qed
+\end{quote}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
