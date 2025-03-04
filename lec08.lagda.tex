@@ -74,7 +74,7 @@ The statement $\forall x : A.P(x)$ means that for every $x$ in $A$, the property
 _ : ∀ (x : ℕ) → 0 ≤ x
 _ = λ x → _≤_.z≤n
 \end{code}
-Here the input $x$ is explicitly named so that it appears in the output (i.e. the proof that $0 ≤ x$). Compare this with a function where the input name is implicit:
+Here the input $x$ is explicitly named so that it appears in the output type (i.e. the proof that $0 ≤ x$). Compare this with a function where the input name is implicit:
 \begin{code}
 _ : ℕ → ℕ
 _ = λ x → x + 510
@@ -106,8 +106,7 @@ postulate
     -------------------------
             → f ≡ g
 
--- This is equivalent to the extensionality imported from Isomorphism,
--- but it is renamed to include it here as presented in lecture while avoiding double definitions.
+-- Note: This version of function extensionality is more general than the one imported from Isomorphism.
 
 lecture-extensionality : ∀ {A B : Set}{f g : A → B}
   → (∀ (x : A) → f x ≡ g x)
@@ -191,7 +190,8 @@ We can see that the converse also holds, and the two together form an isomorphis
    }
 \end{code}
 This shows that a function taking two arguments (an $x$ and a proof of $B(x)$) is equivalent to a function taking a single $\Sigma$-pair.
-
+\textbf{Note:} In the finite case, the size of a $\Pi$-type (product) is given by the product of the sizes of each $B(x)$, 
+while the size of a $\Sigma$-type (sum) is given by the sum of the sizes, hence the names.
 \subsection{Existential Example}
 Here's an example of how we can use existentials.
 We can define even and odd numbers as follows:
