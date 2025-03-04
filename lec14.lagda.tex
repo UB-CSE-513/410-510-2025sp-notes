@@ -10,9 +10,11 @@
 \setsansfont{Fira Code}
 \usepackage{newunicodechar}
 \newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{ξ}{\ensuremath{\xi}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
 
 \newcommand{\agdanats}{\textsf{ℕ}\xspace}
-
 
 \title{De Bruijn Indices}
 \coursenumber{CSE 410/510}
@@ -47,6 +49,7 @@ De Bruijn indices are a variable-free notation for lambda calculus where variabl
 
 \noindent As an AST, $\lambda x. \lambda y. (xy) x$ then converted into an AST with De Bruijn indices would look like this:
 
+\[
 \begin{array}{llcrr}
 \begin{forest}
     [$\lambda x$
@@ -78,9 +81,11 @@ De Bruijn indices are a variable-free notation for lambda calculus where variabl
   ]
 \end{forest}
 \end{array}
+\]
 
 \noindent Another example would be with a function  $\lambda x. \lambda y. ((\lambda x.x) x)y$:
 
+\[
 \begin{array}{lcr}
     \begin{forest}
         [$\lambda x$
@@ -115,7 +120,8 @@ De Bruijn indices are a variable-free notation for lambda calculus where variabl
         ]
       ]
     \end{forest}
-    \end{array}
+\end{array}
+\]
 
 
 
@@ -138,10 +144,10 @@ Renaming = ℕ → ℕ
 ↑r ξ zero = zero
 ↑r ξ (suc x) = suc(ξ x)
 
--- _(_) : Expr → Renaming → Expr
--- (`x)⟨ξ⟩ = `(ξ x)
--- (λ→e)⟨ξ⟩ = λ → (e⟨↑r ξ`⟩)
--- (e₁∙e₂)⟨ξ⟩ = (e₁⟨ξ⟩)∙(e₂⟨ξ⟩)
+_⟨_⟩ : Expr → Renaming → Expr
+(` x) ⟨ ξ ⟩ = ` (ξ x)
+(λ⇒ e) ⟨ ξ ⟩ = λ⇒ (e ⟨ ↑r ξ ⟩)
+(e₁ ∙ e₂) ⟨ ξ ⟩ = (e₁ ⟨ ξ ⟩) ∙ (e₂ ⟨ ξ ⟩)
 
 \end{code}
 
@@ -159,10 +165,10 @@ Substitution = ℕ → Expr
 ↑ σ zero = ` zero
 ↑ σ (suc x) = (σ x) 
 
--- _[_] : Expr → Substitution → Expr
--- (`x) [σ] = σx
--- (λ→e)[σ] = λ→(e[↑σ])
--- (e₁∙e₂)[σ] = (e₁[σ])∙(e₂[σ])
+_[_] : Expr → Substitution → Expr
+(` x) [ σ ] = σ x
+(λ⇒ e)[ σ ] = λ⇒ (e [ ↑ σ ] )
+(e₁ ∙ e₂)[ σ ] = (e₁ [ σ ]) ∙ (e₂ [ σ ])
 
 \end{code}
 
