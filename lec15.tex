@@ -11,6 +11,21 @@
 \usepackage{newunicodechar}
 \usepackage{mathpartir}
 \usepackage[dvipsnames]{xcolor}
+\usepackage[many]{tcolorbox}
+
+\usepackage{amsfonts}
+\usepackage{pl-syntax}
+
+% % % % %
+\newtcolorbox{alert}[2]{
+  colback=white,
+  colframe=black,
+  fonttitle=\bfseries, 
+  title={#1}, 
+  width={#2}
+}
+
+% % % % %
 
 \newunicodechar{∣}{\ensuremath{\mid}}
 
@@ -31,7 +46,7 @@
 \newcommand{\CC}{\mathbb{C}}
 \newcommand{\Tt}[1]{\texttt{#1}}
 
-\title{Basic Type Constructions}
+\title{Basic Type Constructors}
 \coursenumber{CSE 410/510}
 \coursename{Programming Language Theory}
 \lecturenumber{15}
@@ -44,22 +59,34 @@
 \section{Simply Typed Lambda Calculus (STLC)}
 
 In previous lessons we talked about a tiny \textbf{lambda calculus}, a small functional language. 
-  From there we expanded lambda calculus to include simple types, giving us \textbf{simply types lambda calculus}.
+  From there we expanded lambda calculus to include simple types, giving us \textbf{simply typed lambda calculus}.
   In STLC we discussed progress and preservation, as well as touched more on substitution. 
 
 \subsection{STLC Defined}
 Today we are extending STLC to include 4 other types, but before that, let's take stock of the STLC we are working with. 
 
-\vspace{0.25cm} \noindent 
-$
-\begin{array}{ll}
-  & \text{Types}~ \tau ::= A ~|~ \tau_1 \rightarrow \tau_2 \\ 
-  & \text{Expr}~ e ::= x ~|~ \lambda x:\tau.e ~|~ e_1 e_2 \\
-  & \text{Values}~ v ::= \lambda x:\tau.e \\ 
-  & \text{Typing Context}~ \Gamma ::= \cdot ~|~ \Gamma, x : \tau \\ 
-  & \text {Eval Context}~ \CC ::= [ ~\cdot~ ] ~|~ \CC ~e ~|~ v~\CC \\
-\end{array}
-$  \vspace{0.25cm}
+\begin{center}
+\begin{alert}{STLC}{0.7\textwidth}
+  \begin{syntax}
+    \category[Types]{\tau}
+      \alternative{A}
+      \alternative{\tau_1 \rightarrow \tau_2}      
+    \category[Expressions]{e}
+      \alternative{x}
+      \alternative{\lambda x:\tau.e}
+      \alternative{e_1 e_2}
+    \category[Values]{v}
+      \alternative{\lambda x:\tau.e}
+    \category[Typing Context]{\Gamma}
+      \alternative{\cdot}
+      \alternative{\Gamma, x : \tau}
+    \category[Evaluation Context]{\CC}
+      \alternative{[ ~\cdot~ ]}
+      \alternative{\CC ~e}
+      \alternative{v~\CC}
+  \end{syntax}
+\end{alert}
+\end{center}
 
 Evaluation Rules 
   \begin{mathpar}
@@ -118,14 +145,21 @@ The solution, add more types. Be expanding the type system of STLC we can \textb
 Adding the type $A$ was great to make our simple type system possible, but since we can't have a closed term of type $A$, it is not very useful.
   Instead we will replace it with the type \textit{unit}. 
 
-\vspace{0.25cm} \noindent  
-$
-\begin{array}{ll}
-  & \text{Types}~ \tau ::= \tau_1 \rightarrow \tau_2 ~|~ \textit{unit}\\ 
-  & \text{Expr}~ e ::= \dots ~|~ \Tt{()}\\
-  & \text{Values}~ v ::= \dots ~|~  \Tt{()}\\
-\end{array}
-$ \vspace{0.25cm}
+\begin{center}
+\begin{alert}{Extending with Unit}{0.7\textwidth}
+  \begin{syntax}
+    \category[Types]{\tau}    
+      \alternative{\tau_1 \rightarrow \tau_2}
+      \alternative{\textit{unit}}
+    \category[Expressions]{e}
+      \alternative{\dots}
+      \alternative{\Tt{()}}
+    \category[Values]{v}
+      \alternative{\dots}
+      \alternative{\Tt{()}}
+  \end{syntax}
+\end{alert}
+\end{center}
 
 Typing Rules 
 
@@ -161,15 +195,29 @@ At the end of this document (\ref{sysdefn}) is the full definition with all addi
   For simplicity we are only adding pair product types. 
   Triples and beyond can be built out of pairs, so we lose no expressivity and keep our reasoning simpler. 
 
-\vspace{0.25cm} \noindent 
-$
-\begin{array}{ll}
-  & \text{Types}~ \dots ~|~  \tau_1 \times \tau_2\\ 
-  & \text{Expr}~ \dots ~|~  (e_1,e_2) ~|~ \pi_1~e ~|~ \pi_2~e \\
-  & \text{Values}~ v ::= \dots ~|~ (v_1, v_2) \\
-  & \text {Eval Context}~ \CC ::= \dots ~|~ (\CC,e) ~|~ (v,\CC) ~|~ \pi_1~\CC ~|~ \pi_2~\CC \\
-\end{array}
-$  \vspace{0.25cm}
+\begin{center}
+\begin{alert}{Extending with Product}{0.7\textwidth}
+  \begin{syntax}
+    \category[Types]{\tau}   
+      \alternative{\dots}
+      \alternative{\tau_1 \times \tau_2}
+    \category[Expressions]{e}
+      \alternative{\dots}
+      \alternative{ (e_1,e_2) }
+      \alternative{\pi_1~e}
+      \alternative{\pi_2~e}
+    \category[Values]{v}
+      \alternative{\dots}
+      \alternative{(v_1, v_2)}
+    \category[Evaluation Context]{\CC}
+      \alternative{\dots}
+      \alternative{(\CC,e)}
+      \alternative{(v,\CC)}
+      \alternative{\pi_1~\CC}
+      \alternative{\pi_2~\CC}
+  \end{syntax}
+\end{alert}
+\end{center}
 
 \noindent Evaluation Rules 
   \begin{mathpar}
@@ -223,17 +271,29 @@ Now we have products, so we should add their dual, Sum types.
   In Agda we used the $\uplus$ symbol for sum types. 
   Sum types are also sometimes referred to as Co-Products, but we will try to stay consistent with Sum types.
 
-\vspace{0.25cm} \noindent 
-$
-\begin{array}{ll}
-  & \text{Types}~ \dots ~|~  \tau_1 + \tau_2 \\ 
-  & \text{Expr}~ \dots ~|~ \Tt{inj}_1~e ~|~ \Tt{inj}_2~e ~|~ 
-    \Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}\\
-  & \text{Values}~ v ::= \dots ~|~ \Tt{inj}_1~v ~|~ \Tt{inj}_2~v \\
-  & \text {Eval Context}~ \mathbb{C} ::= \dots ~|~ \Tt{inj}_1~\CC ~|~ \Tt{inj}_2~\CC ~|~
-    \Tt{case}~\CC~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}\\
-\end{array}
-$  \vspace{0.25cm}
+  
+\begin{center}
+\begin{alert}{Extending with Sum}{0.7\textwidth}
+  \begin{syntax}
+    \category[Types]{\tau}  
+      \alternative{\dots}
+      \alternative{\tau_1 + \tau_2}
+    \category[Expressions]{e}
+      \alternative{\dots}
+      \alternative{\Tt{inj}_1~e}
+      \alternative{\Tt{inj}_2~e} \\
+      \alternative{\Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}}
+    \category[Values]{v}
+      \alternative{\Tt{inj}_1~v}
+      \alternative{\Tt{inj}_2~v}
+    \category[Evaluation Context]{\CC}
+      \alternative{\dots}
+      \alternative{\Tt{inj}_1~\CC}
+      \alternative{\Tt{inj}_2~\CC} \\ 
+      \alternative{\Tt{case}~\CC~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}}
+  \end{syntax}
+\end{alert}
+\end{center}
 
 \noindent Evaluation Rules 
   \begin{mathpar}
@@ -275,10 +335,10 @@ $  \vspace{0.25cm}
     We determine if $e$ is an $\Tt{inj}_1v_1$ or a $\Tt{inj}_2v_2$ and we then we select the appropriate branch. I have rewritten the case statement below, just adding new lines and indents, to make it similar to OCaml's match statements, which I think helps conceptually. 
 
     $
-    \begin{array}{ll}
-         & \Tt{case}~e_1~\Tt{of} \\ 
-         & ~~~~~\Tt{inj}_1~x \Rightarrow e_2; \\
-         & ~~~~~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end} \\
+    \begin{array}{l}
+         \Tt{case}~e_1~\Tt{of} \\ 
+         ~~~~~\Tt{inj}_1~x \Rightarrow e_2; \\
+         ~~~~~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end} \\
     \end{array}
     $
 
@@ -291,21 +351,29 @@ $  \vspace{0.25cm}
 
 \noindent \textbf{Theorem:} (Sum Inversion Theorem) If $\Gamma \vdash v : \tau_1 + \tau_2$ and $v$ is a value, then $v = \Tt{inj}_1v_1 : \tau_1$ or $v = \Tt{inj}_2v_2 : \tau_2$.
 
-\noindent \textbf{Proof:} Again, only one typing rule allows for this scenario (which is great. Imagine a value where this is not true, yikes). 
+\noindent \textbf{Proof:} Only two typing rules allow for this scenario. 
+  Either way the result is trivial, using the appropriate left or right injection rule. 
 
 \section{Void}
 
 Our final type is similar to the $A$ we removed, but not quite the same.
   Next we will add the \textit{void} type.
 
-\vspace{0.25cm} \noindent 
-$
-\begin{array}{ll}
-  & \text{Types}~ \dots ~|~ \textit{void}\\ 
-  & \text{Expr}~ \dots ~|~ \Tt{case}~ e ~\Tt{of end}\\ 
-  & \text {Eval Context}~ \mathbb{C} ::= \dots ~|~ \Tt{case}~ \CC ~\Tt{of end} \\
-\end{array}
-$  \vspace{0.25cm}
+\begin{center}
+\begin{alert}{Extending with Void}{0.7\textwidth}
+  \begin{syntax}
+    \category[Types]{\tau}    
+      \alternative{\dots}
+      \alternative{\textit{void}}
+    \category[Expressions]{e}
+      \alternative{\dots}
+      \alternative{\Tt{case}~ e ~\Tt{of end}}
+    \category[Evaluation Context]{\CC}
+      \alternative{\dots}
+      \alternative{\Tt{case}~ \CC ~\Tt{of end}}
+  \end{syntax}
+\end{alert}
+\end{center}
 
 Typing Rules 
 
@@ -349,33 +417,66 @@ Overall, we are much closer to a practical language such as OCaml with these new
 
 The additions are color coded as \re{Unit}, \g{Product Types}, \bl{Sum Types}, and \aq{Void}
 
-\vspace{0.25cm} \noindent 
-$
-\begin{array}{ll}
-  & \text{Types}~ \tau ::= \tau_1 \rightarrow \tau_2 ~|~ 
-    \re{\textit{unit}} ~|~ 
-    \g{\tau_1 \times \tau_2} ~|~
-    \bl{\tau_1 + \tau_2 } ~|~ 
-    \aq{\textit{void}}\\
-  & \text{Expr}~ e ::= x ~|~ \lambda x:\tau.e ~|~ e_1 e_2 ~|~ 
-    \re{\Tt{()}} ~|~
-    \g{(e_1,e_2)} ~|~ \g{\pi_1~e} ~|~ \g{\pi_2~e} ~|~ 
-    \bl{\Tt{inj}_1~e} ~|~ \bl{\Tt{inj}_2~e} ~|~ \\ 
-  & \hspace{2cm} \bl{\Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}} ~|~ 
-  \aq{\Tt{case}~ e ~\Tt{of end}} \\
-  & \text{Values}~ v ::= \lambda x:\tau.e ~|~ 
-    \re{\Tt{()}} ~|~ 
-    \g{(v_1, v_2)} ~|~ 
-    \bl{\Tt{inj}_1~v} ~|~ \bl{\Tt{inj}_2~v} \\
-  & \text{Typing Context}~ \Gamma ::= \cdot ~|~ \Gamma, x : \tau \\ 
-  & \text {Eval Context}~ \CC ::= [ ~\cdot~ ] ~|~ \CC ~e ~|~ v~\CC ~|~ 
-    \g{(\CC,e)} ~|~ \g{(v,\CC)} ~|~ \g{\pi_1~\CC} ~|~ \g{\pi_2~\CC} ~|~ 
-    \bl{\Tt{inj}_1~\CC} ~|~ \bl{\Tt{inj}_2~\CC} ~|~ \\
-  & \hspace{2cm} \bl{\Tt{case}~\CC~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}} ~|~ 
-  \aq{\Tt{case}~ \CC ~\Tt{of end}}\\
-\end{array}$
-  \vspace{0.25cm}
 
+\begin{center}
+\begin{alert}{STLC w/Basic Types Constructors}{0.85\textwidth}
+  \begin{syntax}
+    \category[Types]{\tau}
+      \alternative{\tau_1 \rightarrow \tau_2}
+      \alternative{\re{\textit{unit}}}
+      \alternative{\g{\tau_1 \times \tau_2}}
+      \alternative{\bl{\tau_1 + \tau_2 }}
+      \alternative{\aq{\textit{void}}}
+      
+    \category[Expressions]{e}
+      \alternative{x}
+      \alternative{\lambda x:\tau.e}
+      \alternative{e_1 e_2}
+
+      \alternative{\re{\Tt{()}}}
+
+      \alternative{\g{(e_1,e_2)}}
+      \alternative{\g{\pi_1~e}} 
+      \alternative{\g{\pi_2~e}} 
+
+      \alternative{\bl{\Tt{inj}_1~e}} \\ 
+      \alternative{\bl{\Tt{inj}_2~e}}
+      \alternative{\bl{\Tt{case}~e_1~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}}} \\ 
+
+      \alternative{ \aq{\Tt{case}~ e ~\Tt{of end}}}
+      
+    \category[Values]{v}
+      \alternative{\lambda x:\tau.e}
+
+      \alternative{\re{\Tt{()}}}
+      
+      \alternative{\g{(v_1, v_2)} }
+      
+      \alternative{\bl{\Tt{inj}_1~v}}
+      \alternative{\bl{\Tt{inj}_2~v}}
+      
+    \category[Typing Context]{\Gamma}
+      \alternative{\cdot}
+      \alternative{\Gamma, x : \tau}
+      
+    \category[Evaluation Context]{\CC}
+      \alternative{[ ~\cdot~ ]}
+      \alternative{\CC ~e}
+      \alternative{v~\CC}
+
+      \alternative{\g{(\CC,e)}}
+      \alternative{\g{(v,\CC)}}
+      \alternative{\g{\pi_1~\CC}}
+      \alternative{\g{\pi_2~\CC}} 
+
+      \alternative{\bl{\Tt{inj}_1~\CC}} \\ 
+      \alternative{\bl{\Tt{inj}_2~\CC}}
+      \alternative{\bl{\Tt{case}~\CC~\Tt{of}~\Tt{inj}_1~x \Rightarrow e_2; ~\Tt{inj}_2~y \Rightarrow e_3 ~\Tt{end}}} \\ 
+
+      \alternative{\aq{\Tt{case}~ \CC ~\Tt{of end}}}
+  \end{syntax}
+\end{alert}
+\end{center}
 
 Evaluation Rules 
   \begin{mathpar}
