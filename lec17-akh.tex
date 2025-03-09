@@ -1,0 +1,215 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\title{Type System Organization}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{17}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Last week, we looked at \utype, \vtype, product types, and sum types.
+\item These are familiar from languages like OCaml and Agda, though their form may be less familiar.
+\item We focused on what it is that these types represent and how they worked from a programmer's perspective.
+  Today, we draw out some principles that we can use to organize type systems and programming languages.
+  These principles will be applied over and over again for the rest of the semester.
+\end{itemize}
+
+\section{Introduction and Elimination Forms}
+\label{sec:intr-elim-forms}
+
+Recall the type system for STLC + \utype, \vtype, products, and sums:
+$$\begin{array}{c|c}
+  \multicolumn{2}{c}{\infer*[left=Axiom]{x \colon \tau \in \Gamma}{\Gamma \vdash x \colon \tau}}\\[2em]
+  \infer*[left=arrI]{\Gamma, x \colon \tau_1 \vdash e \colon \tau_2}{\Gamma \vdash \tabs{x}{\tau_1}{e} \colon \tau_1 \to \tau_2} & \infer*[right=arrE]{\Gamma \vdash f \colon \tau_1 \to \tau_2\\ \Gamma \vdash e \colon \tau_1}{\Gamma \vdash \app{f}{e} \colon \tau_2}\\[2em]
+  \infer*[left=unitI]{ }{\Gamma \vdash \unit \colon \utype} & \\[2em]
+                                                                             & \infer*[right=voidE]{\Gamma \vdash e \colon \vtype}{\Gamma \vdash \vcase{e} \colon \tau}\\[2em]
+  \infer*[left=prodI]{\Gamma \vdash e_1 \colon \tau_1\\ \Gamma \vdash e_2 \colon \tau_2}{\Gamma \vdash (e_1, e_2) \colon \prodtype{\tau_1}{\tau_2}} & \infer*[right=prodE${}_1$]{\Gamma \vdash e \colon \prodtype{\tau_1}{\tau_2}}{\Gamma \vdash \projl{e} \colon \tau_1} \hspace{1em} \infer*[right=prodE${}_2$]{\Gamma \vdash e \colon \prodtype{\tau_1}{\tau_2}}{\Gamma \vdash \projr{e} \colon \tau_2}\\[2em]
+  \infer*[left=sumI${}_1$]{\Gamma \vdash e \colon \tau_1}{\Gamma \vdash \injl{e} \colon \sumtype{\tau_1}{\tau_2}} \hspace{1em} \infer*[left=sumI${}_2$]{\Gamma \vdash e \colon \tau_2}{\Gamma \vdash \injr{e} \colon \sumtype{\tau_1}{\tau_2}} &\infer*[right=sumE]{\Gamma \vdash e_1 \colon \sumtype{\tau_1}{\tau_2}\\ \Gamma, x \colon \tau_1 \vdash e_2 \colon \tau_3\\ \Gamma, y \colon \tau_2 \vdash e_3 \colon \tau_3}{\Gamma \vdash \case{e_1}{x}{e_2}{y}{e_3} \colon \tau_3}\\
+\end{array}$$
+
+\vspace{2em}
+\begin{itemize}
+\item As you can see, I have imposed some structure on the rules.
+\item The axiom rule is special: it doesn't tell us anything about a particular type.
+  Instead, it tells us how to use scope.
+\item Every other type constructor has some number of \emph{introduction} rules and some number of \emph{elimination} rules.
+  \begin{itemize}
+  \item Introduction rules tell us how to \emph{create} something of a type.
+  \item Elimination rules tell us how to \emph{use} (or \emph{consume}) something of a type.
+  \end{itemize}
+\item The arrow type constructor has one of each:
+  \begin{itemize}
+  \item The introduction rule~\textsc{arrI} tells us how to create an arrow: add a new variable to scope and then show that you can create a return value.
+  \item The elimination rule~\textsc{arrE} tells us how to use an arrow: call the function with an argument to bind the variable to.
+  \end{itemize}
+\item The \utype~type has one introduction rule and no elimination rules:
+  \begin{itemize}
+  \item The introduction rule~\textsc{unitI} tells us how to create an~\utype: simply provide the value $\unit$.
+  \item The lack of an elimination rule says that there is no way to get information out of a \utype.
+  \end{itemize}
+\item The \vtype~type has no introduction rules but has one elimination rule:
+  \begin{itemize}
+  \item The lack of an introduction rule says that there is no way to create a \vtype.
+  \item The elimination rule~\textsc{voidE} tells us that you can get arbitrary information out of any \vtype you can find.
+  \end{itemize}
+\item The product type constructor has one introduction rule and two elimination rules:
+  \begin{itemize}
+  \item The introduction rule~\textsc{prodI} says that to create a tuple, one must provide something of each of the two types.
+  \item The elimination rules~\textsc{prodE${}_1$} and~\textsc{prodE${}_2$} tell us how to get each of those ``somethings'' out of the tuple.
+  \end{itemize}
+\item The sum type constructor has two introduction rules and one elimination rule:
+  \begin{itemize}
+  \item The introduction rules~\textsc{sumI${}_1$} and~\textsc{sumI${}_2$} tell us that to create something of sum type, you must provide something of either of the two types.
+  \item The elimination rule~\textsc{sumE} tells us that we can get information out of a sum type by being willing to consume either type.
+  \end{itemize}
+\item From now on, when we add a new type constructor to a language, we will talk about its introduction and elimination rules.
+  We will tend to name introduction rules with an \textsc{I} and elimination rules with a \textsc{E}.
+\end{itemize}
+
+\section{$\beta$ Laws}
+\label{sec:beta-laws}
+
+\begin{itemize}
+\item This discipline does more than impose a structure on a type system and provide a guide for how to add a new type.
+\item Instead, important equational laws come from this organization.
+\item We start by looking at $\beta$ laws.
+\item Consider the $\beta$ law for functions that we have seen since last week:
+  $$\app{(\tabs{x}{\tau_1}{e_1})}{e_2} \equiv_\beta e_1[x \mapsto e_2]$$
+\item Now let's see what the typing proof for the left-hand side must be:
+  $$
+  \infer*[left=arrE]{\infer*[left=arrI]{\Gamma, x \colon \tau_1 \vdash e_1 \colon \tau_2}{\Gamma \vdash \tabs{x}{\tau_1}{e_1} \colon \tau_1 \to \tau_2}\\ \Gamma \vdash e_2 \colon \tau_1}{\Gamma \vdash \app{(\tabs{x}{\tau_1}{e_1})}{e_2} \vdash \tau_2}
+  $$
+\item Notice something about the way this typing derivation works: there's an introduction rule on top and an elimination rule immediately underneath it.
+\item If we follow the same pattern for product types, we get the following:
+  $$
+  \infer*[left=projE${}_1$]{\infer*[left=prodI]{\Gamma \vdash e_1 : \tau_1\\ \Gamma \vdash e_2 \colon \tau_2}{\Gamma \vdash \pair{e_1}{e_2} \colon \prodtype{\tau_1}{\tau_2}}}{\Gamma \vdash \projl{\pair{e_1}{e_2}} \colon \tau_1}
+  $$
+\item \textbf{Stop and Think:} What should the corresponding equation be?
+\item There's only one possible answer that has the right type:
+  $$\projl{\pair{e_1}{e_2}} \equiv_\beta e_1$$
+\item There are actually two $\beta$~rules for products.
+  The other is as follows: $$\projr{\pair{e_1}{e_2}} \equiv_\beta e_2$$
+\item Sum types similarly have two rules.
+  We can see the first one clearly by considering the following typing derivation:
+  $$
+  \infer*[left=sumE]{\infer*[left=sumI${}_1$]{\Gamma \vdash e_1 \colon \tau_1}{\Gamma \vdash \injl{e_1} \colon \sumtype{\tau_1}{\tau_2}}\\ \Gamma, x \colon \tau_1 \vdash e_2 \colon \tau_3\\ \Gamma, y \colon \tau_2 \vdash e_3 \colon \tau_3}{\case{\injl{e_1}}{x}{e_2}{y}{e_3}}
+  $$
+\item The corresponding $\beta$ rule is:
+  $$\case{\injl{e_1}}{x}{e_2}{y}{e_3} \equiv_\beta e_2[x \mapsto e_1]$$
+\item Alternatively, we can use the other injection:
+  $$\case{\injr{e_1}}{x}{e_2}{y}{e_3} \equiv_\beta e_3[y \mapsto e_1]$$
+\item Since \utype has no elimination rule, it has no associated $\beta$ laws.
+\item We could apply the same reasoning to \vtype.
+  However, it's useful to give it the following $\beta$ law:
+  $$C[\vcase{e}] \equiv_\beta \vcase{e}$$
+\item Unlike other $\beta$ rules, this doesn't get rid of the elimination rule, because there's no introduction rule for it to ``react'' with.
+  Instead, it just says that the elimination rule ``absorbs'' everything around it.
+\item You could argue that it's not a ``real'' $\beta$ rule, but it traditionally is considered one.
+\end{itemize}
+
+\subsection{$\beta$ Reductions}
+\label{sec:beta-reductions}
+
+\begin{itemize}
+\item So far, we've talked all about $\beta$ \emph{equivalences}.
+\item However, we often care instead about $\beta$ \emph{reductions}.
+  \begin{itemize}
+  \item These reductions themselves are then limited to something like CBV or CBN to make small-step operational semantics.
+  \end{itemize}
+\item $\beta$ equivalences equate a term with an introduction rule directly above an elimination rule to a term with no introduction or elimination rule.
+\item $\beta$ reductions move from the term with the rules to the term without.
+\item So far, everything we've given is for full $\beta$, but can be restricted to CBV by forcing everything in the introduction form to be a value.
+\end{itemize}
+
+\section{$\eta$ Laws}
+\label{sec:eta-laws}
+
+\begin{itemize}
+\item Just like $\beta$ equivalences, $\eta$ equivalences fall out from the organization of types.
+\item Let's again look at the $\eta$ equivalence we had before for pure $\lambda$~calculus:
+  $$e \equiv_\eta \abs{x}{(app{e}{x})}$$
+\item If we type the right-hand side, we get the following:
+  $$
+  \infer*[left=arrI]{
+    \infer*[left=arrE]{
+      \Gamma, x \colon \tau_1 \vdash e \colon \tau_1 \to \tau_2\\
+      \infer*[left=Axiom]{ }{\Gamma, x \colon \tau_1 \vdash x \colon \tau_1}
+    }{
+      \Gamma, x \colon \tau_1 \vdash \app{e}{x} \colon \tau_2
+    }
+  }{
+    \Gamma \vdash \tabs{x}{\tau_1}{(\app{e}{x})} \colon \tau_1 \to \tau_2
+  }
+  $$
+\item Whereas before we had an elimination rule directly under an introduction rule, now we have an introduction rule directly under an elimination rule.
+\item Again, this is the common style for $\eta$ laws.
+\item For products, we get the following (single) $\eta$ law:
+  $$e \equiv_\eta \pair{\projl{e}}{\projr{e}}$$
+\item If we give a type to the right-hand side, we get:
+  $$
+  \infer*[left=prodI]{
+    \infer*[left=prodE${}_1$]{\Gamma \vdash e \colon \tau_1 \times \tau_2}{\Gamma \vdash \projl{e} \colon \tau_1}\\
+    \infer*[left=prodE${}_2$]{\Gamma \vdash e \colon \tau_1 \times \tau_2}{\Gamma \vdash \projr{e} \colon \tau_2}
+  }{
+    \Gamma \vdash \pair{\projl{e}}{\projr{e}} \colon \prodtype{\tau_1}{\tau_2}
+  }
+  $$
+\item For sums the story is a bit stranger.
+  We don't use a sum by simply returning the data inside of it; instead, we explicitly substitute the data inside of it into some \emph{continuation}.
+  However, otherwise, it's exactly the same.
+$$e \equiv_\eta \case{e}{x}{\injl{x}}{y}{\injr{y}}$$
+\item Just like there is no $\beta$ rule for \utype, there is no $\eta$ rule for \vtype.
+\item However, just like there is a pseudo-$\beta$ rule for \vtype, there is a similar pseudo-$\eta$ rule for \utype:
+  $$e \equiv_\eta \unit$$
+\item It is important to know that this holds for any $e$ \emph{which has unit type}.
+\item In fact, this rule throws into relief something important: \textbf{$\eta$ and $\beta$ rules are typed}.
+\item We could ignore this in untyped $\lambda$ calculus and even simply-typed lambda calculus, because everything was a function.
+\item Now, however, it's extremely important to keep types in mind.
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

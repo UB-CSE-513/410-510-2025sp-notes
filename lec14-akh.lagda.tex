@@ -1,0 +1,518 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+\newunicodechar{≟}{\ensuremath{\stackrel{?}{=}}}
+\newunicodechar{̬}{\ensuremath{{}_{\textsf{v}}}}
+\newunicodechar{ₐ}{\ensuremath{{}_{\textsf{a}}}}
+\newunicodechar{ₜ}{\ensuremath{{}_{\textsf{t}}}}
+\newunicodechar{ₖ}{\ensuremath{{}_{\textsf{k}}}}
+\newunicodechar{ᵣ}{\ensuremath{{}_{\textsf{r}}}}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+\newunicodechar{₃}{\ensuremath{{}_{3}}}
+\newunicodechar{⊕}{\ensuremath{\oplus}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{∸}{\ensuremath{\stackrel{.}{-}}}
+\newunicodechar{≮}{\ensuremath{\not<}}
+\newunicodechar{⋆}{\ensuremath{{}^{\ast}}}
+\newunicodechar{⇓}{\ensuremath{\Downarrow}}
+\newunicodechar{⇒}{\ensuremath{\implies}}
+\newunicodechar{‵}{\ensuremath{`}}
+\newunicodechar{ƛ}{\ensuremath{\mkern0.75mu-\mkern -12mu\lambda}}
+\newunicodechar{↦}{\ensuremath{\mapsto}}
+\newunicodechar{ξ}{\ensuremath{\xi}}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\title{De~Bruijn Indices}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{14}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}[hide]
+module lec14-akh where
+
+open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans)
+open import Data.Nat using (ℕ; zero; suc; _≤_; _<_; s≤s)
+\end{code}
+
+\begin{itemize}
+\item Last time, we saw the definitions of substitution, $\alpha$~equivalence, and $\beta$~equivalence.
+\item Most of what we had to do was tedious mucking about with the names of inputs.
+\item This is annoying; $\alpha$~equivalence says that we shouldn't have to care.
+\item In other words, we want to work with \emph{\alpha-equivalence classes} of $\lambda$~terms.
+\item This is easy to say, but how do we do that in practice?
+  Nobody wants to work with equivalence classes abstractly.
+\item Let's look at how to do that both on paper and in agda.
+\end{itemize}
+
+\section{The Barendregt Convention}
+\label{sec:barendr-conv}
+
+\begin{itemize}
+\item On paper, the way we work with $\alpha$~equivalence classes of terms is the \emph{Barendregt convention}.
+\item This is a way to choose a representative of the $\alpha$-equivalence class of terms you want to work with.
+  \begin{itemize}
+  \item What do I mean a representative?
+    I mean pick a term from that class that you want to use to represent the whole class.
+  \item Then, any operation you do that operates on the whole class can be done on that representative to get a representative of the resulting class.
+  \end{itemize}
+\item We would like our representatives to be well-behaved.
+  In particular, the big place where substitution gets annoying is when bound variables clash.
+  So we would like our representatives to not force us to deal with that situation.
+\item The Barendregt convention, then, is just this: we assume that all of the bound variables in a term are distinct.
+  Moreover, we assume that they bound variables do not overlap at all with the free variables.
+\item This means that we can do $\beta$ reduction without fear: we'll never end up needing to do renaming in substitution.
+\item This was the convention adopted by Henk Barendregt in his seminal paper on $\lambda$~calculus.
+  That paper also named $\alpha$, $\beta$, and $\eta$ equivalence.
+  \begin{itemize}
+  \item We have yet to talk about $\eta$ equivalence in any detail.
+    The key rule of $\eta$ equivalence is:
+    \begin{mathpar}
+      \infer*[left=$\eta$]{ }{e = \abs{x}{e x}}
+    \end{mathpar}
+  \item Since in pure $\lambda$~calculus everything is a function, that rule can be applied anywhere.
+  \item Later on, we'll see how we can make it work in languages with anything other than functions.
+  \end{itemize}
+\item When we have several terms, we'll continue to assume that the variables are distinct enough to avoid renaming in substitution.
+\item In examples where that is not true, just use $\alpha$ equivalence to change the names of bound variables to avoid this possibility.
+\item Since we're working with $\alpha$~equivalence classes, this doesn't change the object that we're working with.
+\end{itemize}
+
+\section{Introduction to De~Bruijn Indices}
+\label{sec:intr-de-bruijn}
+
+\begin{itemize}
+\item While the Barendregt convention is great on paper, it doesn't really work on agda.
+  \begin{itemize}
+  \item In theory, we could explicitly use $\alpha$ equivalence to find a $\lambda$~term that is ``nice'', and then we work with that, whenever we need to work with a specific $\alpha$-equivalence class of $\lambda$~terms.
+  \item However, that would be really annoying!
+  \item Moreover, any of our theorems that are stated for arbitrary $\lambda$~terms we wouldn't be able to use the Barendregt convention for, and working with $\alpha$-equivalence classes directly in a proof assistant turns out to basically not work for us.
+  \end{itemize}
+\item Instead, we find a structure that mimics the structure of $\lambda$~terms while representing entire $\alpha$-equivalence classes.
+\item There is a whole cottage industry of finding and reasoning about these structures.
+\item One classic one (possibly the oldest, I'm not sure) is to use de~Bruijn indices.
+\item The core idea of de~Bruijn indices is to recognize that a (bound) variable is essentially a pointer to a binder.
+  Let's take a look at a term to see this.
+  Consider $$\abs{x}{\abs{y}{\app{(\app{x}{y})}{x}}}$$
+  Remember, concrete programs are actually ``just'' a way to write down an AST:
+  \begin{center}
+    \begin{forest}
+      [\lambda x
+        [\lambda y
+          [@
+            [@
+              [x]
+              [y]
+            ]
+            [x]
+          ]
+        ]
+      ]      
+    \end{forest}
+  \end{center}
+\item When you see a variable, how do you know which function it's the input to?
+  You go up the tree until you see a $\lambda$ with the same name.
+  \begin{itemize}
+  \item It is important, by the way, that you go up the tree and not leftward in the term.
+    To see this, consider the following: $$\abs{x}{\abs{y}{\app{(\app{(\abs{x}{x})}{x})}{y}}}$$
+    \begin{center}
+      \begin{forest}
+        [\lambda x
+          [\lambda y
+            [@
+              [@
+                [\lambda x
+                  [x]
+                ]
+                [x]
+              ]
+              [y]
+            ]
+          ]
+        ]
+      \end{forest}
+    \end{center}
+  \item If you look leftward in the term from the second use of the variable~$x$ (\emph{not} the second definition), the first $\lambda$ labeled $x$ is \emph{not} correct.
+  \item However, in the AST, it's obvious that this $\lambda$ is not \emph{above} that use of $x$, but \emph{beside} it.
+  \end{itemize}
+\item We don't want to use names, but the use of names is important here.
+  In both of the above examples, we don't want to mix up $x$ and $y$!
+\item De~Bruijn indices instead \emph{count} how many $\lambda$s we go past on our way up the tree.
+  Thus, the ASTs for the de~Bruijn versions of the examples above are:
+  \begin{center}
+    \begin{forest}
+      [\lambda
+        [\lambda
+          [@
+            [@
+              [1]
+              [0]
+            ]
+            [1]
+          ]
+        ]
+      ]
+    \end{forest}
+    \hspace{10em}
+    \begin{forest}
+        [\lambda
+          [\lambda
+            [@
+              [@
+                [\lambda
+                  [0]
+                ]
+                [1]
+              ]
+              [0]
+            ]
+          ]
+        ]
+    \end{forest}
+  \end{center}
+\item In the second example, notice that which $\lambda$ the 0 points to changes: 0 is not a name, but an index!
+\item For expressions with free variables, we use larger numbers.
+  Thus, the following term:
+  $$\abs{x}{\abs{y}{\app{(\app{x}{z})}{y}}}$$
+  Has the following de~Bruijn AST:
+  \begin{center}
+    \begin{forest}
+      [\lambda
+        [\lambda
+          [@
+            [@
+              [1]
+              [2]
+            ]
+            [0]
+          ]
+        ]
+      ]
+    \end{forest}
+  \end{center}
+\item Since there is no $\lambda$ past $2$ lambdas, the $2$ represents a free variable.
+\item In order to write $\lambda$~terms with de~Bruijn variables, I'll use $\dbind{n}$ to mean $n$ as a de~Bruijn index.
+\item Thus, we can write the de~Bruijn term above as $\dbabs{\dbabs{\app{(\app{\dbind{1}}{\dbind{2}})}{\dbind{0}}}}$
+\item In agda, de~Bruijn terms are as easy to represent as named terms:
+\begin{code}
+data Expr : Set where
+  ‵_ : ℕ → Expr
+  ƛ⇒_ : Expr → Expr
+  _·_ : Expr → Expr → Expr   
+\end{code}
+\end{itemize}
+
+\section{Renaming and Substitution}
+\label{sec:renam-subst}
+
+\begin{itemize}
+\item We now turn to our core operation on $\lambda$~terms: substitution.
+\item Ideally, substitution will now be easier to define and easier to work with.
+\item As we will see, the former is probably true (but debatable), while the second is definitely true.
+\item Unlike in named $\lambda$~terms, we will define \emph{infinite simultaneous} substitution.
+  This changes every variable at once, rather than changing one variable at a time.
+  Moreover, if we substitute in a term with free variables, we don't have to worry about other substitutions changing those variables.
+  Simultaneous substitutions are easy to define in the named calculus, and even easier with de~Bruijn indices.
+\item Also unlike in named $\lambda$~terms, it is convenient to define an explicit \emph{renaming} operation.
+\item This operation will only change variables into variables.
+\item Since variables are numbers, we call a function $\xi \colon \mathbb{N} \to \mathbb{N}$ \emph{a renaming}, and write $e\langle\xi\rangle$ for ``$e$ renamed according to $\xi$''.
+\begin{code}
+Renaming : Set
+Renaming = ℕ → ℕ
+\end{code}
+\item Intuitively, in $e$ any free de~Bruijn index $\dbind{n}$ will turn into the index $\dbind{\xi(n)}$.
+  However, we don't want to change where the bound de~Bruijn indices point to.
+\item Therefore, when we cross a $\lambda$ boundary, we need to \emph{lift} the renaming~$\xi$ as follows:
+  $$
+  (\uparrow_r \xi)(n) = \left\{\begin{array}{l@{\hspace{2em}\text{if}~}l}
+    0 & n = 0\\
+    \xi(m) + 1 & n = m + 1
+  \end{array}\right.
+$$
+\begin{code}
+↑ᵣ : Renaming → Renaming
+↑ᵣ ξ zero = zero
+↑ᵣ ξ (suc x) = suc (ξ x)
+\end{code}
+\item We can then use this to define renaming:
+  $$
+  e\langle\xi\rangle = \left\{\begin{array}{l@{\hspace{2em}\text{if}~}l}
+    \dbind{\xi(x)} & e = \dbind{x}\\
+    \dbabs{(e\langle\uparrow_r \xi\rangle)} & e = \dbabs{e}\\
+    \app{(e_1\langle\xi\rangle)}{(e_2\langle\xi\rangle)} & e = \app{e_1}{e_2}
+  \end{array}\right.
+$$
+\begin{code}
+_⟨_⟩ : Expr → Renaming → Expr
+(‵ x) ⟨ ξ ⟩ = ‵ (ξ x)
+(ƛ⇒ e) ⟨ ξ ⟩ = ƛ⇒ (e ⟨ ↑ᵣ ξ ⟩)
+(e₁ · e₂) ⟨ ξ ⟩ = (e₁ ⟨ ξ ⟩) · (e₂ ⟨ ξ ⟩)  
+\end{code}
+\item Just as a renaming is a function $\mathbb{N} \to \mathbb{N}$, \emph{a substitution} is a function $\sigma \colon \mathbb{N} \to \textsf{Expr}$.
+\begin{code}
+Substitution : Set
+Substitution = ℕ → Expr    
+\end{code}
+\item We can lift substitutions the same way we lift expressions.
+  When we do, we need to rename the results of a substitution by lifting all variables by one.
+  $$
+  (\uparrow \sigma)(n) = \left\{\begin{array}{l@{\hspace{2em}\text{if}~}l}
+    \dbind{0} & n = 0\\
+    \sigma(m)\langle+ 1\rangle & n = m + 1
+  \end{array}\right.
+$$
+\begin{code}
+↑ : Substitution → Substitution
+↑ σ zero = ‵ zero
+↑ σ (suc x) = (σ x) ⟨ suc ⟩  
+\end{code}
+\item We then define substitution similarly to how we define renaming:
+\begin{code}
+_[_] : Expr → Substitution → Expr
+(‵ x) [ σ ] = σ x
+(ƛ⇒ e) [ σ ] = ƛ⇒ (e [ ↑ σ ])
+(e₁ · e₂) [ σ ] = (e₁ [ σ ]) · (e₂ [ σ ])    
+\end{code}
+\item In order to only substitute one index, we simply lower every other index along the way:
+\begin{code}
+zsubst : Expr → Substitution
+zsubst e zero = e
+zsubst e (suc n) = ‵ n
+
+_[0↦_] : Expr → Expr → Expr
+e [0↦ e' ] = e [ (zsubst e') ]    
+\end{code}
+\item We can then define full~$\beta$~reduction as follows:
+\begin{code}
+data _→βDB_ : Expr → Expr → Set where
+  in-app₁ : ∀ {e₁ e₁′ e₂ : Expr} →
+            e₁ →βDB e₁′ →
+    ---------------------------
+     (e₁ · e₂) →βDB (e₁′ · e₂)
+  in-app₂ : ∀ {e₁ e₂ e₂′ : Expr} →
+            e₂ →βDB e₂′ →
+    ---------------------------
+     (e₁ · e₂) →βDB (e₁ · e₂′)
+  in-abs : ∀ {e e′ : Expr} →
+          e →βDB e′ →
+    ------------------------
+     (ƛ⇒ e) →βDB (ƛ⇒ e′)
+  β : ∀ {e e′ : Expr} →
+    ((ƛ⇒ e) · e′) →βDB (e [0↦ e′ ])    
+\end{code}
+\item Note that this is exactly analogous to what we saw last time.
+\end{itemize}
+
+\newpage
+\section{Properties of Substitution}
+\label{sec:prop-subst}
+
+\begin{itemize}
+\item We now turn to a bunch of properties of substitution.
+\item These are all true of named $\lambda$~calculus up to $\alpha$ equivalence, but they are extremely hard to prove.
+\item On the other hand, proving them for de~Bruijn indices are easy.
+\item Note a pattern in many if not all of these proofs: first we reason about lifting renamings and substitutions, and then we prove a result about the operation of renaming or substitution.
+\end{itemize}
+
+\subsection{Extensionality}
+\label{sec:extensionality}
+
+\begin{itemize}
+\item Earlier, we saw the \emph{principle of extensionality} for functions: if two functions always produce equal outputs given equal inputs, then the functions are equal.
+\item However, this requires adding is as an axiom to agda.
+\item We don't have to accept this axiom in order to use extensionality for renaming and substitution, though.
+  If two renamings (or two substitutions) are extensionally equal, then using them on equal terms leads to equal results:
+\begin{code}
+{- Renaming is extensional -}
+upren-ext : ∀ {ξ₁ ξ₂ : Renaming} → (∀ {n} → ξ₁ n ≡ ξ₂ n) → ∀ {n} → (↑ᵣ ξ₁) n ≡ (↑ᵣ ξ₂) n
+upren-ext eq {zero} = refl
+upren-ext eq {suc n} = cong suc eq
+
+ren-ext : ∀ {ξ₁ ξ₂ : Renaming} → (∀ {n : ℕ} → ξ₁ n ≡ ξ₂ n) → ∀ (e : Expr) → e ⟨ ξ₁ ⟩ ≡ e ⟨ ξ₂ ⟩
+ren-ext eq (‵ x) = cong (‵_) eq
+ren-ext {ξ₁} {ξ₂} eq (ƛ⇒ e) rewrite ren-ext  {↑ᵣ ξ₁} {↑ᵣ ξ₂} (upren-ext eq) e = refl
+ren-ext {ξ₁} {ξ₂} eq (e₁ · e₂) rewrite ren-ext {ξ₁} {ξ₂} eq e₁ | ren-ext {ξ₁} {ξ₂} eq e₂ = refl
+
+{- Substitution is extensional -}
+upsubst-ext : ∀ {σ₁ σ₂ : Substitution} → (∀ {n} → σ₁ n ≡ σ₂ n) → ∀ {n} → (↑ σ₁) n ≡ (↑ σ₂) n
+upsubst-ext eq {zero} = refl
+upsubst-ext eq {suc n} = cong (_⟨ suc ⟩) eq
+
+subst-ext : ∀ {σ₁ σ₂ : Substitution} → (∀ {n} → σ₁ n ≡ σ₂ n) → ∀ e → e [ σ₁ ] ≡ e [ σ₂ ]
+subst-ext eq (‵ x) = eq
+subst-ext {σ₁} {σ₂} eq (ƛ⇒ e) =
+  cong ƛ⇒_ (subst-ext {↑ σ₁} {↑ σ₂} (λ {n} → upsubst-ext {σ₁} {σ₂} eq {n}) e)
+subst-ext {σ₁} {σ₂} eq (e₁ · e₂)
+    rewrite subst-ext {σ₁} {σ₂} eq e₁ | subst-ext {σ₁} {σ₂} eq e₂ = refl
+\end{code}
+\end{itemize}
+
+\newpage
+\subsection{Identity}
+\label{sec:identity}
+
+\begin{itemize}
+  \item If we rename every variable to itself, we should get back the same term.
+  \item Similarly, if we substitute every variable with itself, we should get back the same term.
+  \item This holds on the nose in de~Bruijn $\lambda$~calculus:
+\begin{code}
+{- Renaming with the identity function does not change the term -}
+id-upren : ∀ {n : ℕ} → (↑ᵣ (λ x → x)) n ≡ (λ x → x) n
+id-upren {zero} = refl
+id-upren {suc n} = refl
+
+id-ren : ∀ {e : Expr} → (e ⟨ (λ x → x) ⟩) ≡ e
+id-ren {‵ x} = refl
+id-ren {ƛ⇒ e} rewrite ren-ext {↑ᵣ (λ x → x)} {λ x → x} id-upren e | id-ren {e} = refl 
+id-ren {e₁ · e₂} rewrite id-ren {e₁} | id-ren {e₂} = refl
+
+{- Renaming with the identity substitution does not change the term -}
+id-substitution : Substitution
+id-substitution = ‵_
+
+id-substitution-up : ∀ {n} → (↑ id-substitution) n ≡ id-substitution n
+id-substitution-up {zero} = refl
+id-substitution-up {suc n} = refl
+
+id-subst : ∀ {e : Expr} → (e [ id-substitution ]) ≡ e
+id-subst {‵ x} = refl
+id-subst {ƛ⇒ e}
+  rewrite subst-ext {↑ id-substitution} {id-substitution} id-substitution-up e
+  | id-subst {e} = refl
+id-subst {e₁ · e₂} rewrite id-subst {e₁} | id-subst {e₂} = refl
+\end{code}
+\end{itemize}
+
+\subsection{Renaming is a Substitution}
+\label{sec:renam-subst-1}
+
+\begin{itemize}
+\item We defined renaming separately from substitution in de~Bruijn indices, but not in named $\lambda$~calculus.
+\item Were we just missing an operation?
+\item No! Once you have substitution, renaming is free, since renaming can be rewritten as a substitution.
+\begin{code}
+{- Renaming is a form of substitution -}
+ren-subst-up : ∀ {ξ} {n} → (‵ ↑ᵣ ξ n) ≡ ↑ (λ x → ‵ ξ x) n
+ren-subst-up {ξ} {zero} = refl
+ren-subst-up {ξ} {suc n} = refl
+
+ren-subst : ∀ {e : Expr} {ξ : Renaming} →
+  e ⟨ ξ ⟩ ≡ e [ (λ x → ‵ ξ x) ]
+ren-subst {‵ x} {ξ} = refl
+ren-subst {ƛ⇒ e} {ξ} =
+  cong (ƛ⇒_) (trans (ren-subst {e} {↑ᵣ ξ})
+             (subst-ext {λ x → (‵ ((↑ᵣ ξ) x))} {↑ (λ x → ‵ ξ x)} ren-subst-up e))
+ren-subst {e₁ · e₂} {ξ} rewrite ren-subst {e₁} {ξ} | ren-subst {e₂} {ξ} = refl
+\end{code}
+\end{itemize}
+
+\subsection{Fusion Laws}
+\label{sec:fusion-laws}
+
+\begin{itemize}
+\item Imagine that we repeatedly perform renaming and substitution operations on a single term~$e$.
+\item We end up having to walk the structure of $e$ repeatedly.
+\item Instead, can we find some substitution (or renaming) to do that allows us to only walk the structure of $e$ once?
+\item It turns out we can!
+\item This not only potentially reduces runtime, but also reassures us that we're not changing the structure of $e$ in untowards ways when doing renamings and substitutions.
+\item These will be your homework!
+\end{itemize}
+
+\section{Closure}
+\label{sec:closure}
+
+\begin{itemize}
+\item We say that a $\lambda$-term is \emph{closed} if it contains no free variables.
+\item This is $\alpha$-invariant (in other words, one element of an $\alpha$-equivalence class of terms is closed if and only if all of the elements of that $\alpha$-equivalence class is closed), so we should be able to define it for de~Bruijn terms.
+\item It turns out that the easiest thing to do is to \emph{bound} the free variables.
+  \begin{itemize}
+  \item This is true for both named $\lambda$~terms and de~Bruijn~terms.
+    After all, a $\lambda$ allows you to remove a variable from the set of free variables.
+  \end{itemize}
+\item In de~Bruijn terms, it's most useful to know if something is \emph{closed above $k$} for some $k \in \mathbb{N}$.
+  This means that it contains no free de~Bruijn indices $> k$.
+\item Then, a closed term is closed above $0$.
+\item We can define this as follows:
+\begin{code}
+data ClosedAbove : Expr → ℕ → Set where
+  closed-var : ∀ {k n} → k < n → ClosedAbove (‵ k) n
+  closed-abs : ∀ {n e} → ClosedAbove e (suc n) → ClosedAbove (ƛ⇒ e) n
+  closed-app : ∀ {n e₁ e₂} → ClosedAbove e₁ n → ClosedAbove e₂ n → ClosedAbove (e₁ · e₂) n
+
+Closed : Expr → Set
+Closed e = ClosedAbove e 0    
+\end{code}
+\item Unsurprisingly, a substitution that does not touch any free variables $< k$ will not change the term.
+  Thus, \emph{no} substitution will change a closed term.
+\begin{code}
+up-nonfree : ∀ {σ : Substitution} {n : ℕ} → 
+  (∀ m → m < n → σ m ≡ ‵ m) →
+  ∀ m → m < suc n → (↑ σ) m ≡ ‵ m
+up-nonfree {σ} {n} bd zero m<sn = refl
+up-nonfree {σ} {n} bd (suc m) (s≤s m<sn) rewrite bd m m<sn = refl
+
+subst-nonfree : ∀ {σ : Substitution} {n : ℕ} {e : Expr} →
+  ClosedAbove e n →
+  (∀ m → m < n → σ m ≡ ‵ m) →
+  e [ σ ] ≡ e
+subst-nonfree {σ} {n} {‵ x} (closed-var x<n) bd = bd x x<n
+subst-nonfree {σ} {n} {ƛ⇒ e} (closed-abs clsd) bd rewrite subst-nonfree {↑ σ} {suc n} {e} clsd (up-nonfree bd) = refl
+subst-nonfree {σ} {n} {e₁ · e₂} (closed-app clsd₁ clsd₂) bd rewrite subst-nonfree {σ} {n} {e₁} clsd₁ bd | subst-nonfree {σ} {n} {e₂} clsd₂ bd = refl
+
+subst-closed : ∀ (e : Expr) → Closed e → ∀ (σ : Substitution) → e [ σ ] ≡ e
+subst-closed e clsd σ = subst-nonfree {σ} {0} {e} clsd (λ m → λ ())
+\end{code}
+\end{itemize}
+
+\section{Going Forward}
+\label{sec:going-forward}
+
+\begin{itemize}
+\item This will be the last lecture with a substantial agda component.
+\item From now on, we'll be sticking mostly (not only) to pencil-and-paper proofs in lectures.
+\item You may still be expected to do agda in your homeworks, and I encourage you to continue to use it as a tutor.
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

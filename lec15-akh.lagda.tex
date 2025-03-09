@@ -1,0 +1,417 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+\newunicodechar{≟}{\ensuremath{\stackrel{?}{=}}}
+\newunicodechar{̬}{\ensuremath{{}_{\textsf{v}}}}
+\newunicodechar{ₐ}{\ensuremath{{}_{\textsf{a}}}}
+\newunicodechar{ₜ}{\ensuremath{{}_{\textsf{t}}}}
+\newunicodechar{ₖ}{\ensuremath{{}_{\textsf{k}}}}
+\newunicodechar{ᵣ}{\ensuremath{{}_{\textsf{r}}}}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+\newunicodechar{₃}{\ensuremath{{}_{3}}}
+\newunicodechar{⊕}{\ensuremath{\oplus}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{∸}{\ensuremath{\stackrel{.}{-}}}
+\newunicodechar{≮}{\ensuremath{\not<}}
+\newunicodechar{⋆}{\ensuremath{{}^{\ast}}}
+\newunicodechar{⇓}{\ensuremath{\Downarrow}}
+\newunicodechar{⇒}{\ensuremath{\implies}}
+\newunicodechar{‵}{\ensuremath{`}}
+\newunicodechar{ƛ}{\ensuremath{\mkern0.75mu-\mkern -12mu\lambda}}
+\newunicodechar{↦}{\ensuremath{\mapsto}}
+\newunicodechar{ξ}{\ensuremath{\xi}}
+\newunicodechar{τ}{\ensuremath{\tau}}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\title{Simply Typed $\lambda$~Calculus}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{15}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}[hide]
+module lec15-akh where
+
+open import Data.Nat using (ℕ; zero; suc)
+open import Data.List using ([]; _∷_; _++_)
+open import Data.List.Membership.Propositional using(_∈_)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; trans; cong)
+open import Data.Product using (Σ; ∃; Σ-syntax; ∃-syntax; _×_) renaming (_,_ to ⟨_,_⟩)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+
+open import Lambda
+\end{code}  
+
+\begin{itemize}
+\item In this lecture, we begin to explore \emph{type systems}, a theme we will return to for the rest of the semester.
+\item The purpose of a (data) type system is to constrain the shape of data.
+  \begin{itemize}
+  \item For instance, data with type $\mathbb{N}$ should have the ``shape'' of a number, data with type $t \times u$ should have the ``shape'' of a pair, et cetera.
+  \end{itemize}
+\item By constraining the ``shape'' of the data, we ensure that a programmer has not made the mistake of promising data of one shape while providing data of a different shape.
+\item This means that other parts of the program which rely on the data having that shape will not be disappointed.
+\end{itemize}
+
+\section{The Syntax of Types}
+\label{sec:syntax-types}
+
+\begin{itemize}
+\item We start by considering what the possible types of $\lambda$~calculus would be.
+\item In $\lambda$~calculus, every term represents a function.
+  There's nothing else it could represent!
+\item Therefore, it's tempting to try to use the following syntax for types:
+  \begin{syntax}
+    \category[Types]{\tau} \alternative{\tau_1\to\tau_2}
+  \end{syntax}
+\item However, this cannot work.
+  \begin{itemize}
+  \item \textbf{Stop and Think:} Why not?
+  \item Just try writing down a type in this syntax!
+  \end{itemize}
+\item Instead, we create a ``dummy'' \emph{base} type~$A$, which will allow us to actually write down types.
+  \begin{syntax}
+    \category[Types]{\tau} \alternative{A} \alternative{\tau_1\to\tau_2}
+  \end{syntax}
+\item Here, $A$ does not represent any data.
+\item In other words, \emph{there are no closed terms that have type $A$}.
+  We will not be able to prove this today, but you should be able to convince yourself that it's true.
+\end{itemize}
+
+\section{Contexts}
+\label{sec:contexts}
+
+\begin{itemize}
+\item One of the most important notions in programming languages is that of \emph{scope}.
+  You've run into many times before.
+\item In a type system, the type of a term can depend on the variables that are in scope.
+\item For instance,
+  \begin{itemize}
+  \item The variable~$y$ \emph{does not have a type} if it is not in scope.
+  \item The term $x + 1$ has type $\mathbb{N}$ if the variable~$x$ has type $\mathbb{N}$ in the current scope
+  \item etc
+  \end{itemize}
+\item In type systems, we use \emph{contexts} to keep track of all of the variables in scope.
+\item A context is just a list of variable-type pairs written $x \colon \tau$, meaning ``variable~$x$ has type~$\tau$ in the current scope.''
+  \begin{syntax}
+    \category[Contexts]{\Gamma} \alternative{\cdot} \alternative{\Gamma, x \colon \tau}
+  \end{syntax}
+  \begin{itemize}
+  \item Note that this is different then an \emph{evaluation context}, which is a term with a hole.
+  \end{itemize}
+\end{itemize}
+
+\section{The Type System}
+\label{sec:type-system}
+
+\begin{itemize}
+\item A type system is defined as an inductive relation.
+\item That relation is \emph{trinary} i.e., it has $3$ parts.
+\item We write $\Gamma \vdash e \colon \tau$ to mean ``in context~$\Gamma$ (describing what variables are in scope), the expression $e$ has type $\tau$.''
+\item We call the relation $\_\vdash\_\colon\_$ a \emph{typing judgment}.
+\item For $\lambda$~calculus, we can define the typing system as follows:
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=var]{x \colon \tau \in \Gamma}{\Gamma \vdash x \colon \tau}\and
+  \infer*[left=abs]{\Gamma, x \colon \tau_1 \vdash e \colon \tau_2}{\Gamma \vdash \abs{x}{e} \colon \tau_1 \to \tau_2} \and
+  \infer*[left=app]{\Gamma \vdash t \colon \tau_1 \to \tau_2\\ \Gamma \vdash u \colon \tau_2}{\Gamma \vdash \app{t}{u} \colon \tau_2}
+\end{mathpar}
+
+\begin{itemize}
+\item A variable~$x$ has type~$\tau$ if the current context contains~$x \colon \tau$.
+\item A function has an arrow type if the body of the function is well typed after adding the parameter to the context.
+\item A function call is well typed if the function has an arrow type \emph{and} the argument has the type to the left of the arrow.
+\end{itemize}
+
+\section{Two Views on Types}
+\label{sec:two-views-types}
+
+\begin{itemize}
+\item So far, we've thought about types as being imposed on some preexisting untyped system.
+  \begin{itemize}
+  \item In particular, that system is untyped $\lambda$ calculus.
+  \end{itemize}
+\item This is Curry's view of types.
+\item However, Church viewed types differently: he believed that we should make types an integral part of the language.
+\item This leads to a slightly different formal development:
+\end{itemize}
+\begin{syntax}
+  \category[Expressions]{e,t,u} \alternative{x} \alternative{\tabs{x}{\tau}{e}} \alternative{\app{t}{u}}
+\end{syntax}
+\begin{mathpar}
+  \infer*[left=var]{x \colon \tau \in \Gamma}{\Gamma \vdash x \colon \tau}\and
+  \infer*[left=abs]{\Gamma, x \colon \tau_1 \vdash e \colon \tau_2}{\Gamma \vdash \tabs{x}{\tau_1}{e} \colon \tau_1 \to \tau_2} \and
+  \infer*[left=app]{\Gamma \vdash t \colon \tau_1 \to \tau_2\\ \Gamma \vdash u \colon \tau_2}{\Gamma \vdash \app{t}{u} \colon \tau_2}
+\end{mathpar}
+\begin{itemize}
+\item In the first, we have the language of untyped $\lambda$~calculus and then impose a typing discipline on top.
+\item In the second, we have incorporated the types directly into the syntax of terms.
+  By adding a typing annotation, we have made it easier to check the term, but less flexible.
+  \begin{itemize}
+  \item For instance, in Curry's style $\abs{x}{x}$ can be given type $\tau \to \tau$ for any type $\tau$.
+  \item However, in Church's style $\tabs{x}{\tau}{x}$ bakes in the choice of $\tau$.
+  \item Even in Curry's style, once one instance of $\abs{x}{x}$ has been given type $\tau \to \tau$, that choice is irrevertable: no other choice of type can replace $\tau$.
+  \end{itemize}
+\item Curry-style typing is sometimes known as \emph{extensional} typing, while Church-style typing is sometimes known as \emph{intensional} typing.
+\item For simple types, they are equivalent: you can use Hindley-Milner type inference to recover one from the other.
+\item However, in more-complicated type systems, they may not be equivalent.
+  For instance, in dependent types extensional type systems have undecidable type checking.
+  However, they also allow for function extensionality by default, without an axiom.
+\item Personally, my view is closer to Church's
+\end{itemize}
+\subsection{Historical Context}
+\label{sec:historical-context}
+
+\begin{itemize}
+\item Haskell Curry was one of the two inventors of typed $\lambda$ calculus.
+\item He was an American who was one of the founders of \emph{combinatory logic}, an area of logic that was very popular in the 1930s and '40s.
+\item Two of Alonzo Church's students, Stephen Kleene and John Rosser, found that both $\lambda$ calculus and combinatory logic were paradoxical in the same way.
+\item This lead to the development of typed $\lambda$~calculus by both Curry and Church independently, though each with their own style.
+\item Curry said that we should not ``run away from paradox,'' while Church said that a term without a type may be meaningless.
+\item This debate continues to this day.
+  Robert Harper famously argues that untyped systems are actually ``unityped systems'' (though we'll get into this more later).
+  Others, including many in the gradual typing community, view typed terms as having been checked for errors, while untyped terms simply haven't been checked yet.
+\end{itemize}
+
+\section{Type Soundness}
+\label{sec:type-soundness}
+
+\epigraph{Well-typed programs cannot ``go wrong.''}{Robin Milner}
+
+\begin{itemize}
+\item The point of using a type discipline is to make sure that programs are ``meaningful'' and ``free of paradoxes.''
+\item What does that mean for us?
+\item We would like to prove that well-typed programs never ``get stuck,'' where there is no next step they can take in CBV~reduction.
+\item In order to ensure that, we take the approach of Felleisen and Wright and divide our proof into two parts: ``progress'' and ``preservation.''
+\end{itemize}
+
+\subsection{Substitution and Types}
+\label{sec:substitution-types}
+
+\begin{itemize}
+\item Substitution is the key operation on terms, and it is used to define $\beta$ equivalence.
+\item In order to know how types interact with steps, we need to know how they interact with substitution.
+\item Intuitively, if $x \colon \tau$ is in scope in $e$, then replacing $x$ in $e$ with any $e' \colon \tau$ should be okay.
+  In other words, $x$ stands for some arbitrary~$\tau$, and replacing it with whatever~$\tau$ it stands for should be okay.
+\item We formalize this in a theorem which you will be asked to prove in your homework using the Barendregt convention:
+\end{itemize}
+\begin{thm}[Substitution]
+  If $\Gamma \vdash e \colon \tau$ and $\Gamma, x \colon \tau \vdash e' \colon \tau'$, then $\Gamma \vdash e'[x \mapsto e] \vdash \tau'$.
+\end{thm}
+
+\subsection{Type Preservation}
+\label{sec:type-preservation}
+
+Type preservation says that taking a CBV~reduction step does not change the type of a term.
+
+\begin{thm}[Preservation]
+  If $\Gamma \vdash e \colon \tau$ and $e \to e'$, then $\Gamma \vdash e' \colon \tau$.
+\end{thm}
+\begin{proof}
+  By induction on the proof that $\Gamma \vdash e \colon \tau$.
+
+  \noindent\textbf{Case \textsc{var}:}
+  In this case, we know that $e = x$.
+  But then there is no possible step $x \to e'$, and so this case works vacuously.
+
+  \noindent\textbf{Case \textsc{abs}:}
+  In this case, $e$ is a value and there is no $e'$ such that $e \to e'$, so this case works vacuously.
+
+  \noindent\textbf{Case \textsc{app}:}
+  In this case, we know that $e = \app{e_1}{e_2}$ where $\Gamma \vdash e_1 \colon \tau_1 \to \tau$ and $\Gamma \vdash e_2 \colon \tau_1$.
+  There are three possibilities for the step: either $e_1 \to e_1'$, $e_2 \to e_2'$, or $e_1 = \abs{x}{e_1'}$ and $e' = e_1'[x \mapsto e_2]$.
+  In the first two cases, the induction hypothesis gives exactly the information needed to construct the desired type derivation.
+  In the last case, we can appeal to the Substitution theorem to get the desired result.
+\end{proof}
+
+\begin{cor}[Multistep Preservation]
+  If $\Gamma \vdash e \colon \tau$ and $e \to^\ast e'$, then $\Gamma \vdash e' : \tau$.
+\end{cor}
+\begin{proof}
+  By induction on the proof of $e \to^\ast e'$.
+
+  \noindent\textbf{Case \textsc{Refl}:} In this case, $e = e'$ and we're done.
+
+  \noindent\textbf{Case \textsc{Step}:} In this case, there is an $e''$ such that $e \to e''$ and $e'' \to^\ast e'$.
+  By Preservation, $\Gamma \vdash e'' \colon \tau$.
+  Then, by IH, $\Gamma \vdash e' \colon \tau$ as desired.
+\end{proof}
+
+\subsection{Progress}
+\label{sec:progress}
+
+Progress says that a well-typed closed term can always take a step unless it is already a value.
+Note two things.
+First, that a closed term is exactly a term that can be typed in an empty context---i.e., with no variables in scope.
+Second, that a value can never take a step.
+
+\begin{thm}[Progress]
+  If $\vdash e \colon \tau$, then either $e$ is a value or there is an $e'$ such that $e \to e'$.
+\end{thm}
+\begin{proof}
+  By induction on the proof of $\vdash e \colon \tau$.
+
+  \noindent\textbf{Case \textsc{var}:} Since $e$ is closed this case is impossible, and so works vacuously.
+
+  \noindent\textbf{Case \textsc{abs}:} In this case, $e$ is already a value and we are done.
+
+  \noindent\textbf{Case \textsc{app}:} In this case, $e = \app{e_1}{e_2}$.
+  By IH, either $e_1$ is a value or there is an $e_1'$ such that $e_1 \to e_1'$.
+  In the latter case, $e \to \app{e_1'}{e_2}$ and we are done, so assume that $e_1$ is a value.
+  In this case, $e_1$ must have the form $\abs{x}{e_1'}$.
+  By IH again, either $e_2$ is a value or there is an $e_2'$ such that $e_2 \to e_2'$.
+  In the latter case $e \to \app{e_1}{e_2'}$, so assume that $e_2$ is a value.
+  But then because $e_1 = \abs{x}{e_1'}$, we get $$e = \app{(\abs{x}{e_1'})}{e_2} \to e_1'[x \mapsto e_2]$$
+\end{proof}
+
+\subsection{Putting it all Together}
+\label{sec:putting-it-all}
+
+\begin{thm}[Type Safety]
+  If $\vdash e \colon \tau$ and $e \to^\ast e'$, then either $e'$ is a value or there is a $e''$ such that $e' \to e''$.
+\end{thm}
+\begin{proof}
+  By Multistep Preservation, we know that $\vdash e' : \tau$.
+  But then progress exactly matches the rest of the theorem statement.
+\end{proof}
+
+\begin{itemize}
+\item Thus, any well-typed closed term cannot ``get stuck''.
+\item After all, it can always take a step unless it is a value.
+\item Moreover, if you take a few steps, you can take more steps unless you have hit a value.
+\item In other words, our type system has done its job and kept us from writing misbehaving programs.
+\end{itemize}
+
+\section{Type Systems in de~Bruijn Indices}
+\label{sec:type-systems-de}
+
+\begin{itemize}
+\item With de~Bruijn indices we use the same trick for type systems that we did for substitutions: we type with an infinite context.
+\item This leads to the following code:
+\begin{code}
+-- again, using long arrow \-->
+infixl 4 _⟶_
+data Type : Set where
+  A : Type
+  _⟶_ : Type → Type → Type
+
+Ctxt = ℕ → Type
+
+upctxt : Ctxt → Type → Ctxt
+upctxt Γ τ zero = τ
+upctxt Γ τ (suc n) = Γ n
+
+infix 3 _⊢_∷_
+data _⊢_∷_ : Ctxt → Expr → Type → Set where
+  var : ∀ {Γ : Ctxt} {x : ℕ} {τ : Type} →
+     Γ x ≡ τ →
+     -- Why the indirection? I want this to be a proof goal, not a unification problem
+     ------------
+     Γ ⊢ ‵ x ∷ τ
+  arr : ∀ {Γ : Ctxt} {e : Expr} {τ₁ τ₂ : Type} →
+    upctxt Γ τ₁ ⊢ e ∷ τ₂ →
+    Γ ⊢ ƛ⇒ e ∷ τ₁ ⟶ τ₂
+  app : ∀ {Γ : Ctxt} {e₁ e₂ : Expr} {τ₁ τ₂ : Type} →
+    Γ ⊢ e₁ ∷ τ₁ ⟶ τ₂ →
+    Γ ⊢ e₂ ∷ τ₁ →
+    Γ ⊢ e₁ · e₂ ∷ τ₂
+
+typing-ext : ∀ {Γ Δ : Ctxt} {e : Expr} {τ : Type} →
+  (∀ n → Γ n ≡ Δ n) →
+  Γ ⊢ e ∷ τ →
+  Δ ⊢ e ∷ τ
+typing-ext exteq (var {x = x} eq) = var (trans (sym (exteq x)) eq)
+typing-ext {Γ} {Δ} exteq (arr typ) =
+  arr (typing-ext (λ {zero → refl ; (suc n) → exteq n }) typ)
+typing-ext exteq (app typ₁ typ₂) =
+  app (typing-ext exteq typ₁) (typing-ext exteq typ₂)
+\end{code}
+\item To connect this with substitutions, we need the notion of typing a substitution.
+\item We write $\Gamma \vdash \sigma \dashv \Delta$ to mean ``the substitution~$\sigma$ moves terms from context~$\Gamma$ to context~$\Delta$.
+\item Formally, this works if for every $x \colon \tau \in \Gamma$, $\Delta \vdash \sigma(x) \colon \tau$.
+\begin{code}
+_⊢_⊣_ : Ctxt → Substitution → Ctxt → Set
+Γ ⊢ σ ⊣ Δ = ∀ (x : ℕ) → Δ ⊢ (σ x) ∷ Γ x
+\end{code}
+\item Renamings, in the meantime, merely ``shuffle around'' the free variables.
+  We need to ``shuffle around'' the context the same way.
+\begin{code}
+renaming-typing : ∀ {Γ : Ctxt} {ξ : Renaming} {e : Expr} {τ : Type} →
+  (λ x → Γ (ξ x)) ⊢ e ∷ τ → Γ ⊢ e ⟨ ξ ⟩ ∷ τ
+renaming-typing {Γ} {ξ} {e} {τ} (var eq) = var eq
+renaming-typing {Γ} {ξ} {ƛ⇒ e} {τ₁ ⟶ τ₂} (arr {_} {e} {τ₁} {τ₂} typ) =
+  arr (renaming-typing
+        (typing-ext {upctxt (λ n → Γ (ξ n)) τ₁}
+                    {λ n → (upctxt Γ τ₁) (↑ᵣ ξ n)}
+                    (λ {zero → refl; (suc n) → refl})
+                    typ))
+renaming-typing (app typ₁ typ₂) = app (renaming-typing typ₁) (renaming-typing typ₂)
+\end{code}
+\newpage
+\item We can then show the central theorem: if $\Gamma \vdash \sigma \dashv \Delta$ and $\Gamma \vdash e \colon \tau$, then $\Delta \vdash e[\sigma] \colon \tau$.
+\begin{code}
+uptyping : ∀ {Γ Δ : Ctxt} {σ : Substitution} {τ : Type} →
+  Γ ⊢ σ ⊣ Δ → upctxt Γ τ ⊢ ↑ σ ⊣ upctxt Δ τ
+uptyping {Γ} {Δ} {σ} {τ} styp zero = var refl
+uptyping {Γ} {Δ} {σ} {τ} styp (suc n) = renaming-typing (styp n)
+
+subst-typing : ∀ {Γ Δ : Ctxt} {e : Expr} {τ : Type} {σ : Substitution} →
+  Γ ⊢ e ∷ τ → Γ ⊢ σ ⊣ Δ → Δ ⊢ (e [ σ ]) ∷ τ
+subst-typing {e = ‵ x} (var eq) styp rewrite sym eq = styp x
+subst-typing (arr typ) styp =
+  arr (subst-typing typ (uptyping styp))
+subst-typing (app typ₁ typ₂) styp =
+  app (subst-typing typ₁ styp) (subst-typing typ₂ styp)
+
+zsubst-typing : ∀ {Γ : Ctxt} {e : Expr} {τ : Type} →
+  Γ ⊢ e ∷ τ →
+  upctxt Γ τ ⊢ zsubst e ⊣ Γ
+zsubst-typing typ zero = typ
+zsubst-typing typ (suc n) = var refl
+\end{code}
+\end{itemize}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

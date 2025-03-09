@@ -1,0 +1,273 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\newcommand{\nil}{\ensuremath{\textsf{[]}}}
+\newcommand{\cons}{\ensuremath{\mathbin{\textsf{::}}}}
+\newcommand{\app}{\ensuremath{\mathbin{\textsf{++}}}}
+
+\title{The Quantifiers}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{8}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec08-akh where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl)
+open Eq.≡-Reasoning
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
+open import Isomorphism using (_≃_; _≲_)
+open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Relation.Nullary using (¬_)
+open import Function using (_∘_)
+\end{code}
+
+
+\section{For All}
+\label{sec:forall}
+
+\begin{itemize}
+\item We have been using the for-all (``$\forall$'') operator since lecture 2.
+\item To say that some statement~$\varphi$ is true for every $x \colon A$, we build a \emph{dependent function} from~$x \colon A$ to evidence for~$\varphi(x)$.
+\item To introduce evidence of $\forall (x \colon A).\,B$, we write $\lambda (x \colon A) \to e$.
+\item We can build an elimination rule for $\forall$, exactly as we did for implications:
+\begin{code}
+∀-elim : ∀ {A : Set} {B : A → Set} →
+  (∀ (x : A) → B x) →
+       (M : A) →
+  --------------------
+         B M
+∀-elim f x = f x    
+\end{code}
+\item In order to talk about equality of evidence for $\forall$, we need a stronger version of extensionality.
+  \begin{itemize}
+  \item It's stronger in that it implies the original version, but not the other way around.
+  \end{itemize}
+\begin{code}
+postulate
+  ∀-extensionality : ∀ {A : Set} {B : A → Set} {f g : ∀ (x : A) → B x}
+    → (∀ (x : A) → f x ≡ g x)
+      -----------------------
+    → f ≡ g
+
+extensionality : ∀ {A B : Set} {f g : A → B} →
+  (∀ (x : A) → f x ≡ g x) →
+  -----------------------
+          f ≡ g
+extensionality = ∀-extensionality    
+\end{code}
+\item Dependent functions are sometimes called dependent products, because if $A$ is a finite type with $n$ values, while $B(x)$ has $m_1, \dots, m_n$ members for every $x$ respectively, then $\forall (x \colon A) \to B$ has $\prod^n_{i = 1} m_i$ values.
+  \begin{itemize}
+  \item Sometimes, people write $\Pi[ x \in A ] (B x)$ for a dependent function type.
+    The $\Pi$ here stands for ``product.''
+    This is more common in theory work than in practical languages.
+  \end{itemize}
+\item Dependent functions do play well with products, though:
+\begin{code}
+∀-distrib-× : ∀ {A : Set} {B C : A → Set} →
+  (∀ (x : A) → B x × C x) ≃ (∀ (x : A) → B x) × (∀ (x : A) → C x)
+∀-distrib-× =
+  record
+  {
+    to      = λ f → ⟨ (λ {x → proj₁ (f x)}) , (λ {x → proj₂ (f x)}) ⟩
+  ; from    = λ { ⟨ f , g ⟩ → λ x → ⟨ f x , g x ⟩}
+  ; from∘to = λ f → refl
+  ; to∘from = λ f → refl
+  }    
+\end{code}
+\end{itemize}
+
+\section{There Exists}
+\label{sec:there-exists}
+
+\begin{itemize}
+\item In logic, $\exists x \colon A.\,\varphi(x)$ means that there is some $x$ of type $A$ such that $\varphi(x)$ holds.
+\item In order to give evidence of $\exists x \colon A.\,\varphi(x)$, you need to supply both a choice of~$x$ and evidence that $\varphi$ holds of that specific~$x$.
+  \begin{itemize}
+  \item This looks like a pair, where the type of the second element depends on the type of the first.
+  \item We call it a \emph{dependent pair} type.
+  \item Sometimes it is called a \emph{dependent sum} type, because if $A$ is a finite type with $n$ values, and each $\varphi(x)$ has $m_1, \dots, m_n$ values respectively, then $\exists x \colon A.\,\varphi(x)$ has $\sum^n_{i=1} m_i$ values.
+  \end{itemize}
+\item We can formalize this using a record type:
+\begin{code}
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor ⟨_,_⟩
+  field
+    proj₁ : A
+    proj₂ : B proj₁
+\end{code}
+\begin{itemize}
+\item It can be strange to see \textsf{proj₁} as an index for $B$ above.
+  After all, we think of \textsf{proj₁} as a function!
+\item But in the record itself, it is just a value of type $A$.
+\item However, if we use a single-constructor datatype instead, we get a perhaps-more-intuitive (though certainly more-complicated) type for \textsf{proj₂}.
+\begin{code}
+data Σ′ (A : Set) (B : A → Set) : Set where
+  ⟨_,_⟩′ : (x : A) → B x → Σ′ A B
+
+proj₁′ : ∀ {A : Set} {B : A → Set} → Σ′ A B → A
+proj₁′ ⟨ x , y ⟩′ = x
+
+proj₂′ : ∀ {A : Set} {B : A → Set} → ∀ (w : Σ′ A B) → B (proj₁′ w)
+proj₂′ ⟨ x , y ⟩′ = y
+\end{code}
+\end{itemize}
+\newpage
+\item Now, in order to write a dependent pair type, we have to write \textsf{Σ A (λ x → B)}, which is a bit annoying.
+\item We can fix this by using agda's syntax facility:
+\begin{code}
+Σ-syntax = Σ
+infix 2 Σ-syntax
+syntax Σ-syntax A (λ x → Bx) = Σ[ x ∈ A ] Bx    
+\end{code}
+\begin{itemize}
+\item Why define \textsf{Σ-syntax}?
+  Because this way you can choose to import the syntax or not into your module!
+\end{itemize}
+\item It might also be confusing that we choose to use the symbol $\Sigma$ instead of $\exists$.
+  In agda, convention holds that we use $\exists$ when $A$ is implicit:
+\begin{code}
+∃ : ∀ {A : Set} (B : A → Set) → Set
+∃ {A} B = Σ A B
+
+∃-syntax = ∃
+syntax ∃-syntax (λ x → B) = ∃[ x ] B
+\end{code}
+\item With this, the elimination principle for $\exists$ looks more normal:
+\begin{code}
+∃-elim : ∀ {A : Set} {B : A → Set} {C : Set} →
+   (∀ x → B x → C) →
+     ∃[ x ] B x →
+  -----------------
+          C
+∃-elim f ⟨ x , y ⟩ = f x y    
+\end{code}
+\end{itemize}
+
+\section{Using Exists}
+\label{sec:using-exists}
+
+\begin{itemize}
+\item How can we use $\exists$ types?
+\item Well, you can use it to talk about currying for dependent function types:
+\begin{code}
+∀∃-currying : ∀ {A : Set} {B : A → Set} {C : Set}
+  → (∀ x → B x → C) ≃ (∃[ x ] B x → C)
+∀∃-currying =
+  record
+  {
+    to      = λ {f → λ { ⟨ x , y ⟩ → f x y } }
+  ; from    = λ {g → λ {x → λ {y → g ⟨ x , y ⟩}}}
+  ; from∘to = λ f → refl
+  ; to∘from = λ g → refl
+  }    
+\end{code}
+\newpage
+\item A more direct use, though, would be to use it to show that our definitions of even and odd coincide with more traditional definitions.
+\item Traditionally, a number~$n \in \mathbb{N}$ is even if $n = 2k$ for some $k \in \mathbb{N}$, while $n$ is odd if $n = 2k+1$ for some $k \in \mathbb{N}$.
+\item We can prove that our inductive-relation definition for odd and even exactly capture this intuition.
+\begin{code}
+data even : ℕ → Set
+data odd : ℕ → Set
+
+data even where
+  even-zero : even zero
+
+  even-suc : ∀ {n : ℕ} →
+        odd n →
+    --------------
+     even (suc n)
+
+data odd where
+  odd-suc : ∀ {n : ℕ} →
+       even n →
+    -------------
+     odd (suc n)
+
+even-∃ : ∀ {n : ℕ} → even n → ∃[ m ] (    m * 2 ≡ n)
+odd-∃  : ∀ {n : ℕ} →  odd n → ∃[ m ] (1 + m * 2 ≡ n)
+
+even-∃ even-zero =  ⟨ 0 , refl ⟩
+even-∃ (even-suc on) with odd-∃ on
+... | ⟨ m , refl ⟩ = ⟨ suc m , refl ⟩
+
+odd-∃ (odd-suc en) with even-∃ en
+... | ⟨ m , refl ⟩ =  ⟨ m , refl ⟩
+
+∃-even : ∀ {n : ℕ} → ∃[ m ] (    m * 2 ≡ n) → even n
+∃-odd  : ∀ {n : ℕ} → ∃[ m ] (1 + m * 2 ≡ n) →  odd n
+
+∃-even ⟨ zero , refl ⟩ = even-zero
+∃-even ⟨ suc m , refl ⟩ = even-suc (∃-odd ⟨ m , refl ⟩)
+
+∃-odd ⟨ m , refl ⟩ = odd-suc (∃-even ⟨ m , refl ⟩)    
+\end{code}
+\end{itemize}
+
+\section{Negation and the Quantifiers}
+\label{sec:negation-quantifiers}
+
+\begin{itemize}
+\item If nothing exists which has some property, it must hold that all of the things which do exist do not have that property.
+  Perhaps more surprisingly, the converse also holds: if $\lnot P(x)$ holds for every $x \colon A$, then there cannot exist and $x \colon A$ such that $P(x)$ holds.
+\begin{code}
+¬∃≃∀¬ : ∀ {A : Set} {B : A → Set} →
+  (¬ ∃[ x ] B x) ≃ ∀ x → ¬ B x
+¬∃≃∀¬ =
+  record
+  {
+    to      = λ {f → λ {x → λ {y → f ⟨ x , y ⟩} }}
+  ; from    = λ {g → λ { ⟨ x , y ⟩ → g x y}}
+  ; from∘to = λ f → refl
+  ; to∘from = λ g → refl
+  }    
+\end{code}
+\item It is also true that if there is some $x \colon A$ such that $\lnot P(x)$ holds, then it is not the case that $P(x)$ holds for every $x \colon A$.
+\begin{code}
+∃¬-implies-¬∀ : ∀ {A : Set}{B : A → Set} →
+  ∃[ x ] (¬ B x) →
+  -----------------
+    ¬ (∀ x → B x)
+∃¬-implies-¬∀ ⟨ x , ¬Bx ⟩ = λ {f → ¬Bx (f x)}    
+\end{code}
+\item Does the converse hold? Why or why not?
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
