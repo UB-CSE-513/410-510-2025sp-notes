@@ -1,0 +1,774 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+% \usepackage[lite]{mtp2}
+\usepackage{forest}
+\usepackage{stmaryrd}
+
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+\newunicodechar{≟}{\ensuremath{\stackrel{?}{=}}}
+\newunicodechar{̬}{\ensuremath{{}_{\textsf{v}}}}
+\newunicodechar{ₐ}{\ensuremath{{}_{\textsf{a}}}}
+\newunicodechar{ₜ}{\ensuremath{{}_{\textsf{t}}}}
+\newunicodechar{ₖ}{\ensuremath{{}_{\textsf{k}}}}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+\newunicodechar{₃}{\ensuremath{{}_{3}}}
+\newunicodechar{⊕}{\ensuremath{\oplus}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{∸}{\ensuremath{\stackrel{.}{-}}}
+\newunicodechar{⋆}{\ensuremath{{}^{\ast}}}
+\newunicodechar{⇓}{\ensuremath{\Downarrow}}
+
+\newcommand{\Imp}{\textsc{Imp}\xspace}
+\newcommand{\Skip}{\textsf{skip}}
+\newcommand{\ite}[3]{\ensuremath{\textsf{if}\mkern5mu#1 \mathrel{\textsf{then}} #2 \mathrel{\textsf{else}} #3}}
+\newcommand{\while}[2]{\ensuremath{\textsf{while}\mkern5mu#1 \mathrel{\textsf{do}} #2}}
+\newcommand{\itrue}{\textsf{true}}
+\newcommand{\ifalse}{\textsf{false}}
+
+\newcommand{\astep}{\ensuremath{\mathrel{\longrightarrow_a}}}
+\newcommand{\bstep}{\ensuremath{\mathrel{\longrightarrow_b}}}
+\newcommand{\cstep}{\ensuremath{\mathrel{\longrightarrow_c}}}
+
+\title{Big-Step Operational Semantics}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{10}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}[hide]
+module lec10-akh where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; _≢_; refl; cong; sym)
+open Eq.≡-Reasoning
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_; _<_; z<s; s<s; _≤_; _>_)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Data.Bool using (Bool; true; false; if_then_else_)
+open import Relation.Nullary using (Dec; yes; no; ¬_)
+
+postulate
+  Var : Set
+  _≟̬_ : ∀ (X Y : Var) → Dec (X ≡ Y)
+
+_≟_ : ∀ (n m : ℕ) → Dec (n ≡ m)
+zero ≟ zero = yes refl
+zero ≟ (suc m) = no λ ()
+(suc n) ≟ zero = no λ ()
+(suc n) ≟ (suc m) with n ≟ m
+... | yes eq  = yes (cong suc eq)
+... | no neq = no (λ {refl -> neq refl}) 
+
+nat-eqb : ∀ (n m : ℕ) → Bool
+nat-eqb zero zero = true
+nat-eqb zero (suc _) = false
+nat-eqb (suc _) zero = false
+nat-eqb (suc n) (suc m) = nat-eqb n m
+
+nat-eqb-true : ∀ {n m : ℕ} → nat-eqb n m ≡ true → n ≡ m
+nat-eqb-true {zero} {zero} eqbnm≡true = refl
+nat-eqb-true {suc n} {suc m} eqbnm≡true  = cong suc (nat-eqb-true {n} {m} eqbnm≡true)
+
+neq-suc′ : ∀ {n m : ℕ} → suc n ≢ suc m → n ≢ m
+neq-suc′ {n} {m} neq = λ eq → neq (cong suc eq)
+
+suc-eq : ∀ {n m : ℕ} → suc n ≡ suc m → n ≡ m
+suc-eq refl = refl
+
+neq-suc : ∀ {n m : ℕ} → n ≢ m → suc n ≢ suc m
+neq-suc {n} {m} neq = λ {eq → neq (suc-eq eq)} 
+
+nat-eqb-false : ∀ {n m : ℕ} → nat-eqb n m ≡ false → n ≢ m
+nat-eqb-false {zero} {suc m} eqbnm≡false = λ ()
+nat-eqb-false {suc n} {zero} eqbnm≡false = λ () 
+nat-eqb-false {suc n} {suc m} eqbnm≡false = neq-suc (nat-eqb-false {n} {m} eqbnm≡false)
+
+nat-eqb-equal : ∀ {n m : ℕ} → n ≡ m → nat-eqb n m ≡ true
+nat-eqb-equal {zero} {zero} eq = refl
+nat-eqb-equal {suc n} {suc m} eq = nat-eqb-equal (suc-eq eq)
+
+nat-eqb-refl : ∀ {n : ℕ} → nat-eqb n n ≡ true
+nat-eqb-refl {zero} = refl
+nat-eqb-refl {suc n} = nat-eqb-refl {n}
+
+nat-eqb-nequal : ∀ {n m : ℕ} → n ≢ m → nat-eqb n m ≡ false
+nat-eqb-nequal {zero} {zero} neq with (neq refl)
+... | () 
+nat-eqb-nequal {zero} {suc m} neq = refl
+nat-eqb-nequal {suc n} {zero} neq = refl
+nat-eqb-nequal {suc n} {suc m} neq = nat-eqb-nequal (neq-suc′ neq)
+
+_≟ₜ_ : ∀ (b₁ b₂ : Bool) → Dec (b₁ ≡ b₂)
+false ≟ₜ false = yes refl
+false ≟ₜ true = no λ ()
+true ≟ₜ false = no λ ()
+true ≟ₜ true = yes refl
+
+_<?_ : (n m : ℕ) → Dec (n < m)
+zero <? zero = no λ ()
+zero <? suc m = yes z<s
+suc n <? zero = no λ ()
+suc n <? suc m with n <? m
+... | yes n<m = yes (s<s n<m)
+... | no n≮m = no (λ {(s<s pf) → n≮m pf}) 
+
+ltb : ℕ → ℕ → Bool
+ltb zero zero = false
+ltb zero (suc _) = true
+ltb (suc m) zero = false
+ltb (suc m) (suc n) = ltb m n
+
+ltb-true : ∀ {m n : ℕ} → ltb m n ≡ true → m < n
+ltb-true {zero} {suc n} m<?n≡true = z<s
+ltb-true {suc m} {suc n} m<?n≡true = s<s (ltb-true m<?n≡true)
+
+<-ltb : ∀ {m n : ℕ} → m < n → ltb m n ≡ true
+<-ltb {zero} {suc n} m<n = refl
+<-ltb {suc m} {suc n} (Data.Nat.s≤s m<n) = <-ltb {m} {n} m<n
+
+≮-ltb : ∀ {n m : ℕ} → ¬ (n < m) → ltb n m ≡ false
+≮-ltb {zero} {zero} n≮m = refl
+≮-ltb {zero} {suc m} n≮m with n≮m z<s
+... | ()
+≮-ltb {suc n} {zero} n≮m = refl
+≮-ltb {suc n} {suc m} n≮m = ≮-ltb {n} {m} λ n<m → n≮m (s<s n<m)
+
+data AExpr : Set where
+  const : ℕ → AExpr
+  var : Var → AExpr
+  _⊕_ : AExpr → AExpr → AExpr
+  _-_ : AExpr → AExpr → AExpr
+  _⊗_ : AExpr → AExpr → AExpr
+
+infixr 5 _⊕_
+infixr 5 _-_
+infixr 4 _⊗_
+
+data BExpr : Set where
+  true : BExpr
+  false : BExpr
+  _==_ : AExpr → AExpr → BExpr
+  _<<_ : AExpr → AExpr → BExpr
+  !_ : BExpr → BExpr
+  _&&_ : BExpr → BExpr → BExpr
+  _||_ : BExpr → BExpr → BExpr
+
+infixr 3 _&&_
+infixr 3 _||_
+
+bool2BExpr : Bool → BExpr
+bool2BExpr true = true
+bool2BExpr false = false
+
+data Com : Set where
+  skip : Com
+  _:=_ : Var → AExpr → Com
+  _>>_ : Com → Com → Com
+  ite : BExpr → Com → Com → Com
+  while_go_ : BExpr → Com → Com
+
+
+infixr 2 _⟶ₐ_
+
+State = Var → ℕ
+
+update : State → Var → ℕ → State
+update σ X n Y with X ≟̬ Y
+... | yes _ = n
+... | no _ = σ Y 
+
+AConfig = AExpr × State
+
+-- note: this is a long arrow \-->
+data _⟶ₐ_ : AConfig → AExpr → Set where
+  var-lookup : ∀ {X : Var} {σ : State} →
+    ⟨ var X , σ ⟩ ⟶ₐ const (σ X)
+  plus-step₁ : ∀ {x y z : AExpr}{σ : State} →
+         ⟨ x , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊕ y , σ ⟩ ⟶ₐ z ⊕ y
+  plus-step₂ : ∀ {x y z : AExpr} {σ : State}→
+         ⟨ y , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊕ y , σ ⟩ ⟶ₐ x ⊕ z
+  plus-step-const : ∀ {n m : ℕ} {σ : State} →
+    ------------------------------------------------
+     ⟨ (const n) ⊕ (const m) , σ ⟩ ⟶ₐ const (n + m)
+  minus-step₁ : ∀ {x y z : AExpr}{σ : State} →
+         ⟨ x , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x - y , σ ⟩ ⟶ₐ z - y
+  minus-step₂ : ∀ {x y z : AExpr} {σ : State} →
+         ⟨ y , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x - y , σ ⟩ ⟶ₐ x - z
+  minus-step-const : ∀ {n m : ℕ} {σ : State} →
+    ------------------------------------------------
+     ⟨ (const n) - (const m) , σ ⟩ ⟶ₐ const (n ∸ m) 
+  times-step₁ : ∀ {x y z : AExpr} {σ : State} →
+         ⟨ x , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊗ y , σ ⟩ ⟶ₐ z ⊗ y
+  times-step₂ : ∀ {x y z : AExpr} {σ : State} →
+         ⟨ y , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊗ y , σ ⟩ ⟶ₐ x ⊗ z
+  times-step-const : ∀ {n m : ℕ} {σ : State} →
+    ------------------------------------------------
+     ⟨ (const n) ⊗ (const m) , σ ⟩ ⟶ₐ const (n * m)
+
+BConfig = BExpr × State
+
+infixr 2 _⟶ₜ_
+data _⟶ₜ_ : BConfig → BExpr → Set where
+  eq-step₁ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ x , σ ⟩ ⟶ₐ z → 
+    --------------------------
+     ⟨ x == y , σ ⟩ ⟶ₜ z == y
+  eq-step₂ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ y , σ ⟩ ⟶ₐ z →
+    --------------------------
+     ⟨ x == y , σ ⟩ ⟶ₜ x == z
+  eq-step-true : ∀ {n : ℕ} {σ : State} →
+    ------------------------------------------------------
+     ⟨ (const n) == (const n) , σ ⟩ ⟶ₜ true
+  eq-step-false : ∀ {n m : ℕ} {σ : State} →
+                    n ≢ m ->
+    ----------------------------------------
+    ⟨ (const n) == (const m) , σ ⟩ ⟶ₜ false
+  lt-step₁ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ x , σ ⟩ ⟶ₐ z →
+    --------------------------
+     ⟨ x << y , σ ⟩ ⟶ₜ z << y 
+  lt-step₂ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ y , σ ⟩ ⟶ₐ z →
+    --------------------------
+     ⟨ x << y , σ ⟩ ⟶ₜ x << z
+  lt-step-true : ∀ {n m : ℕ} {σ : State} →
+                                  n < m →
+    ---------------------------------------------------------
+     ⟨ (const n) << (const m) , σ ⟩ ⟶ₜ true
+  lt-step-false : ∀ {n m : ℕ} {σ : State} →
+                                 ¬ (n < m) → 
+    ---------------------------------------------------------
+     ⟨ (const n) << (const m) , σ ⟩ ⟶ₜ false
+
+  not-step : ∀ {b₁ b₂ : BExpr} {σ : State} →
+       ⟨ b₁ , σ ⟩ ⟶ₜ b₂ →
+    ----------------------
+     ⟨ ! b₁ , σ ⟩ ⟶ₜ ! b₂
+  not-true : ∀ {σ : State} →
+    -------------------------
+     ⟨ ! true , σ ⟩ ⟶ₜ false
+  not-false : ∀ {σ : State} → 
+    -----------------
+     ⟨ ! false , σ ⟩ ⟶ₜ true
+  and-step₁ : ∀ {b₁ b₂ b₃ : BExpr} {σ : State} →
+           ⟨ b₁ , σ ⟩ ⟶ₜ b₃ →
+    ------------------------------
+     ⟨ b₁ && b₂ , σ ⟩ ⟶ₜ b₃ && b₂
+  and-true : ∀ {b₂ : BExpr} {σ : State} →
+    --------------------------
+     ⟨ true && b₂ , σ ⟩ ⟶ₜ b₂
+  and-false : ∀ {b₂ : BExpr} {σ : State} →
+    ------------------------------
+     ⟨ false && b₂ , σ ⟩ ⟶ₜ false
+  or-step₁ : ∀ {b₁ b₂ b₃ : BExpr} {σ : State} →
+           ⟨ b₁ , σ ⟩ ⟶ₜ b₃ →
+    ------------------------------
+     ⟨ b₁ || b₂ , σ ⟩ ⟶ₜ b₃ || b₂
+  or-true : ∀ {b₂ : BExpr} {σ : State}→
+    ----------------------------
+     ⟨ true || b₂ , σ ⟩ ⟶ₜ true
+  or-false : ∀ {b₂ : BExpr} {σ : State} →
+    ---------------------------
+     ⟨ false || b₂ , σ ⟩ ⟶ₜ b₂
+
+Config = Com × State
+
+infixr 2 _⟶ₖ_
+data _⟶ₖ_ : Config → Config → Set where
+  step-assgn : ∀ {X : Var} {e₁ e₂ : AExpr} {σ : State} →
+          ⟨ e₁ , σ ⟩ ⟶ₐ e₂ →
+    ------------------------------------
+     ⟨ X := e₁ , σ ⟩ ⟶ₖ ⟨ X := e₂ , σ ⟩
+  assgn-const : ∀ {X : Var} {n : ℕ} {σ : State} →
+    -------------------------------------------------
+     ⟨ X := const n , σ ⟩ ⟶ₖ ⟨ skip , update σ X n ⟩
+  step->> : ∀ {c₁ c₂ c₁′ : Com} {σ σ′ : State} →
+            ⟨ c₁ , σ ⟩ ⟶ₖ ⟨ c₁′ , σ′ ⟩ →
+    ------------------------------------------
+     ⟨ c₁ >> c₂ , σ ⟩ ⟶ₖ ⟨ c₁′ >> c₂ , σ′ ⟩
+  skip->> : ∀ {c : Com} {σ : State} →
+    ---------------------------------
+     ⟨ skip >> c , σ ⟩ ⟶ₖ ⟨ c , σ ⟩
+  step-ite : ∀ {b b′ : BExpr} {c₁ c₂ : Com} {σ : State} →
+               ⟨ b , σ ⟩ ⟶ₜ b′ →
+    ---------------------------------------------
+     ⟨ ite b c₁ c₂ , σ ⟩ ⟶ₖ ⟨ ite b′ c₁ c₂ , σ ⟩ 
+  ite-true : ∀ {c₁ c₂ : Com} {σ : State} →
+    --------------------------------------
+     ⟨ ite true c₁ c₂ , σ ⟩ ⟶ₖ ⟨ c₁ , σ ⟩
+  ite-false : ∀ {c₁ c₂ : Com} {σ : State} →
+    --------------------------------------
+     ⟨ ite false c₁ c₂ , σ ⟩ ⟶ₖ ⟨ c₂ , σ ⟩
+  step-while : ∀ {b : BExpr} {c : Com} {σ : State} →
+    -------------------------------------------------------------------
+     ⟨ while b go c , σ ⟩ ⟶ₖ ⟨ ite b (c >> (while b go c)) skip , σ ⟩ 
+
+
+\end{code}
+
+\section{Multistep Semantics}
+\label{sec:multistep-semantics}
+
+\begin{itemize}
+\item Last time, we introduced \emph{small-step} semantics for \Imp.
+\item These tell us what happens in one step of computation.
+\item This is useful, but we're usually interested in running our programs for more than one step.
+\item The standard way to talk about multiple steps is using the \emph{reflexive-transitive closure} of $\astep$.
+\item The reflexive-transitive closure~$R^\ast$ of any binary relation~$R$ is the smallest relation that contains $R$ and that is both reflexive and transitive.
+  \begin{itemize}
+  \item What do we mean by smallest?
+    Imagine some other relation $R'$ contains $R$ and is both reflexive and transitive.
+    Then for any $x$ and $y$, we have that $x \mathrel{R^\ast} y$ implies $x \mathrel{R'} y$.
+  \item What do we mean by ``contains R''?
+    We mean that for any $x$ and $y$, if $x \mathrel{R} y$ then $x \mathrel{R^\ast} y$.
+  \end{itemize}
+\item We can define $R^\ast$ for any relation as follows:
+  \begin{mathpar}
+    \infer*[left=R-refl]{ }{x \mathrel{R^\ast} x}\\
+    \infer*[left=R-step]{x \mathrel{R} y\\ y \mathrel{R^\ast} z}{x \mathrel{R^\ast} z}
+  \end{mathpar}
+\item So, proofs of $x \mathrel{R^\ast} y$ look like $x = x_1 \mathrel{R} x_2 \mathrel{R} \dots \mathrel{R} x_n = y$, where for each~$i$, $x_i R x_{i+1}$.
+\item This is clearly reflexive and transitive, and the induction principle makes it clear this is the smallest such.
+\item Moreover, when we look at small-step semantics, we usually get the following admissable rule:
+  \begin{mathpar}
+    \infer*[left=multistep-ctxt]{e \mathrel{\to^\ast} e'}{C[e] \mathrel{\to^\ast} C[e']}
+  \end{mathpar}
+\item In agda, this turns into a bit of a mouthfull:
+\begin{code}
+infixr 2 _⟶ₐ⋆_
+
+data _⟶ₐ⋆_ : AConfig → AExpr → Set where 
+  step-zero : ∀ {e : AExpr} {σ : State} →
+    -----------------
+     ⟨ e , σ ⟩ ⟶ₐ⋆ e
+  step-many : ∀ {e₁ e₂ e₃ : AExpr} {σ : State} →
+    ⟨ e₁ , σ ⟩ ⟶ₐ  e₂ →
+    ⟨ e₂ , σ ⟩ ⟶ₐ⋆ e₃ →
+    ---------------------
+      ⟨ e₁ , σ ⟩ ⟶ₐ⋆ e₃ 
+
+⟶ₐ⋆-trans : ∀ {e₁ e₂ e₃ : AExpr} {σ : State} →
+  ⟨ e₁ , σ ⟩ ⟶ₐ⋆ e₂ →
+  ⟨ e₂ , σ ⟩ ⟶ₐ⋆ e₃ →
+  --------------------
+  ⟨ e₁ , σ ⟩ ⟶ₐ⋆ e₃
+⟶ₐ⋆-trans step-zero stps2 = stps2
+⟶ₐ⋆-trans (step-many stp stps1) stps2 = step-many stp (⟶ₐ⋆-trans stps1 stps2)
+
+plus-steps₁ : ∀ {e₁ e₁′ e₂ : AExpr} {σ : State} →
+        ⟨ e₁ , σ ⟩ ⟶ₐ⋆ e₁′ →
+  ------------------------------
+   ⟨ e₁ ⊕ e₂ , σ ⟩ ⟶ₐ⋆ e₁′ ⊕ e₂
+plus-steps₁ step-zero = step-zero
+plus-steps₁ (step-many stp stps) = step-many (plus-step₁ stp) (plus-steps₁ stps)
+
+plus-steps₂ : ∀ {e₁ e₂ e₂′ : AExpr} {σ : State} →
+         ⟨ e₂ , σ ⟩ ⟶ₐ⋆ e₂′ →
+  -------------------------------
+    ⟨ e₁ ⊕ e₂ , σ ⟩ ⟶ₐ⋆ e₁ ⊕ e₂′
+plus-steps₂ step-zero = step-zero
+plus-steps₂ (step-many stp stps) = step-many (plus-step₂ stp) (plus-steps₂ stps)
+
+minus-steps₁ : ∀ {e₁ e₁′ e₂ : AExpr} {σ : State} →
+        ⟨ e₁ , σ ⟩ ⟶ₐ⋆ e₁′ →
+  ------------------------------
+   ⟨ e₁ - e₂ , σ ⟩ ⟶ₐ⋆ e₁′ - e₂
+minus-steps₁ step-zero = step-zero
+minus-steps₁ (step-many stp stps) = step-many (minus-step₁ stp) (minus-steps₁ stps)
+
+minus-steps₂ : ∀ {e₁ e₂ e₂′ : AExpr} {σ : State} →
+         ⟨ e₂ , σ ⟩ ⟶ₐ⋆ e₂′ →
+  -------------------------------
+    ⟨ e₁ - e₂ , σ ⟩ ⟶ₐ⋆ e₁ - e₂′
+minus-steps₂ step-zero = step-zero
+minus-steps₂ (step-many stp stps) = step-many (minus-step₂ stp) (minus-steps₂ stps)
+
+times-steps₁ : ∀ {e₁ e₁′ e₂ : AExpr} {σ : State} →
+        ⟨ e₁ , σ ⟩ ⟶ₐ⋆ e₁′ →
+  ------------------------------
+   ⟨ e₁ ⊗ e₂ , σ ⟩ ⟶ₐ⋆ e₁′ ⊗ e₂
+times-steps₁ step-zero = step-zero
+times-steps₁ (step-many stp stps) = step-many (times-step₁ stp) (times-steps₁ stps)
+
+times-steps₂ : ∀ {e₁ e₂ e₂′ : AExpr} {σ : State} →
+         ⟨ e₂ , σ ⟩ ⟶ₐ⋆ e₂′ →
+  -------------------------------
+    ⟨ e₁ ⊗ e₂ , σ ⟩ ⟶ₐ⋆ e₁ ⊗ e₂′
+times-steps₂ step-zero = step-zero
+times-steps₂ (step-many stp stps) = step-many (times-step₂ stp) (times-steps₂ stps)    
+\end{code}
+\item A lot of stuff that we can just say are ``obvious'' to a human, we have to convince agda of!
+\end{itemize}
+
+\section{The Big-Step Semantics of Arithmetic}
+\label{sec:big-step-semantics}
+
+\begin{itemize}
+\item It's true enough that we don't want to take just one step.
+  But we don't want to step some arbitrary number of steps, either.
+  Instead, we want to compute something!
+\item For arithmetic expressions, for instance, we want to compute some number.
+\item Instead of building a notion of one computational step and then turning the crank, can we just talk about what number we compute?
+\item This is the idea of \emph{big-step} semantics.
+\item We write $\langle e, \sigma \rangle \Downarrow n$ to mean ``in state~$\sigma$, arithmetic expression~$e$ eventually computes the number~$n$''.
+\item We can write this as an inductive relation:
+  \begin{mathpar}
+    \infer*[left=const]{ }{\langle \tilde{n}, \sigma\rangle \Downarrow n} \and
+    \infer*[left=var]{ }{\langle x, \sigma\rangle \Downarrow \sigma(x)} \\
+    \infer*[left=plus]{\langle e_1, \sigma\rangle \Downarrow n\\ \langle e_2, \sigma\rangle \Downarrow m}{\langle e_1 + e_2, \sigma\rangle \Downarrow n + m} \and
+    \infer*[left=minus]{\langle e_1, \sigma\rangle \Downarrow n\\ \langle e_2, \sigma\rangle \Downarrow m}{\langle e_1 - e_2, \sigma\rangle \Downarrow n - m} \and
+    \infer*[left=times]{\langle e_1, \sigma\rangle \Downarrow n\\ \langle e_2, \sigma\rangle \Downarrow m}{\langle e_1 * e_2, \sigma\rangle \Downarrow nm}
+  \end{mathpar}
+\item In agda:
+\begin{code}
+infixr 2 _⇓ₐ_
+
+data _⇓ₐ_ : AConfig → ℕ → Set where
+  const-eval : ∀ {n : ℕ} {σ : State} →
+               ----------------------
+                ⟨ const n , σ ⟩ ⇓ₐ n
+  var-eval : ∀ {x : Var} {σ : State} →
+             --------------------------
+               ⟨ var x , σ ⟩ ⇓ₐ (σ x)
+  plus-eval : ∀ {e1 e2 : AExpr} {σ : State} {n m : ℕ} →
+         ⟨ e1 , σ ⟩ ⇓ₐ n →
+         ⟨ e2 , σ ⟩ ⇓ₐ m →
+    --------------------------
+     ⟨ e1 ⊕ e2 , σ ⟩ ⇓ₐ n + m
+  minus-eval : ∀ {e1 e2 : AExpr} {σ : State} {n m : ℕ} →
+         ⟨ e1 , σ ⟩ ⇓ₐ n →
+         ⟨ e2 , σ ⟩ ⇓ₐ m →
+    --------------------------
+     ⟨ e1 - e2 , σ ⟩ ⇓ₐ n ∸ m
+  times-eval : ∀ {e1 e2 : AExpr} {σ : State} {n m : ℕ} →
+         ⟨ e1 , σ ⟩ ⇓ₐ n →
+         ⟨ e2 , σ ⟩ ⇓ₐ m →
+    --------------------------
+     ⟨ e1 ⊗ e2 , σ ⟩ ⇓ₐ n * m    
+\end{code}
+\item This is an alternative semantics for arithmetic expressions.
+\item You should now be asking yourself the following question:
+  ``We have two semantics for arithmetic expressions.
+  How are they related?
+  If they're different, which one is right?''
+\item Ideally, we'd like to know that they're the same.
+  \begin{itemize}
+  \item What would that even mean? \textbf{Stop and Think.}
+  \item ``It means that if we compute an expression all the way to a number using either semantics, we get the same number.''
+  \item How do we know that there's only one number? 
+  \end{itemize}
+\item If we take our small-step semantics as ``the Truth with a capital~T'', then there can be two problems with our big-step semantics:
+  \begin{enumerate}
+  \item It could fail to capture everything.
+    That is, there could be a state~$\sigma$, expression~$e$, and number~$n$ such that $\langle e, \sigma\rangle \mathrel{\astep^\ast} \tilde{n}$ but not $\langle e, \sigma\rangle \Downarrow n$.
+  \item It could capture things that aren't real.
+    That is, there could be a state~$\sigma$, expression~$e$, and number~$n$ such that $\langle e, \sigma\rangle \Downarrow n$ but not $\langle e, \sigma\rangle \mathrel{\astep^\ast} \tilde{n}$.
+  \end{enumerate}
+\item Let's prove that neither of these bad scenarios happen, starting with the second one.
+\end{itemize}
+
+\begin{thm}[Big-Step Soundness]
+  For any expression~$e$, state~$\sigma$, and number~$n$, if $\langle e, \sigma \rangle \Downarrow n$ then $\langle e, \sigma\rangle \mathrel{\astep^\ast} \tilde{n}$.
+\end{thm}
+\begin{proof}
+  By induction on the proof that $\langle e, \sigma \rangle \Downarrow n$.
+
+  \noindent\textbf{Case \textsc{const}:} In this case, $e = \tilde{n}$ already, and so we don't need to take any steps.
+
+  \noindent\textbf{Case \textsc{var}:} In this case, $e = x$ and $n = \sigma(x)$.
+  But the \textsc{var-lookup} rule of $\astep$ already gives us that $\langle x , \sigma \rangle \astep \sigma(x)$, and since $\astep^\ast$ contains $\astep$, we're done.
+
+  \noindent\textbf{Case \textsc{plus}, \textsc{times}, or \textsc{minus}:}
+  In this case, $e = e_1 \odot e_2$ where $\odot \in \{+, -, *\}$.
+  By the proof that $\langle e , \sigma \rangle \Downarrow n$, we know that $\langle e_1, \sigma\rangle \Downarrow k$ and $\langle e_2, \sigma\rangle \Downarrow j$ for some $k, j \in \mathbb{N}$.
+  Thus, by IH we know that $\langle e_1, \sigma \rangle \mathrel{\astep^\ast} \tilde{k}$ and $\langle e_2, \sigma \rangle \mathrel{\astep^\ast} \tilde{j}$.
+  Using this, along with the context rule above and the fact that $\astep^\ast$ contains $\astep$, we get:
+  $$\langle e_1 \odot e_2 , \sigma \rangle \mathrel{\astep^\ast} \langle \tilde{k} \odot e_2 , \sigma \rangle \mathrel{\astep^\ast} \langle \tilde{k} \odot \tilde{j}, \sigma\rangle \astep k \odot j$$
+\end{proof}
+
+\begin{itemize}
+\item To prove the other direction is harder.
+\item We can make it easier by proving a key lemma: if we take one step from $e$ to $e'$ and $e'$ computes $n$, then so does $e$.
+\item Then, lifting this to the multistep case is easy.  
+\end{itemize}
+
+\begin{lem}[Big-Step Completeness (One-Step)]
+  For any expressions~$e$ and~$e'$, state~$\sigma$, and number~$n$, if $\langle e, \sigma \rangle \astep e'$ and $\langle e', \sigma\rangle\Downarrow n$, then $\langle e, \sigma \rangle \Downarrow n$.
+\end{lem}
+\begin{proof}
+  By induction on the proof that $\langle e, \sigma \rangle \astep e'$.
+
+  \textbf{Case \textsc{Var}:}
+  In this case, $e = x$ and $e' = \widetilde{\sigma(x)}$.
+  Since a constant always evaluates to itself, we're done.
+
+  \textbf{Case Left-Hand Side of Operator:}
+  In this case, $e = e_1 \odot e_2$ and $e' = e_1' \odot e_2$ where $e_1 \astep e_2$ and $\odot \in \{+, -, \ast\}$.
+  The proof of $\langle e', \sigma \rangle \Downarrow n$ must then contain a case for $\langle e_1', \sigma\rangle \Downarrow k$ and $\langle e_2, \sigma \rangle \Downarrow j$ for some $k$ and $j$.
+  By IH, then $\langle e_1, \sigma \rangle \Downarrow k$.
+  But this means that we can use the same rule to get the desired result.
+
+  \textbf{Case Right-Hand Side of Operator:}
+  Similar to the left-hand side case.
+
+  \textbf{Case Operator:}
+  In this case, $e = \tilde{j} \odot \tilde{k}$, while $e' = \widetilde{j \odot k} = \tilde{n}$.
+  This is true immediately from the rules for $\Downarrow$.
+\end{proof}
+
+\begin{thm}[Big-Step Completeness]
+  For any expression~$e$, state~$\sigma$, and number~$n$, if $\langle e, \sigma\rangle \mathrel{\astep^\ast} \tilde{n}$, then $\langle e, \sigma \rangle \Downarrow n$.
+\end{thm}
+\begin{proof}
+  By induction on the proof that $\langle e, \sigma\rangle \mathrel{\astep^\ast} \tilde{n}$.
+
+  \noindent\textbf{Case \textsc{step-zero}:}
+  In this case, $e = \tilde{n}$ and the result holds immediately.
+
+  \noindent\textbf{Case \textsc{step-many}:}
+  In this case, there is an $e'$ such that $\langle e, \sigma \rangle \astep e'$ and $\langle e', \sigma \rangle \mathrel{\astep^\ast} \tilde{n}$.
+  By IH, we know that $\langle e', \sigma \rangle \Downarrow n$.
+  But then, by Big-Step Completeness (One-Step), we get the result.
+\end{proof}
+
+\subsection{Agda Code}
+
+\begin{code}
+⇓ₐ-⟶ₐ⋆ : ∀ {c : AConfig} {n : ℕ} → c ⇓ₐ n → c ⟶ₐ⋆ const n
+⇓ₐ-⟶ₐ⋆ {⟨ const n , σ ⟩} {n} const-eval = step-zero
+⇓ₐ-⟶ₐ⋆ {⟨ var x , σ ⟩} {n} var-eval = step-many var-lookup step-zero
+⇓ₐ-⟶ₐ⋆ {⟨ e1 ⊕ e2 , σ ⟩} {_} (plus-eval {e1} {e2} {σ} {n} {m} ev₁ ev₂) =
+  ⟶ₐ⋆-trans (plus-steps₁ (⇓ₐ-⟶ₐ⋆ ev₁))
+ (⟶ₐ⋆-trans (plus-steps₂ (⇓ₐ-⟶ₐ⋆ ev₂))
+            (step-many plus-step-const step-zero))
+⇓ₐ-⟶ₐ⋆ {⟨ e₁ - e₂ , σ ⟩} {_} (minus-eval {e₁} {e₂} {σ} {n} {m} ev₁ ev₂) =
+  ⟶ₐ⋆-trans (minus-steps₁ (⇓ₐ-⟶ₐ⋆ ev₁))
+ (⟶ₐ⋆-trans (minus-steps₂ (⇓ₐ-⟶ₐ⋆ ev₂))
+            (step-many minus-step-const step-zero))
+⇓ₐ-⟶ₐ⋆ {c} {n} (times-eval ev₁ ev₂) = 
+  ⟶ₐ⋆-trans (times-steps₁ (⇓ₐ-⟶ₐ⋆ ev₁))
+ (⟶ₐ⋆-trans (times-steps₂ (⇓ₐ-⟶ₐ⋆ ev₂))
+            (step-many times-step-const step-zero))
+
+⟶ₐ-⇓ₐ : ∀ {e₁ e₂ : AExpr} {σ : State} {n : ℕ} →
+   ⟨ e₁ , σ ⟩ ⟶ₐ e₂ →
+   ⟨ e₂ , σ ⟩ ⇓ₐ n →
+  -----------------
+   ⟨ e₁ , σ ⟩ ⇓ₐ n
+⟶ₐ-⇓ₐ {.(var X)} {.(const (σ X))} {σ} .{σ X} (var-lookup {X} {σ}) const-eval = var-eval
+⟶ₐ-⇓ₐ .{e₁ ⊕ e₂} .{e₁′ ⊕ e₂} {σ} .{n + m} (plus-step₁ {e₁} {e₂} {e₁′} {σ} stp) (plus-eval .{e₁′} .{e₂} .{σ} {n} {m} ev₁ ev₂) = plus-eval (⟶ₐ-⇓ₐ stp ev₁) ev₂
+⟶ₐ-⇓ₐ {.(e₁ ⊕ e₂)} {.(e₁ ⊕ e₂′)} {σ} .{n + m} (plus-step₂ {e₁} {e₂} {e₂′} {σ} stp) (plus-eval .{e₁} .{e₂′} .{σ} {n} {m} ev₁ ev₂) = plus-eval ev₁ (⟶ₐ-⇓ₐ stp ev₂)
+⟶ₐ-⇓ₐ {.(const n ⊕ const m)} {.(const (n + m))} {σ} {.(n + m)} (plus-step-const {n} {m} {σ}) const-eval = plus-eval const-eval const-eval
+⟶ₐ-⇓ₐ .{e₁ - e₂} .{e₁′ - e₂} {σ} .{n ∸ m} (minus-step₁ {e₁} {e₂} {e₁′} {σ} stp) (minus-eval .{e₁′} .{e₂} .{σ} {n} {m} ev₁ ev₂) = minus-eval (⟶ₐ-⇓ₐ stp ev₁) ev₂
+⟶ₐ-⇓ₐ {.(e₁ - e₂)} {.(e₁ - e₂′)} {σ} .{n ∸ m} (minus-step₂ {e₁} {e₂} {e₂′} {σ} stp) (minus-eval .{e₁} .{e₂′} .{σ} {n} {m} ev₁ ev₂) = minus-eval ev₁ (⟶ₐ-⇓ₐ stp ev₂)
+⟶ₐ-⇓ₐ {.(const n - const m)} {.(const (n ∸ m))} {σ} {.(n ∸ m)} (minus-step-const {n} {m} {σ}) const-eval = minus-eval const-eval const-eval
+⟶ₐ-⇓ₐ .{e₁ ⊗ e₂} .{e₁′ ⊗ e₂} {σ} .{n * m} (times-step₁ {e₁} {e₂} {e₁′} {σ} stp) (times-eval .{e₁′} .{e₂} .{σ} {n} {m} ev₁ ev₂) = times-eval (⟶ₐ-⇓ₐ stp ev₁) ev₂
+⟶ₐ-⇓ₐ {.(e₁ ⊗ e₂)} {.(e₁ ⊗ e₂′)} {σ} .{n * m} (times-step₂ {e₁} {e₂} {e₂′} {σ} stp) (times-eval .{e₁} .{e₂′} .{σ} {n} {m} ev₁ ev₂) = times-eval ev₁ (⟶ₐ-⇓ₐ stp ev₂)
+⟶ₐ-⇓ₐ {.(const n ⊗ const m)} {.(const (n * m))} {σ} {.(n * m)} (times-step-const {n} {m} {σ}) const-eval = times-eval const-eval const-eval
+
+⟶ₐ⋆-⇓ₐ : ∀ {c : AConfig} {n : ℕ} →
+   c ⟶ₐ⋆ const n →
+  ---------------
+      c ⇓ₐ n
+⟶ₐ⋆-⇓ₐ step-zero = const-eval
+⟶ₐ⋆-⇓ₐ (step-many stp stps) = ⟶ₐ-⇓ₐ stp (⟶ₐ⋆-⇓ₐ stps)  
+\end{code}
+
+\section{Big-Step Semantics of Boolean Expressions}
+\label{sec:big-step-semantics-bool}
+
+We can again give the big-step semantics of boolean expressions as an inductive relation:
+\begin{mathparpagebreakable}
+  \infer*[left=false]{ }{\langle \ifalse, \sigma \rangle \Downarrow \ifalse} \and
+  \infer*[left=true]{ }{\langle \itrue, \sigma \rangle \Downarrow \itrue} \\
+  \infer*[left=eq-true]{\langle e_1, \sigma \rangle \Downarrow n\\ \langle e_2, \sigma \rangle \Downarrow n}{\langle e_1 == e_2, \sigma \rangle \Downarrow \itrue} \and
+  \infer*[left=eq-false]{\langle e_1, \sigma \rangle \Downarrow n\\ \langle e_2, \sigma \rangle \Downarrow m\\ n \neq m}{\langle e_1 == e_2, \sigma \rangle \Downarrow \ifalse} \\
+  \infer*[left=lt-true]{\langle e_1, \sigma \rangle \Downarrow n\\ \langle e_2, \sigma \rangle \Downarrow m\\ n < m}{\langle e_1 < e_2, \sigma \rangle \Downarrow \itrue} \and
+  \infer*[left=lt-true]{\langle e_1, \sigma \rangle \Downarrow n\\ \langle e_2, \sigma \rangle \Downarrow m\\ n \not< m}{\langle e_1 < e_2, \sigma \rangle \Downarrow \ifalse} \\
+  \infer*[left=not]{\langle b , \sigma \rangle \Downarrow b'}{\langle \lnot b , \sigma \rangle \Downarrow \mathop{\textsf{notb}} b'}\\
+  \infer*[left=and-true]{\langle b_1, \sigma\rangle \Downarrow \itrue\\ \langle b_2, \sigma \rangle \Downarrow b}{\langle b_1 \land b_2 , \sigma \rangle \Downarrow b} \and
+  \infer*[left=and-false]{\langle b_1, \sigma \rangle \Downarrow \ifalse}{\langle b_1 \land b_2, \sigma \rangle \Downarrow \ifalse}\\
+  \infer*[left=or-true]{\langle b_1, \sigma \rangle \Downarrow \itrue}{\langle b_1 \land b_2, \sigma \rangle \Downarrow \itrue}\and
+  \infer*[left=or-false]{\langle b_1, \sigma\rangle \Downarrow \ifalse\\ \langle b_2, \sigma \rangle \Downarrow b}{\langle b_1 \land b_2 , \sigma \rangle \Downarrow b}
+\end{mathparpagebreakable}
+
+Here, \textsf{notb} and related functions are defined as follows:
+\begin{code}
+notb : Bool → Bool
+notb true = false
+notb false = true
+
+andb : Bool → Bool → Bool
+andb false b2 = false
+andb true b2 = b2
+
+orb : Bool → Bool → Bool
+orb false b2 = b2
+orb true b2 = true  
+\end{code}
+
+And the data type for the relation is:
+\begin{code}
+infixr 2 _⇓ₜ_
+data _⇓ₜ_ : BConfig → Bool → Set where
+     false-eval : ∀ {σ : State} → ⟨ false , σ ⟩ ⇓ₜ false
+     true-eval : ∀ {σ : State} → ⟨ true , σ ⟩ ⇓ₜ true
+     eq-eval-true : ∀ {e₁ e₂ : AExpr} {σ : State} {n : ℕ} →
+              ⟨ e₁ , σ ⟩ ⇓ₐ n →
+              ⟨ e₂ , σ ⟩ ⇓ₐ n →
+       ---------------------------
+        ⟨ e₁ == e₂ , σ ⟩ ⇓ₜ true
+     eq-eval-false : ∀ {e₁ e₂ : AExpr} {σ : State} {n m : ℕ} →
+             ⟨ e₁ , σ ⟩ ⇓ₐ n →
+             ⟨ e₂ , σ ⟩ ⇓ₐ m →
+                  n ≢ m →
+       --------------------------
+       ⟨ e₁ == e₂ , σ ⟩ ⇓ₜ false
+     lt-eval-true : ∀ {e₁ e₂ : AExpr} {σ : State} {n m : ℕ} →
+              ⟨ e₁ , σ ⟩ ⇓ₐ n →
+              ⟨ e₂ , σ ⟩ ⇓ₐ m →
+                       n < m →
+       ----------------------------
+        ⟨ e₁ << e₂ , σ ⟩ ⇓ₜ true
+     lt-eval-false : ∀ {e₁ e₂ : AExpr} {σ : State} {n m : ℕ} →
+              ⟨ e₁ , σ ⟩ ⇓ₐ n →
+              ⟨ e₂ , σ ⟩ ⇓ₐ m →
+                       ¬ (n < m) →
+       ----------------------------
+        ⟨ e₁ << e₂ , σ ⟩ ⇓ₜ false
+     not-eval : ∀ {b : BExpr} {σ : State} {b′ : Bool} → 
+          ⟨ b , σ ⟩ ⇓ₜ b′ →
+       ------------------------
+        ⟨ ! b , σ ⟩ ⇓ₜ notb b′
+     and-eval-true : ∀ {b₁ b₂ : BExpr} {σ : State} {b₂′ : Bool} →
+              ⟨ b₁ , σ ⟩ ⇓ₜ true →
+              ⟨ b₂ , σ ⟩ ⇓ₜ b₂′ →
+       ----------------------------------
+        ⟨ b₁ && b₂ , σ ⟩ ⇓ₜ b₂′
+     and-eval-false : ∀ {b₁ b₂ : BExpr} {σ : State} → 
+              ⟨ b₁ , σ ⟩ ⇓ₜ false →
+       ----------------------------------
+        ⟨ b₁ && b₂ , σ ⟩ ⇓ₜ false
+     or-eval-true : ∀ {b₁ b₂ : BExpr} {σ : State} →
+              ⟨ b₁ , σ ⟩ ⇓ₜ true →
+       ----------------------------------
+        ⟨ b₁ || b₂ , σ ⟩ ⇓ₜ true
+     or-eval-false : ∀ {b₁ b₂ : BExpr} {σ : State} {b₂′ : Bool} → 
+              ⟨ b₁ , σ ⟩ ⇓ₜ false →
+              ⟨ b₂ , σ ⟩ ⇓ₜ b₂′ → 
+       ----------------------------------
+        ⟨ b₁ || b₂ , σ ⟩ ⇓ₜ b₂′ 
+\end{code}
+
+The following is a convenient lemma:
+\begin{lem}
+  The following rules are admissable:
+  \begin{mathpar}
+    \infer*[left=and]{\langle b_1, \sigma \rangle \Downarrow b_1' \\ \langle b_2, \sigma \rangle \Downarrow b_2'}{\langle b_1 \land b_2 \rangle \Downarrow \mathop{\textsf{andb}} b_1' b_2'}\and
+    \infer*[left=or]{\langle b_1, \sigma \rangle \Downarrow b_1' \\ \langle b_2, \sigma \rangle \Downarrow b_2'}{\langle b_1 \lor b_2 \rangle \Downarrow \mathop{\textsf{orb}} b_1' b_2'}
+  \end{mathpar}
+\end{lem}
+\begin{proof}
+\begin{code}
+and-eval : ∀ {b₁ b₂ : BExpr} {σ : State} {b₁′ b₂′ : Bool} →
+  ⟨ b₁ , σ ⟩ ⇓ₜ b₁′ →
+  ⟨ b₂ , σ ⟩ ⇓ₜ b₂′ →
+  ⟨ b₁ && b₂ , σ ⟩ ⇓ₜ andb b₁′ b₂′
+and-eval {b₁} {b₂} {σ} {false} {b₂′} ev₁ ev₂ = and-eval-false ev₁
+and-eval {b₁} {b₂} {σ} {true} {b₂′} ev₁ ev₂ = and-eval-true ev₁ ev₂
+
+or-eval : ∀ {b₁ b₂ : BExpr} {σ : State} {b₁′ b₂′ : Bool} →
+  ⟨ b₁ , σ ⟩ ⇓ₜ b₁′ →
+  ⟨ b₂ , σ ⟩ ⇓ₜ b₂′ →
+  ⟨ b₁ || b₂ , σ ⟩ ⇓ₜ orb b₁′ b₂′
+or-eval {b₁} {b₂} {σ} {false} {b₂′} ev₁ ev₂ = or-eval-false ev₁ ev₂
+or-eval {b₁} {b₂} {σ} {true} {b₂′} ev₁ ev₂ = or-eval-true ev₁    
+\end{code}
+\end{proof}
+
+The rest is your homework.
+
+\begin{code}[hide]
+infixr 2 _⟶ₜ⋆_
+data _⟶ₜ⋆_ : BConfig → BExpr → Set where
+  step-zero : ∀ {b : BExpr}{σ : State} → ⟨ b , σ ⟩ ⟶ₜ⋆ b
+  step-many : ∀ {b₁ b₂ b₃ : BExpr} {σ : State} →
+    ⟨ b₁ , σ ⟩ ⟶ₜ  b₂ →
+    ⟨ b₂ , σ ⟩ ⟶ₜ⋆ b₃ →
+    ⟨ b₁ , σ ⟩ ⟶ₜ⋆ b₃
+  
+postulate
+ ⇓ₜ-⟶ₜ⋆ : ∀ {c : BConfig} {b : Bool} → c ⇓ₜ b → c ⟶ₜ⋆ bool2BExpr b
+ ⟶ₜ-⇓ₜ : ∀ {b₁ b₂ : BExpr} {σ : State} {b : Bool} → ⟨ b₁ , σ ⟩ ⟶ₜ b₂ → ⟨ b₂ , σ ⟩ ⇓ₜ b → ⟨ b₁ , σ ⟩ ⇓ₜ b
+ ⟶ₜ⋆-⇓ₜ : ∀ {b : BExpr} {σ : State} {b′ : Bool} → ⟨ b , σ ⟩ ⟶ₜ⋆ bool2BExpr b′ → ⟨ b , σ ⟩ ⇓ₜ b′
+\end{code}
+
+\section{The Big-Step Semantics of Commands}
+\label{sec:big-step-semantics-com}
+
+\begin{itemize}
+\item What do we want to compute to for commands?
+\item Intuitively  we want to compute ``until the program is done.''  
+\item When is a program done?
+  When it reaches \textsf{skip}!
+\item What are we interested in computing?
+  The state after the program finishes.
+\item We give the big-step semantics of commands as follows:
+  \begin{mathpar}
+    \infer*[left=skip]{ }{\langle \textsf{skip}, \sigma\rangle \Downarrow \sigma}\and
+    \infer*[left=assign]{\langle e, \sigma \rangle \Downarrow n}{\langle X := e, \sigma \rangle \Downarrow \sigma[X \mapsto n]}\and
+    \infer*[left=seq]{\langle c_1, \sigma \rangle \Downarrow \sigma'\\ \langle c_2, \sigma \rangle \Downarrow \sigma''}{\langle c_1; c_2, \sigma\rangle \Downarrow \sigma''}\\
+    \infer*[left=ite-true]{\langle b, \sigma \rangle \Downarrow \itrue\\ \langle c_1, \sigma \rangle \Downarrow \sigma'}{\langle \ite{b}{c_1}{c_2}, \sigma\rangle \Downarrow \sigma'}\and
+    \infer*[left=ite-false]{\langle b, \sigma \rangle \Downarrow \ifalse\\ \langle c_2, \sigma \rangle \Downarrow \sigma'}{\langle \ite{b}{c_1}{c_2}, \sigma\rangle \Downarrow \sigma'}\\
+    \infer*[left=while-true]{\langle b, \sigma \rangle \Downarrow \itrue\\ \langle c, \sigma \rangle \Downarrow \sigma'\\ \langle \while{b}{c}, \sigma'\rangle \Downarrow \sigma''}{\langle\while{b}{c}, \sigma\rangle \Downarrow \sigma''}\and
+    \infer*[left=while-false]{\langle b, \sigma \rangle \Downarrow \ifalse}{\langle\while{b}{c}, \sigma \rangle \Downarrow \sigma}  
+  \end{mathpar}
+\item Figuring out the rest is your job!
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

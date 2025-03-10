@@ -1,0 +1,285 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\title{Recursive Types}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{19}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item After several lectures spent studying the same four type constructors, we finally get to move to discussing something new.
+\item So far, all of the types we have seen are \emph{finite}---there are a finite number of values that have that type.
+\item However, real programs often need infinite types, such as data structures that can store an arbitrary amount of data.
+\item In this lecture, we introduce one construct that allows for us to write all of the infinite types that you can think of---recursive types.
+\end{itemize}
+
+\section{Recursive Types by Example}
+\label{sec:recurs-types-example}
+
+\begin{itemize}
+\item Think about one of the first infinite types you learned---the list.
+\item In OCaml, we write the list type as such:
+  \begin{center}
+    {\sffamily
+      type 'a list = nil | cons of 'a * 'a list
+    }
+  \end{center}
+\item There are several aspects of this type.
+\item First, note that the line represents a sum---it can be either a nil or a cons.
+\item Nil contains nothing interesting, so we can represent it as a unit.
+\item All together, we could write this as
+  \begin{center}
+    {\sffamily
+      type 'a list = \sumtype{\utype}{\prodtype{\textsf{'a}}{\textsf{'a list}}}
+    }
+  \end{center}
+\item Now this type is \emph{parameterized}, so the list can store any type of data.
+  We will study parameterized types in more detail after Spring break; but for now we will specialize lists to a particular type.
+  For our purposes, that type will be \utype.
+  \begin{center}
+    {\sffamily
+      type list = \sumtype{\utype}{\prodtype{\utype}{\textsf{list}}}
+    }
+  \end{center}
+  \begin{itemize}
+  \item \textbf{Stop and Think:} How can you describe the values of this type?
+  \item It's any collection of one or more $\unit$s!
+  \end{itemize}
+\item Finally, this type is \emph{recursive}: we use \textsf{list} in the definition of \textsf{list}.
+\item In OCaml, in order to express this type you must use a type declaration, like we did above.
+\item In order to express this type without a type declaration, you need a way to describe recursion without a type declaration.
+\item We do that with a \emph{fixed point combinator}~$\mu$.
+\item We can write $\rectype{\textsf{list}}{\sumtype{\utype}\prodtype{\utype}{\textsf{list}}}$.
+\item Our aim today is to understand this combinator.
+\end{itemize}
+
+\newpage
+\section{Recursive Types, Formally}
+\label{sec:recurs-types-form}
+
+\begin{syntax}
+  \abstractCategory[Type Variables]{X, Y, \dots}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{X} \alternative{\rectype{X}{\tau}}
+  \category[Expressions]{e} \alternative{\ldots} \alternative{\roll{e}} \alternative{\unroll{e}}
+\end{syntax}
+
+\begin{mathpar}
+  \infer*[left=$\mu$-I]{\Gamma \vdash e : \tau[X \mapsto \rectype{X}{\tau}]}{\Gamma \vdash \roll{e} : \rectype{X}{\tau}}\and
+  \infer*[left=$\mu$-E]{\Gamma \vdash e : \rectype{X}{\tau}}{\Gamma \vdash \unroll{e} : \tau[X \mapsto \rectype{X}{\tau}]}
+\end{mathpar}
+
+\begin{mathpar}
+  \infer{ }{\unroll{(\roll{e})} \to e}\and
+  \roll{(\unroll{e})} \cong_\eta e
+\end{mathpar}
+
+\begin{itemize}
+\item We can see above that we are not adding too much to our system.
+\item Types can now contain \emph{type variables}, which stand for other types.
+  We can define substitution on types where $\mu$ is the only binder.
+\item Types now also contain recursive types, written with a $\mu$.
+  If we think of a type $\tau$ that contains a free variable $X$ as a function from types to types (so $\tau$ sends a type $\sigma$ to $\tau[X \mapsto \sigma]$), $\rectype{X}{\tau}$ is the least fixed point of $\tau$.
+  \begin{itemize}
+  \item Least with respect to the following ordering: $\tau \leq \sigma$ if every value of $\tau$ is also a value of $\sigma$.
+    So far, we don't have a good name for this ordering; we will talk more about it next week.
+  \item Remember, a fixed point of a function $f : X \to X$ is an $x \in X$ such that $f(x) = x$.
+  \end{itemize}
+\item In our case, we're working with types so we only work up to isomorphism: $\rectype{X}{\tau} \cong \tau[X \mapsto \rectype{X}{\tau}]$
+\item The two functions that witness this isomorphism are $\textsf{roll} : \tau[X \mapsto \rectype{X}{\tau}] \to \rectype{X}{\tau}$ and\\ \mbox{$\textsf{unroll} : \rectype{X}{\tau} \to \tau[X \mapsto \rectype{X}{\tau}]$}.
+\item They're not exactly functions, however, because then they'd only work for some particular $\tau$; instead, we give that \textsc{$\mu$-I} and \textsc{$\mu$-E} rules above.
+\item The fact that these form an isomorphism is given by the $\beta$ and $\eta$ laws, also given above.
+\end{itemize}
+
+\section{Type Well-Formedness}
+\label{sec:type-well-formedness}
+
+\begin{itemize}
+\item Let's look a bit deeper at type variables.
+\item A type variable~$X$ acts a lot like the base type we had in our original formulation of STLC---there are no closed terms with the type $X$.
+\item Moreover, you can form closed programs like $\vdash \tabs{x}{X}{x} : X \to X$ that don't have a clear meaning.
+\item It might be tempting to say that this is a polymorphic function like you would in OCaml, but $\app{(\tabs{x}{X}{x})}{\unit}$ is not well typed, because $\unit$ does not have type $X$.
+\item What's going on here?
+  Well, we have a (type) variable~$X$ that is not in scope, and is therefore not meaningful.
+\item We need to keep track of scope in our type system!
+\item We can do that using a context.
+  However, our types do not themselves have types, and so our context will just be the set of types in scope.
+\item We start by defining a new relation $\Delta \vdash \tau$ which means ``when the type variables in $\Delta$ are in scope, $\tau$ is \emph{well formed}''.
+  Here, a well-formed type is one that only references in-scope variables.
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Axiom]{X \in \Delta}{\Delta \vdash X}\and
+  \infer*[left=Unit]{ }{\Delta \vdash \utype}\\
+  \infer*[left=Prod]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \prodtype{\tau_1}{\tau_2}}\and
+  \infer*[left=Sum]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \sumtype{\tau_1}{\tau_2}}\and
+  \infer*[left=Arrow]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \tau_1 \to \tau_2}\and
+  \infer*[left=Rec]{\Delta, X \vdash \tau}{\Delta \vdash \rectype{X}{\tau}}x
+\end{mathpar}
+
+\begin{itemize}
+\item We say that a typing context $\Gamma$ is well-formed if every type in $\Gamma$ is well-formed.
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Empty]{ }{\Delta \vdash\cdot} \and
+  \infer*[left=Cons]{\Delta \vdash \Gamma\\ \Delta \vdash \tau}{\Delta \vdash \Gamma, x : \tau}
+\end{mathpar}
+
+\begin{itemize}
+\item We then need to modify our typing system to ensure that every type is well formed.
+\item In particular only two rules change: the \textsc{Axiom} and \textsc{Unit-I} rules must require that the context be well-formed in the empty type-variable context
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Axiom]{\vdash \Gamma\\ x : \tau \in \Gamma}{\Gamma \vdash x : \tau} \and
+  \infer*[left=Unit-I]{\vdash \Gamma}{\Gamma \vdash \unit : \utype}
+\end{mathpar}
+
+\begin{itemize}
+\item These changes allow us to prove the following theorem:
+\end{itemize}
+
+\begin{thm}[Type Well-Formedness]
+  If $\Gamma \vdash e : \tau$, then $\vdash \Gamma$ and $\vdash \tau$.
+\end{thm}
+\begin{proof}
+  By induction on the proof of $\Gamma \vdash e : \tau$.
+  For the axiom rule, because $\vdash \Gamma$ by fiat and $x : \tau \in \Gamma$, $\vdash \tau$ holds.
+  For the unit rule, $\vdash \Gamma$ by fiat, and $\vdash \utype$ is always true.
+  Every other rule has a recursive case that allows us to get the information we need out of the IH.
+\end{proof}
+
+\section{More Examples}
+\label{sec:more-examples}
+
+\subsection{Lists}
+\label{sec:lists}
+
+\begin{itemize}
+\item $\textsf{list}\,A = \rectype{X}{\sumtype{\utype}{\prodtype{A}{X}}}$
+\item $\textsf{nil} = \roll{(\injl{\unit})}$
+\item $\textsf{cons} = \tabs{x}{A}{\tabs{xs}{\textsf{list}\,A}{\roll{(\injr{\pair{x}{xs}})}}}$
+\item $\textsf{case}\,xs \mathrel{\textsf{of}} \textsf{nil} \Rightarrow e_1; \app{\app{\textsf{cons}}{x}}{xs} \Rightarrow e_2 =$\\
+  $\case{(\unroll{xs})}{\_}{e_1}{y}{e_2[x \mapsto \projl{y}, xs \mapsto \projr{y}]}$
+\end{itemize}
+
+\subsection{Nats}
+\label{sec:nats}
+
+\begin{itemize}
+\item $\mathbb{N} = \rectype{X}{\sumtype{\unit}{X}}$
+\item $0 = \roll{(\injl{\unit})}$
+\item $\textsf{suc} = \tabs{x}{\mathbb{N}}{\roll{(\injr{x})}}$
+\item $\textsf{case}\,n \mathrel{\textsf{of}} 0 \Rightarrow e_1; \app{\textsf{suc}}{m} \Rightarrow e_2 = $\\
+  $\case{(\unroll{n})}{\_}{e_1}{m}{e_2}$
+\end{itemize}
+
+\subsection{Trees}
+\label{sec:trees}
+
+\begin{itemize}
+\item $\textsf{tree}\,A = \rectype{X}{\sumtype{\utype}{\prodtype{X}{\prodtype{A}{X}}}}$
+\item $\textsf{leaf} = \roll{(\injl{\unit})}$
+\item $\textsf{branch} = \tabs{l}{\textsf{tree}\,A}{\tabs{a}{A}{\tabs{r}{\textsf{tree}\,A}{\roll{(\injr{\pair{l}{\pair{a}{r}}})}}}}$
+\item $\textsf{case}\,t \mathrel{\textsf{of}} \textsf{leaf} \Rightarrow e_1; \app{\app{\app{\textsf{branch}}{l}}{a}}{r} \Rightarrow e_2 =$\\
+  $\case{\unroll{t}}{\_}{e_1}{x}{e_2[l \mapsto \projl{x}, a \mapsto \projl{(\projr{x})}, r \mapsto \projr{(\projr{x})}]}$
+\end{itemize}
+
+\section{The Return of Untyped $\lambda$~Calculus}
+\label{sec:return-untyp-lambda}
+
+\begin{itemize}
+\item Consider the term $\omega_f = \abs{x}{\app{f}{(\app{(\unroll{x})}{x})}}$.
+\item It's easy to see that $f : \tau \to \tau \vdash \omega_f : (\rectype{X}{X \to \tau}) \to \tau$.
+\item Thus, $\textsf{fix} \triangleq \tabs{f}{\tau \to \tau}{\omega_f} : (\tau \to \tau) \to \tau$.
+\item This is a least-fixed-point combinator for $\lambda$ terms: it runs a loop.
+\item For instance, we can write:
+  $$\app{\textsf{fix}}{\left(\tabs{f}{\mathbb{N} \to \mathbb{N}}{\tabs{x}{\mathbb{N}}{\textsf{case}\,n \mathrel{\textsf{of}} 0 \Rightarrow 1; \app{\textsf{suc}}{0} \Rightarrow 1; \app{\textsf{suc}}{(\app{\textsf{suc}}{m})} \Rightarrow \app{\app{\textsf{plus}}}{(\app{f}{m})}{(\app{f}{(\app{\textsf{suc}}{m})})}}}\right)}$$
+  \begin{itemize}
+  \item Assume that $f$ has its normal meaning, as does the three-way pattern matching here.
+  \item \textbf{Stop and Think:} What is this function?
+  \item Answer: the fibonacci function!
+  \end{itemize}
+\item So we have the ability to write recursive functions now.
+\item Importantly, we also have $$\app{\textsf{fix}}{(\tabs{f}{\utype \to \utype}{\tabs{x}{\utype}{\app{f}{x}}})}$$ which is the function which just runs an infinite loop.
+\item So, did we get the full power of untyped $\lambda$~calculus?
+  Yes!
+\item Define $D \triangleq \rectype{X}{(X \to X)}$.
+\item Then, we can perform the following translation from untyped $\lambda$~calculus to typed $\lambda$~calculus:
+  $$\llbracket e \rrbracket = \left\{\begin{array}{ll}
+    x & \textsf{if}~e = x\\
+    \roll{(\tabs{x}{D}{\llbracket e' \rrbracket})} & \textsf{if}~e = \abs{x}{e'}\\
+    \app{(\unroll{e_1})}{e_2} & \textsf{if}~e = \app{e_1}{e_2}
+  \end{array}\right.
+$$
+\item You will be asked to prove the following theorems in your homework:
+\end{itemize}
+
+\begin{thm}
+  Let $\Gamma_S = \{x : D \mid x \in X\}$.
+  Then $\Gamma_{\FV(e)} \vdash \llbracket e \rrbracket  : D$ for every untyped $\lambda$~calculus term~$e$.
+\end{thm}
+
+\begin{thm}
+  If $e \to e'$ in call-by-value untyped $\lambda$~calculus, then $\llbracket e \rrbracket \to \llbracket e' \rrbracket$.
+\end{thm}
+
+\begin{thm}
+  If $\llbracket e \rrbracket \to \llbracket e' \rrbracket$, then $e \to e'$ in call-by-value untyped $\lambda$~calculus.
+\end{thm}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

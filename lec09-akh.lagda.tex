@@ -1,0 +1,643 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+% \usepackage[lite]{mtp2}
+\usepackage{forest}
+\usepackage{stmaryrd}
+
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+\newunicodechar{≟}{\ensuremath{\stackrel{?}{=}}}
+\newunicodechar{̬}{\ensuremath{{}_{\textsf{v}}}}
+\newunicodechar{ₐ}{\ensuremath{{}_{\textsf{a}}}}
+\newunicodechar{ₜ}{\ensuremath{{}_{\textsf{t}}}}
+\newunicodechar{ₖ}{\ensuremath{{}_{\textsf{k}}}}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+\newunicodechar{₃}{\ensuremath{{}_{3}}}
+\newunicodechar{⊕}{\ensuremath{\oplus}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{∸}{\ensuremath{\stackrel{.}{-}}}
+\newunicodechar{≮}{\ensuremath{\not<}}
+
+\newcommand{\Imp}{\textsc{Imp}\xspace}
+\newcommand{\Skip}{\textsf{skip}}
+\newcommand{\ite}[3]{\ensuremath{\textsf{if}\mkern5mu#1 \mathrel{\textsf{then}} #2 \mathrel{\textsf{else}} #3}}
+\newcommand{\while}[2]{\ensuremath{\textsf{while}\mkern5mu#1 \mathrel{\textsf{do}} #2}}
+\newcommand{\itrue}{\textsf{true}}
+\newcommand{\ifalse}{\textsf{false}}
+
+\newcommand{\astep}{\ensuremath{\mathrel{\longrightarrow_a}}}
+\newcommand{\bstep}{\ensuremath{\mathrel{\longrightarrow_b}}}
+\newcommand{\cstep}{\ensuremath{\mathrel{\longrightarrow_c}}}
+
+\title{Small-Step Operational Semantics}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{9}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}[hide]
+module lec09-akh where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; _≢_; refl; cong)
+open Eq.≡-Reasoning
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_; _<_; z<s; s<s)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Data.Bool using (Bool; true; false; if_then_else_)
+open import Relation.Nullary using (Dec; yes; no; ¬_)
+\end{code}
+
+\section{Introducing \Imp}
+\label{sec:intr-imp}
+
+\begin{itemize}
+\item We can now begin our study of programming-language semantics in earnest!
+\item We start by studying several methods of giving semantics to a simple imperative language called \Imp.
+\item Let's start by looking at \Imp, a simple imperative language.
+\item \Imp's syntax is divided into three parts: \emph{arithmetic expressions}, which compute a natural~number; \emph{boolean expressions}, which compute a boolean; and \emph{commands}, which are instructions for updating state.
+\item We can write the syntax in a variant of \emph{Backus-Naur Form}~(BNF) as follows:
+  \begin{syntax}
+    \abstractCategory[Variables]{x,y,z,\dots}
+    \category[Arithmetic Expressions]{a}
+      \alternative{x}
+      \alternative{\tilde{n}}
+      \alternative{a_1 + a_2}
+      \alternative{a_1 - a_2}
+      \alternative{a_1 \ast a_2}
+    \category[Boolean Expressions]{b}
+      \alternative{\itrue}
+      \alternative{\ifalse}\\
+      \alternative{a_1 = a_2}
+      \alternative{a_1 < a_2}\\
+      \alternative{\lnot b}
+      \alternative{b_1 \land b_2}
+      \alternative{b_1 \lor b_2}
+    \category[Commands]{c}
+      \alternative{\Skip}
+      \alternative{x := a}
+      \alternative{c_1; c_2}\\
+      \alternative{\ite{b}{c_1}{c_2}}
+      \alternative{\while{b}{c}}
+    \end{syntax}
+\item Some things to notice about this:
+  \begin{itemize}
+  \item Note that I am careful to use subscripts to ensure that you know that e.g., the two summands in a~$+$ do not need to be the same.
+    This is \emph{not} standard, though far from unusual.
+    It is common (and closer to the original Backus-Naur style) to see this written $a + a$, where you are supposed to understand that those are different $a$s.
+  \item Another unusual convention that I will be sticking to (or, at least, endeavoring to stick to) this semester is the use of a tilde~(\textasciitilde) to denote a number \emph{in the syntax}.
+    That way, you can tell the difference between $\tilde{3} + \tilde{5}$, which is the program that adds $3$ and $5$, from $\widetilde{3 + 5}$ which is the program $8$.
+    % fix this!
+  \end{itemize}
+\item Arithmetic expressions can either be variables, constants, or addition, subtraction, or multiplication.
+  Variables can only contain numbers, so there is no risk of e.g., ending up with \textsf{true + 3} as a program.
+  Thus, we do not need a type system on \Imp.
+\item Boolean expressions can be true, false, a test on numbers, or a boolean operation.
+\item A command can be \Skip, which does nothing; $x := a$, which changes the state to store the value of~$a$ at location~$x$; $c_1; c_2$, which does $c_1$ and then does $c_2$; an if statement; or a while loop.
+  \begin{itemize}
+  \item N.B.: If statements always have both branches---we can simulate a one-armed if statement using \Skip.
+  \end{itemize}
+\item A point of terminology: the variables on the left-hand size of the $\coloneqq$ are called \emph{nonterminals}, while the keywords and symbols that are meant to be taken literally are called \emph{literals}.
+\end{itemize}
+
+\section{Concrete and Abstract Syntax}
+\label{sec:concr-abstr-synt}
+
+\begin{itemize}
+\item There are some things missing from this definition of the syntax: parentheses, operator precedence, etc.
+\item These are part of \emph{concrete syntax}: the syntax that a user actually writes.
+\item Instead, the BNF syntax above describes the \emph{abstract syntax} of a programming language.
+\item In language implementation, turning concrete syntax into abstract syntax is the job of a \emph{parser}, while going the other way around is the job of a \emph{pretty printer}.
+  \begin{itemize}
+  \item We won't be focusing on either of those this semester.
+  \item Please take our course on compilers if you're interested!
+  \item We will assume that our concrete syntax has parentheses and reasonable precedence.
+  \end{itemize}
+\item Abstract syntax is a \emph{tree}.
+\item It's useful to be able to look at a program and see a tree.
+  For instance, instead of $x + y \times z$, you should see:
+  \begin{center}
+    \begin{forest}
+      [+
+      [x]
+      [\times
+      [y]
+      [z]
+      ]
+      ]
+    \end{forest}
+  \end{center}
+\item Note that the $\times$ node comes below the $+$ node.
+  This is due to precedence---traditionally, multiplication ``binds tighter'' (has higher precedence) than addition.
+  (See PEMDAS).
+\item We can use parentheses to change this, so $(x + y) \times z$ is instead the tree:
+  \begin{center}
+    \begin{forest}
+      [\times
+        [+
+          [x]
+          [y]
+        ]
+        [z]
+      ]
+    \end{forest}
+  \end{center}
+\item Note the lack of parentheses in the tree! They are only used to determine the shape of the tree.
+\item Unsurprisingly, we can represent these trees as \textsf{data} types in agda.
+\end{itemize}
+
+\section{Abstract Syntax in Agda}
+\label{sec:abstract-syntax-agda}
+
+\begin{itemize}
+\item We can encode the abstract syntax of a programming language in agda as trees.
+\item In fact, we don't need the power of agda.
+We could do this in OCaml!
+\item However, the syntax of \Imp relies on more than just trees: it also relies on variables and numbers.
+\item We've already explored numbers, so let's talk about variables.
+\item We could use something concrete (like strings) for variables.
+  But we don't need that, and it can actually cause things to be harder.
+\item So, let's keep variables abstract!
+  We can do that by \textsf{postulat}ing a \textsf{Set}~\textsf{Var}.
+\item However, we do need to know one thing about variables: how to tell that they are the same.
+  Again, we do that by \textsf{postulat}ing about them.
+\item All together, we get the following:
+\begin{code}
+postulate
+  Var : Set
+  _≟̬_ : ∀ (X Y : Var) → Dec (X ≡ Y)
+\end{code}
+\item To understand this, we should talk about decidability.
+\end{itemize}
+
+\subsection{An Aside on Decidability}
+\label{sec:an-aside-decid}
+
+\begin{itemize}
+\item I have two functions $\mathbb{N} \to \mathbb{N}$.
+  Your job is to tell me whether they are the same or not.
+\item You want to do this programmatically, so you can't do anything that the language can't do.
+  In particular, you can't look at the source code.
+\item All you can do is call it, but you can do that as many times as you want.
+  You can try calling them both with zero, then with one, then with two, and so on.
+\item If they ever return different results, you can tell me that they are different.
+  But you can never tell me that they're the same.
+\item In contrast, if I have two natural numbers, it's easy to write a function that tells me if they're the same.
+\begin{code}
+nat-eqb : ∀ (n m : ℕ) → Bool
+nat-eqb zero zero = true
+nat-eqb zero (suc _) = false
+nat-eqb (suc _) zero = false
+nat-eqb (suc n) (suc m) = nat-eqb n m
+\end{code}
+\item How do we know it's correct?
+  We can just look at it, but we can also prove it correct!
+\begin{code}
+nat-eqb-true : ∀ {n m : ℕ} → nat-eqb n m ≡ true → n ≡ m
+nat-eqb-true {zero} {zero} eqbnm≡true = refl
+nat-eqb-true {suc n} {suc m} eqbnm≡true  = cong suc (nat-eqb-true {n} {m} eqbnm≡true)
+
+neq-suc′ : ∀ {n m : ℕ} → suc n ≢ suc m → n ≢ m
+neq-suc′ {n} {m} neq = λ eq → neq (cong suc eq)
+
+suc-eq : ∀ {n m : ℕ} → suc n ≡ suc m → n ≡ m
+suc-eq refl = refl
+
+neq-suc : ∀ {n m : ℕ} → n ≢ m → suc n ≢ suc m
+neq-suc {n} {m} neq = λ {eq → neq (suc-eq eq)} 
+
+nat-eqb-false : ∀ {n m : ℕ} → nat-eqb n m ≡ false → n ≢ m
+nat-eqb-false {zero} {suc m} eqbnm≡false = λ ()
+nat-eqb-false {suc n} {zero} eqbnm≡false = λ () 
+nat-eqb-false {suc n} {suc m} eqbnm≡false = neq-suc (nat-eqb-false {n} {m} eqbnm≡false)
+
+nat-eqb-equal : ∀ {n m : ℕ} → n ≡ m → nat-eqb n m ≡ true
+nat-eqb-equal {zero} {zero} eq = refl
+nat-eqb-equal {suc n} {suc m} eq = nat-eqb-equal (suc-eq eq)
+
+nat-eqb-refl : ∀ {n : ℕ} → nat-eqb n n ≡ true
+nat-eqb-refl {zero} = refl
+nat-eqb-refl {suc n} = nat-eqb-refl {n}
+
+nat-eqb-nequal : ∀ {n m : ℕ} → n ≢ m → nat-eqb n m ≡ false
+nat-eqb-nequal {zero} {zero} neq with (neq refl)
+... | () 
+nat-eqb-nequal {zero} {suc m} neq = refl
+nat-eqb-nequal {suc n} {zero} neq = refl
+nat-eqb-nequal {suc n} {suc m} neq = nat-eqb-nequal (neq-suc′ neq)
+\end{code}
+\item This type of program, which returns \textsf{true} if a relation holds and false otherwise, is called a \emph{decision procedure} for that relation.
+\item Agda has a special type for decision procedures, \textsf{Dec}:
+\begin{code}
+data Dec' (P : Set) : Set where
+  yes' : P   → Dec' P
+  no'  : ¬ P → Dec' P
+\end{code}
+\item This tells us not only whether or not something is true, but what the evidence is.
+\item Using this, we can write all sorts of decision procedures.
+  For instance, here are some decision procedures we will use later:
+\begin{code}
+_≟_ : ∀ (n m : ℕ) → Dec (n ≡ m)
+zero ≟ zero = yes refl
+zero ≟ (suc m) = no λ ()
+(suc n) ≟ zero = no λ ()
+(suc n) ≟ (suc m) with n ≟ m
+... | yes eq  = yes (cong suc eq)
+... | no neq = no (λ {refl -> neq refl}) 
+
+_≟ₜ_ : ∀ (b₁ b₂ : Bool) → Dec (b₁ ≡ b₂)
+false ≟ₜ false = yes refl
+false ≟ₜ true = no λ ()
+true ≟ₜ false = no λ ()
+true ≟ₜ true = yes refl
+
+_<?_ : (n m : ℕ) → Dec (n < m)
+zero <? zero = no λ ()
+zero <? suc m = yes z<s
+suc n <? zero = no λ ()
+suc n <? suc m with n <? m
+... | yes n<m = yes (s<s n<m)
+... | no n≮m = no (λ {(s<s pf) → n≮m pf}) 
+
+ltb : ℕ → ℕ → Bool
+ltb zero zero = false
+ltb zero (suc _) = true
+ltb (suc m) zero = false
+ltb (suc m) (suc n) = ltb m n
+
+ltb-true : ∀ {m n : ℕ} → ltb m n ≡ true → m < n
+ltb-true {zero} {suc n} m<?n≡true = z<s
+ltb-true {suc m} {suc n} m<?n≡true = s<s (ltb-true m<?n≡true)
+
+<-ltb : ∀ {m n : ℕ} → m < n → ltb m n ≡ true
+<-ltb {zero} {suc n} m<n = refl
+<-ltb {suc m} {suc n} (Data.Nat.s≤s m<n) = <-ltb {m} {n} m<n
+
+≮-ltb : ∀ {n m : ℕ} → ¬ (n < m) → ltb n m ≡ false
+≮-ltb {zero} {zero} n≮m = refl
+≮-ltb {zero} {suc m} n≮m with n≮m z<s
+... | ()
+≮-ltb {suc n} {zero} n≮m = refl
+≮-ltb {suc n} {suc m} n≮m = ≮-ltb {n} {m} λ n<m → n≮m (s<s n<m)
+\end{code}
+\end{itemize}
+
+\subsection{Back to Our Regularly Scheduled Programming}
+\label{sec:back-our-regularly}
+
+\begin{itemize}
+\item Now we can understand the rest of the postulates: we need a decision procedure for equality on variables.
+\item This way, we know what part of memory we're talking about!
+\item Then, every nonterminal we turn into a data type
+\begin{code}
+data AExpr : Set where
+  const : ℕ → AExpr
+  var : Var → AExpr
+  _⊕_ : AExpr → AExpr → AExpr
+  _-_ : AExpr → AExpr → AExpr
+  _⊗_ : AExpr → AExpr → AExpr
+
+infixr 5 _⊕_
+infixr 5 _-_
+infixr 4 _⊗_
+
+data BExpr : Set where
+  true : BExpr
+  false : BExpr
+  _==_ : AExpr → AExpr → BExpr
+  _<<_ : AExpr → AExpr → BExpr
+  !_ : BExpr → BExpr
+  _&&_ : BExpr → BExpr → BExpr
+  _||_ : BExpr → BExpr → BExpr
+
+infixr 3 _&&_
+infixr 3 _||_    
+\end{code}
+\item We use $\oplus$ for addition and $\otimes$ for multiplication, to avoid conflicts with functions defined on $\mathbb{N}$.
+  We also use $<<$ for less than, $\&\&$ for and, and $||$ as or for the same reason.
+\item Note that \textsf{true} and \textsf{false} are constructors of \textsf{BExpr} as well as \textsf{Bool}.
+  We can use that to embed booleans into \textsf{BExpr}s.
+\begin{code}
+bool2BExpr : Bool → BExpr
+bool2BExpr true = true
+bool2BExpr false = false
+\end{code}
+\item Continuing on with commands:
+\begin{code}
+data Com : Set where
+  skip : Com
+  _:=_ : Var → AExpr → Com
+  _>>_ : Com → Com → Com
+  ite : BExpr → Com → Com → Com
+  while_go_ : BExpr → Com → Com    
+\end{code}
+\item We use $>>$ for sequencing, a notation that comes from monads.
+  Similarly, we use \textsf{while\_go\_} instead of \textsf{while\_do\_} because \textsf{do} is a keyword in agda.
+\end{itemize}
+
+\section{\Imp Semantics}
+\label{sec:imp-semantics}
+
+\begin{itemize}
+\item You probably already have an intuitive idea of how \Imp works.
+  Our job is just to formalize it.
+\item First thing that you will immediately see is that we have mutable variables.
+  That means we need to keep track of state.
+  But what is state, formally?
+\item We can model state as functions from variables to natural numbers.
+  Since we only store numbers in the state, that's good enough.
+\begin{code}
+State = Var → ℕ    
+\end{code}
+\item Today, we're going to be working with \emph{small-step operational semantics}.
+  It is probably the most-common type of semantics used today.
+\item The idea of small-step operational semantics is to build a relation $\longrightarrow$ which represents taking one step of computation.
+  We will build such a relationship for each of arithmetic expressions, boolean expressions, and commands.
+\item Neither arithmetic nor boolean expressions can change the state.
+  Thus, we can model them as relations of the form $\langle e, \sigma \rangle \astep e'$  and $\langle e, \sigma \rangle \bstep e'$, respectively.
+  (Since agda-mode doesn't have a subscript b for some reason, we will use subscript ``t'' for ``truth''.)
+\end{itemize}
+
+\begin{mathparpagebreakable}
+  \infer*[left=var-lookup]{ }{ \langle x, \sigma \rangle \astep \sigma(x)} \\
+  \infer*[left=plus-step1]{\langle e_1, \sigma \rangle \astep e_1'}{\langle e_1 + e_2, \sigma \rangle \astep e_1' + e_2} \and
+  \infer*[left=plus-step2]{\langle e_2, \sigma \rangle \astep e_2'}{\langle e_1 + e_2, \sigma \rangle \astep e_1 + e_2'} \and
+  \infer*[left=plus-const]{ }{\langle \tilde{n} + \tilde{m}, \sigma\rangle \astep \widetilde{n + m}}\\
+  \infer*[left=minus-step1]{\langle e_1, \sigma \rangle \astep e_1'}{\langle e_1 - e_2, \sigma \rangle \astep e_1' - e_2} \and
+  \infer*[left=minus-step2]{\langle e_2, \sigma \rangle \astep e_2'}{\langle e_1 - e_2, \sigma \rangle \astep e_1 - e_2'} \and
+  \infer*[left=minus-const]{ }{\langle \tilde{n} - \tilde{m}, \sigma\rangle \astep \widetilde{n - m}}\\
+  \infer*[left=times-step1]{\langle e_1, \sigma \rangle \astep e_1'}{\langle e_1 \ast e_2, \sigma \rangle \astep e_1' \ast e_2} \and
+  \infer*[left=times-step2]{\langle e_2, \sigma \rangle \astep e_2'}{\langle e_1 \ast e_2, \sigma \rangle \astep e_1 \ast e_2'} \and
+  \infer*[left=times-const]{ }{\langle \tilde{n} \ast \tilde{m}, \sigma\rangle \astep \widetilde{nm}}\\
+\end{mathparpagebreakable}
+
+\begin{itemize}
+\item This is annoying and repetitive to write.
+\item Instead, we can use the idea of an \emph{evaluation context}.
+  This is a piece of syntax with a \emph{hole} which can get filled.
+\item The idea is to allow us to focus in on the bit of syntax filling the hole and evaluate that.
+\end{itemize}
+
+\begin{syntax}
+  \category[AExpr Context]{C}
+  \alternative{\bullet}
+  \alternative{C + e}
+  \alternative{e + C}
+  \alternative{C - e}
+  \alternative{e - C}
+  \alternative{C \ast e}
+  \alternative{e \ast C}  
+\end{syntax}
+\begin{mathparpagebreakable}
+  \infer*[left=var-lookup]{ }{ \langle x, \sigma \rangle \astep \sigma(x)} \and
+  \infer*[left=aexpr-ctxt]{\langle e, \sigma \rangle \astep e'}{\langle C[e], \sigma \rangle \astep C[e']}\\
+  \infer*[left=plus-const]{ }{\langle \tilde{n} + \tilde{m}, \sigma\rangle \astep \widetilde{n + m}}\and
+  \infer*[left=minus-const]{ }{\langle \tilde{n} - \tilde{m}, \sigma\rangle \astep \widetilde{n - m}}\and
+  \infer*[left=times-const]{ }{\langle \tilde{n} \ast \tilde{m}, \sigma\rangle \astep \widetilde{nm}}
+\end{mathparpagebreakable}
+
+\begin{itemize}
+\item A context~$C$ has exactly one hole (written~$\bullet$).
+\item We write $C[e]$ for the arithmetic expression obtained by replacing the hole with $e$ in $C$.
+\item We can use the same trick for the boolean expressions.
+  However, we need two types of contexts, for either arithmetic expressions or boolean expressions
+\end{itemize}
+
+\begin{syntax}
+  \category[BExpr Arithmetic Context]{A}
+    \alternative{\bullet == e}
+    \alternative{e == \bullet}
+    \alternative{\bullet < e}
+    \alternative{e < \bullet}
+  \category[BExpr Boolean Context]{B}
+    \alternative{\bullet}
+    \alternative{\lnot B}
+    \alternative{B \land b}
+    \alternative{B \lor b}
+\end{syntax}
+\begin{mathparpagebreakable}
+  \infer*[left=bexpr-arith-ctxt]{ \langle e, \sigma \rangle \astep e'}{\langle A[e], \sigma \rangle \bstep A[e']} \and
+  \infer*[left=bexpr-ctxt]{ \langle b, \sigma \rangle \bstep b'}{\langle B[b], \sigma \rangle \bstep B[b']}\\
+  \infer*[left=eq-step-true]{n = m }{\langle \tilde{n} == \tilde{m}, \sigma\rangle \bstep true}\and
+  \infer*[left=eq-step-false]{n \neq m }{\langle \tilde{n} == \tilde{m}, \sigma\rangle \bstep false}\\
+  \infer*[left=lt-true]{ n < m }{\langle \tilde{n} < \tilde{m}, \sigma\rangle \bstep true}\and
+  \infer*[left=lt-false]{ n \not< m }{\langle \tilde{n} < \tilde{m}, \sigma\rangle \bstep true}\and
+  \infer*[left=not-true]{ }{\langle \lnot \itrue, \sigma\rangle \bstep \ifalse}\and
+  \infer*[left=not-false]{ }{\langle \lnot \ifalse, \sigma\rangle \bstep \itrue}\\
+  \infer*[left=and-true]{ }{\langle \itrue \land e, \sigma\rangle \bstep e}\and
+  \infer*[left=and-false]{ }{\langle \ifalse \land e, \sigma\rangle \bstep \ifalse}\\
+  \infer*[left=or-true]{ }{\langle \itrue \lor e, \sigma\rangle \bstep \ifalse}\and
+  \infer*[left=or-false]{ }{\langle \ifalse \lor e, \sigma\rangle \bstep e}\\
+\end{mathparpagebreakable}
+
+\begin{itemize}
+\item Note that I'm using~\textasciitilde{} to represent the embedding of booleans into \textsf{BExpr}s.
+\item Note that we interpret operators on constants using their semantic equivalents.
+  That is, if we have an expression $\tilde{n} \ast \tilde{m}$, then we step to the constant $\tilde{p}$ where $p = nm$.
+\item For boolean and and or, we short-circuit.
+\item The relation for commands is a bit different.
+  Commands can change the state, so we use a relation of the form $\langle c, \sigma\rangle \cstep \langle c', \sigma\rangle$.
+  That way, we can keep track not only of how the command changes, but also how the state changes.
+\item How can state change?
+  By updating the value at some variable.
+  We use the notation $\sigma[x \mapsto n]$ to mean the function that behaves like $\sigma$ on every argument but $x$, and returns $n$ for $x$.
+  The code for this also tells us why we need decidable equality on variables.
+\begin{code}
+update : State → Var → ℕ → State
+update σ X n Y with X ≟̬ Y
+... | yes _ = n
+... | no _ = σ Y 
+\end{code}
+\end{itemize}
+
+\begin{mathparpagebreakable}
+  \infer*[left=step-assgn]{\langle e, \sigma\rangle \astep e'}{\langle x := e, \sigma\rangle \cstep \langle x := e', \sigma\rangle}\and
+  \infer*[left=assgn-const]{ }{\langle x:=\tilde{n}, \sigma\rangle \cstep \langle \Skip, \sigma[x \mapsto n]\rangle}\\
+  \infer*[left=step-seq]{\langle c_1, \sigma \rangle \cstep \langle c_1', \sigma' \rangle}{\langle c_1; c_2, \sigma \rangle \cstep \langle c_1'; c_2, \sigma'\rangle}\and
+  \infer*[left=skip-seq]{ }{\langle \Skip; c, \sigma \rangle \cstep \langle c, \sigma \rangle}\\
+  \infer*[left=step-if]{\langle e, \sigma \rangle \bstep e'}{\langle\ite{e}{c_1}{c_2}, \sigma\rangle \cstep \langle \ite{e'}{c_1}{c_2}}, \sigma\rangle\and
+  \infer*[left=if-true]{ }{\langle\ite{\itrue}{c_1}{c_2}, \sigma\rangle \cstep \langle c_1, \sigma\rangle}\and
+  \infer*[left=if-false]{ }{\langle\ite{\ifalse}{c_1}{c_2}, \sigma\rangle \cstep \langle c_2, \sigma\rangle}\\
+  \infer*[left=step-while]{ }{\while{e}{c} \cstep \ite{e}{c;\while{e}{c}}{\Skip}}
+\end{mathparpagebreakable}
+
+\begin{itemize}
+\item Encoding these in agda is nearly trivial.
+\item However, we \emph{never} (unless you really know what you're doing) use evaluation contexts in agda.
+\item Instead, you unfold everything manually.
+\end{itemize}
+\begin{code}
+AConfig = AExpr × State
+
+infixr 2 _⟶ₐ_
+
+-- note: this is a long arrow \-->
+data _⟶ₐ_ : AConfig → AExpr → Set where
+  var-lookup : ∀ {X : Var} {σ : State} →
+    ⟨ var X , σ ⟩ ⟶ₐ const (σ X)
+  plus-step₁ : ∀ {x y z : AExpr}{σ : State} →
+         ⟨ x , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊕ y , σ ⟩ ⟶ₐ z ⊕ y
+  plus-step₂ : ∀ {x y z : AExpr} {σ : State}→
+         ⟨ y , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊕ y , σ ⟩ ⟶ₐ x ⊕ z
+  plus-step-const : ∀ {n m : ℕ} {σ : State} →
+    ------------------------------------------------
+     ⟨ (const n) ⊕ (const m) , σ ⟩ ⟶ₐ const (n + m)
+  minus-step₁ : ∀ {x y z : AExpr}{σ : State} →
+         ⟨ x , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x - y , σ ⟩ ⟶ₐ z - y
+  minus-step₂ : ∀ {x y z : AExpr} {σ : State} →
+         ⟨ y , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x - y , σ ⟩ ⟶ₐ x - z
+  minus-step-const : ∀ {n m : ℕ} {σ : State} →
+    ------------------------------------------------
+     ⟨ (const n) - (const m) , σ ⟩ ⟶ₐ const (n ∸ m) 
+  times-step₁ : ∀ {x y z : AExpr} {σ : State} →
+         ⟨ x , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊗ y , σ ⟩ ⟶ₐ z ⊗ y
+  times-step₂ : ∀ {x y z : AExpr} {σ : State} →
+         ⟨ y , σ ⟩ ⟶ₐ z →
+    ------------------------
+     ⟨ x ⊗ y , σ ⟩ ⟶ₐ x ⊗ z
+  times-step-const : ∀ {n m : ℕ} {σ : State} →
+    ------------------------------------------------
+     ⟨ (const n) ⊗ (const m) , σ ⟩ ⟶ₐ const (n * m)
+
+BConfig = BExpr × State
+
+infixr 2 _⟶ₜ_
+data _⟶ₜ_ : BConfig → BExpr → Set where
+  eq-step₁ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ x , σ ⟩ ⟶ₐ z → 
+    --------------------------
+     ⟨ x == y , σ ⟩ ⟶ₜ z == y
+  eq-step₂ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ y , σ ⟩ ⟶ₐ z →
+    --------------------------
+     ⟨ x == y , σ ⟩ ⟶ₜ x == z
+  eq-step-true : ∀ {n : ℕ} {σ : State} →
+    ------------------------------------------------------
+     ⟨ (const n) == (const n) , σ ⟩ ⟶ₜ true
+  eq-step-false : ∀ {n m : ℕ} {σ : State} →
+                    n ≢ m ->
+    ----------------------------------------
+    ⟨ (const n) == (const m) , σ ⟩ ⟶ₜ false
+  lt-step₁ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ x , σ ⟩ ⟶ₐ z →
+    --------------------------
+     ⟨ x << y , σ ⟩ ⟶ₜ z << y 
+  lt-step₂ : ∀ {x y z : AExpr} {σ : State} →
+          ⟨ y , σ ⟩ ⟶ₐ z →
+    --------------------------
+     ⟨ x << y , σ ⟩ ⟶ₜ x << z
+  lt-step-true : ∀ {n m : ℕ} {σ : State} →
+                                  n < m →
+    ---------------------------------------------------------
+     ⟨ (const n) << (const m) , σ ⟩ ⟶ₜ true
+  lt-step-false : ∀ {n m : ℕ} {σ : State} →
+                                 ¬ (n < m) → 
+    ---------------------------------------------------------
+     ⟨ (const n) << (const m) , σ ⟩ ⟶ₜ false
+
+  not-step : ∀ {b₁ b₂ : BExpr} {σ : State} →
+       ⟨ b₁ , σ ⟩ ⟶ₜ b₂ →
+    ----------------------
+     ⟨ ! b₁ , σ ⟩ ⟶ₜ ! b₂
+  not-true : ∀ {σ : State} →
+    -------------------------
+     ⟨ ! true , σ ⟩ ⟶ₜ false
+  not-false : ∀ {σ : State} → 
+    -----------------
+     ⟨ ! false , σ ⟩ ⟶ₜ true
+  and-step₁ : ∀ {b₁ b₂ b₃ : BExpr} {σ : State} →
+           ⟨ b₁ , σ ⟩ ⟶ₜ b₃ →
+    ------------------------------
+     ⟨ b₁ && b₂ , σ ⟩ ⟶ₜ b₃ && b₂
+  and-true : ∀ {b₂ : BExpr} {σ : State} →
+    --------------------------
+     ⟨ true && b₂ , σ ⟩ ⟶ₜ b₂
+  and-false : ∀ {b₂ : BExpr} {σ : State} →
+    ------------------------------
+     ⟨ false && b₂ , σ ⟩ ⟶ₜ false
+  or-step₁ : ∀ {b₁ b₂ b₃ : BExpr} {σ : State} →
+           ⟨ b₁ , σ ⟩ ⟶ₜ b₃ →
+    ------------------------------
+     ⟨ b₁ || b₂ , σ ⟩ ⟶ₜ b₃ || b₂
+  or-true : ∀ {b₂ : BExpr} {σ : State}→
+    ----------------------------
+     ⟨ true || b₂ , σ ⟩ ⟶ₜ true
+  or-false : ∀ {b₂ : BExpr} {σ : State} →
+    ---------------------------
+     ⟨ false || b₂ , σ ⟩ ⟶ₜ b₂
+
+Config = Com × State
+
+infixr 2 _⟶ₖ_
+data _⟶ₖ_ : Config → Config → Set where
+  step-assgn : ∀ {X : Var} {e₁ e₂ : AExpr} {σ : State} →
+          ⟨ e₁ , σ ⟩ ⟶ₐ e₂ →
+    ------------------------------------
+     ⟨ X := e₁ , σ ⟩ ⟶ₖ ⟨ X := e₂ , σ ⟩
+  assgn-const : ∀ {X : Var} {n : ℕ} {σ : State} →
+    -------------------------------------------------
+     ⟨ X := const n , σ ⟩ ⟶ₖ ⟨ skip , update σ X n ⟩
+  step->> : ∀ {c₁ c₂ c₁′ : Com} {σ σ′ : State} →
+            ⟨ c₁ , σ ⟩ ⟶ₖ ⟨ c₁′ , σ′ ⟩ →
+    ------------------------------------------
+     ⟨ c₁ >> c₂ , σ ⟩ ⟶ₖ ⟨ c₁′ >> c₂ , σ′ ⟩
+  skip->> : ∀ {c : Com} {σ : State} →
+    ---------------------------------
+     ⟨ skip >> c , σ ⟩ ⟶ₖ ⟨ c , σ ⟩
+  step-ite : ∀ {b b′ : BExpr} {c₁ c₂ : Com} {σ : State} →
+               ⟨ b , σ ⟩ ⟶ₜ b′ →
+    ---------------------------------------------
+     ⟨ ite b c₁ c₂ , σ ⟩ ⟶ₖ ⟨ ite b′ c₁ c₂ , σ ⟩ 
+  ite-true : ∀ {c₁ c₂ : Com} {σ : State} →
+    --------------------------------------
+     ⟨ ite true c₁ c₂ , σ ⟩ ⟶ₖ ⟨ c₁ , σ ⟩
+  ite-false : ∀ {c₁ c₂ : Com} {σ : State} →
+    --------------------------------------
+     ⟨ ite false c₁ c₂ , σ ⟩ ⟶ₖ ⟨ c₂ , σ ⟩
+  step-while : ∀ {b : BExpr} {c : Com} {σ : State} →
+    -------------------------------------------------------------------
+     ⟨ while b go c , σ ⟩ ⟶ₖ ⟨ ite b (c >> (while b go c)) skip , σ ⟩ 
+\end{code}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
