@@ -148,7 +148,10 @@ In STLC we will use \textbf{typing contexts} (different from evaluation contexts
 \begin{itemize}
   \item We will refer to them using Gamma ($\Gamma$) or Delta ($\Delta$).
   \item Represents variables that are in scope, with their types.
-  \item List of (variable, type) pairs. (Not really lists, since order does not matter. For now think of them as lists or some magic bucket where we can store our pairs).
+  \item List of (variable, type) pairs. 
+    (Not really lists, since order does not matter. 
+    For now think of them as lists or some magic bucket where we can store our pairs.
+    Proof that order does not matter is prooved as part of the HW ).
 \end{itemize}
 
 Adding the typing contexts to our definition gives us 
@@ -165,13 +168,13 @@ Adding the typing contexts to our definition gives us
       \alternative{\tau_1 \rightarrow \tau_2}
     \category[Typing Contexts]{\CC}
       \alternative{\cdot}
-      \alternative{\Gamma, (x : \tau)}
+      \alternative{\Gamma, x : \tau}
   \end{syntax}
 \end{alert}
 \end{center}
 
 The $\cdot$ is the empty context, where no variable is in scope. 
-  Alternatively, $\Gamma, (x : \tau)$ has all variable in Gamma in scope, as well as $x$ in scope with type $\tau$. 
+  Alternatively, $\Gamma, (x : \tau)$ has all of the variables in Gamma in scope, as well as $x$ in scope with type $\tau$. 
 
 \textbf{Note}: From here on out we might use ``context'' without specifying whether it is a type or evaluation context. 
   It should be clear from the context of the use of ``context'' (I am sorry this is hard to word). 
@@ -181,7 +184,7 @@ The $\cdot$ is the empty context, where no variable is in scope.
 Finally, with types and contexts we can start implementing our type systems. 
 
 We talk about types using \textbf{judgments}, which we will write $\Gamma \vdash x : \tau$. 
-  These judgments should be read ``In the context of $\Gamma$, $e$ has type $\tau$. 
+  These judgments should be read ``In the context of $\Gamma$, $e$ has type $\tau$''. 
   Most importantly, the judgment needs all three components, the context ($\Gamma$), turnstile ($\vdash$), and pair of the term and its type ($e: \tau$). 
   Without any part of these the judgment is meaningless.
 
@@ -221,11 +224,11 @@ Typing Rules
 
 \subsection{Closed Terms}
 
-\textbf{Defn}: A term is a \textbf{closed} if a proof of its type in the type system, never uses the \textsc{T-Var} rule (except inside lambdas). 
+\textbf{Defn}: As discussed in previous lectures, a term $e$ is closed if and only if $FV(e) = \{\}$. 
   If a term $\cdot \vdash t : \tau$, or term $t$ has type $\tau$ in the empty context, then $t$ is a closed term. (An empty context does not allow for the use of the \textsc{T-Var} rule.)
 
 \begin{theorem}{FV Domain}
-  If $\Gamma \vdash e : \tau$ then $FV(e) \subseteq D(\Gamma)$, where $D(\Gamma)$ is the domain of gamma.  $D(\Gamma) = \{x ~|~ x : \tau \in\Gamma\}$
+  If $\Gamma \vdash e : \tau$ then $FV(e) \subseteq D(\Gamma)$, where $D(\Gamma)$ is the domain of gamma.  $D(\Gamma) = \{x \mid x : \tau \in\Gamma\}$
 \end{theorem}
 
 \begin{proof}
@@ -329,7 +332,7 @@ In other words substitution preserves types.
 
   \underline{Case \textsc{T-App}}: $e = e_1e_2$ thus we know $\cdot \vdash e_1 : \tau_1 \rightarrow \tau_2$ and $\cdot \vdash e_2 : \tau_1$.
 
-    Inductive Hypothesis If $\cdot \vdash e : \tau$ then either $e$ is a value or there exists $e'$ such that $e \rightarrow e'$, for both $e_1$ and $e_2$. 
+    Inductive Hypothesis: Either $e_1$ is a value or there exists $e_1'$ such that $e_1 \rightarrow e_1'$, similarly for $e_2$. 
 
     We know by the IH that $e_1$ is a value or can take a step. 
   
