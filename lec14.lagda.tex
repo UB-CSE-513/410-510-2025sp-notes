@@ -1,0 +1,184 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{forest}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{ξ}{\ensuremath{\xi}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+
+\title{De Bruijn Indices}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{14}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec14 where
+open import Data.Nat using (ℕ; zero; suc)
+open import Function using (_∘_)
+
+data Expr : Set where
+  `_ : ℕ → Expr
+  λ⇒_ : Expr → Expr
+  _∙_ : Expr → Expr → Expr
+\end{code}
+
+\section{The Barendregt convention}
+The Barendregt Convention in lambda calculus states that bound variables in lambda terms are always chosen to be distinct from free variables. 
+
+\noindent In other words, it is a practice of picking a representative term where all bound variables are \emph{unique} (so, no other $\lambda$ uses those variables) and are \emph{fresh} (not bound by other $\lambda$'s).
+
+\section{De Bruijn Indices}
+De Bruijn indices are a variable-free notation for lambda calculus where variables are replaced by numbers representing their depth in the nested scope. 
+
+\noindent To convert variables into De Bruijn Indices, turn them into numbers that represent the amount of $\lambda$'s between the bound variable and its binding $\lambda$.
+
+\noindent As an AST, $\lambda x. \lambda y. (xy) x$ then converted into an AST with De Bruijn indices would look like this:
+
+\[
+\begin{array}{llcrr}
+\begin{forest}
+    [$\lambda x$
+    [$\lambda y$
+      [@
+        [@
+            [$x$]
+            [$y$]
+        ]
+        [$x$]
+      ]
+    ]
+  ]
+\end{forest}
+&
+\rightarrow
+&
+\begin{forest}
+    [$\lambda$
+    [$\lambda$
+      [@
+        [@
+            [$1$]
+            [$0$]
+        ]
+        [$1$]
+      ]
+    ]
+  ]
+\end{forest}
+\end{array}
+\]
+
+\noindent Another example would be with a function  $\lambda x. \lambda y. ((\lambda x.x) x)y$:
+
+\[
+\begin{array}{lcr}
+    \begin{forest}
+        [$\lambda x$
+        [$\lambda y$
+          [@
+            [@
+                [$\lambda x$
+                    [$x$]
+                ]
+                [$x$]
+            ]
+            [$y$]
+          ]
+        ]
+      ]
+    \end{forest}
+    &
+    \rightarrow
+    &
+    \begin{forest}
+        [$\lambda$
+        [$\lambda$
+          [@
+            [@
+                [$\lambda$
+                    [$0$]
+                ]
+                [$1$]
+            ]
+            [$0$]
+          ]
+        ]
+      ]
+    \end{forest}
+\end{array}
+\]
+
+
+
+\noindent Note: Every \alpha -equivalent tree will have a shape similar to this.
+
+
+
+\section{Renaming}
+Renaming refers to the process of changing a bound variable's name while keeping the meaning of the expression intact. 
+
+\noindent The primary goal in renaming is to avoid capture (where a variable accidentally gets bound to a different lambda due to name clashes).
+
+\noindent Renaming is defined as follows:
+
+\begin{code}
+Renaming : Set
+Renaming = ℕ → ℕ
+
+↑r : Renaming → Renaming
+↑r ξ zero = zero
+↑r ξ (suc x) = suc(ξ x)
+
+_⟨_⟩ : Expr → Renaming → Expr
+(` x) ⟨ ξ ⟩ = ` (ξ x)
+(λ⇒ e) ⟨ ξ ⟩ = λ⇒ (e ⟨ ↑r ξ ⟩)
+(e₁ ∙ e₂) ⟨ ξ ⟩ = (e₁ ⟨ ξ ⟩) ∙ (e₂ ⟨ ξ ⟩)
+
+\end{code}
+
+
+\section{Substitution}
+
+The substitution of a variable refers to the process of replacing a variable in a term with another term.
+
+\begin{code}
+
+Substitution : Set
+Substitution = ℕ → Expr
+
+↑ : Substitution → Substitution
+↑ σ zero = ` zero
+↑ σ (suc x) = (σ x) 
+
+_[_] : Expr → Substitution → Expr
+(` x) [ σ ] = σ x
+(λ⇒ e)[ σ ] = λ⇒ (e [ ↑ σ ] )
+(e₁ ∙ e₂)[ σ ] = (e₁ [ σ ]) ∙ (e₂ [ σ ])
+
+\end{code}
+
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
