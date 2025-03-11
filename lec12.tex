@@ -36,51 +36,39 @@
 \begin{document}
 \maketitle
 
-\section{Axiomatic Semantics and Hoare Logic}
+\section{Axiomatic Semantics}
 
-Axiomatic semantics and Hoare Logic are similar concepts where Hoare Logic is a specific form of axiomatic semantics.
-Axiomatic semantics refers to a way of giving semantics to a programming language.
-They describe the assertions (invariants) that hold true about its state before and after executing a body of code.
-Hoare Logic uses a system called a Hoare Triple in order to portray this idea.
-A Hoare triple takes the form: \{ $P$ \} $c$ \{ $Q$ \} , where P and Q are of type: state \rightarrow \; set.
-$P$ and $Q$ represent loop invariants, and $c$ is the loop body.
-A loop invariant is a condition that holds before and after each iteration of a loop. \newline \newline
+Axiomatic semantics refers to a way of giving semantics to a programming language by
+describing the assertions that hold true about the state of a program before and after executing a command.
+Another name for Axiomatic Semantics called Hoare Logic, uses a system called a Hoare Triple in order to portray this idea.
+A Hoare triple takes the form: \{ $P$ \} $c$ \{ $Q$ \} , where P and Q are of type: State \rightarrow \; Set.
+$P$ and $Q$ represent pre and post conditions, and $c$ represents a command.
+If it is a loop instruction, $P$ and $Q$ represent loop invariants and $c$ represents a loop body.
+A loop invariant is a condition that holds before and after execution of a loop. \newline
 
-\section{An Example}
-
-Statements inside of curly braces are loop invariants. \newline \newline
-\{ true \} \newline
+\section{Examples}
+1.) (Initializing variables) \newline
+\{ true \} (true is a preimposed condition since it must hold prior to running a command) \newline
+$x$ := $\tilde{n}$ \newline
+\{ $x$ = $n$ \} (this is a post-condition of the previous command, and a pre-condition for the next command) \newline
+$y$ := $\tilde{m}$ \newline
+\{ $x$ = $n$ \wedge \;$y$ = $m$ \} (this is a post-condition of the previous command, and a pre-condition for the next command) \newline
+$z$ := $\tilde{o}$ \newline
+\{ $x$ = $n$ \wedge \;$y$ = $m$ \wedge \;$z$ = $o$ \} (this is a post-condition of the previous command) \newline
+\newline
+2.) (computes the value of $z$ = $x$ * $y$ using a loop, in other words, adding x to z, y times) \newline
+\{ true \} (This is a pre-condition as well as a loop invariant) \newline
 $x$ := $\tilde{n}$ ; $y$ := $\tilde{m}$ ; $z$ := $\tilde{o}$; \newline
 while $o$ < $y'$ do \newline
 $z$ := $z$ + $x$ ; \newline
 $y$ := $y$ - $\tilde{1}$ \newline
-\{ $z$ = $nm$ \} \newline
-(computes the value of $z$ = $x$ * $y$, in other words, adding x to z, y times) \newline
-\newline
-\{ true \} (true is a preimposed condition since it must hold prior to running a body) \newline
-$x$ := $\tilde{n}$ \newline
-\{ $x$ = $n$ \} \newline
-$y$ := $\tilde{m}$ \newline
-\{ $x$ = $n$ \wedge \;$y$ = $m$ \} \newline
-$z$ := $\tilde{o}$ \newline
-\{ $x$ = $n$ \wedge \;$y$ = $m$ \wedge \;$z$ = $o$ \} \newline
-\underline{Loop Invariant:} $z$ = $n$ ($m$ - $y$) \wedge \;$o$ \le \;$y$ \le \;$m$ \wedge \;$x$ = $n$ \rightarrow \; true \newline
-\newline
-while $o$ < $y$ do \newline
-\{ $z$ = $n$ ($m$ - $y$) \wedge \;$o$ \le \;$y$ \le \;$m$ \wedge \;$x$ = $n$ \wedge \;$o$ < $y$ \} \newline
-$z$ := $z$ + $x$ ; \newline
-\{ $z$ = ($n$ + 1) ($m$ - $y$) \wedge \;$o$ < $y$ \le \;$m$ \wedge \;$x$ = $n$ \} \newline
-$y$ := $y$ - $\tilde{1}$ ; \newline
-\{ $z$ = $n$ ($m$ - $y$) \wedge \;$o$ \le \;$y$ \le \;$m$ \wedge \;$x$ = $n$ \} \newline
-\newline
-\{ $z$ = $n$ ($m$ - $y$) \wedge \;$o$ = $y$ \wedge \;$x$ = $n$ \} \newline
-\newline
-\{ $z$ = $nm$ \} \newline \newline
+\{ $z$ = $nm$ \} (This is a post-condition as well as a loop invariant) \newline
+It is important to note that $z$ = $nm$ may not always be true at any given time, \newline
+however it must be true upon entering the loop and exiting it. \newline
 
 \section{Booleans and Hoare Triples}
-
 As mentioned earlier, a Hoare triple takes the form: \{ $P$ \} $c$ \{ $Q$ \} , where P and Q are of type: state \rightarrow \; set.
-$P$ and $Q$ represent loop invariants, and $c$ is the loop body. $P$ and $Q$ can be described as predicates of type: state \rightarrow \; set.
+$P$ and $Q$ represent pre and post conditions, and $c$ is a command. $P$ and $Q$ can be described as predicates of type: state \rightarrow \; set.
 We can write boolean expressions about the state, \sigma \; , and its relations to the predicates, $P$ and $Q$. \newline
 \newline
 $\uparrow$ : Bexpr $\rightarrow$ State $\rightarrow$ Set \newline
@@ -98,7 +86,7 @@ $P$ [$x$ $\mapsto$ $f$] $(\sigma)$ $\stackrel{\triangle}{\iff}$ $P$ ($\sigma$ [$
 
 
 \section{Inductive Defenition of Hoare Logic}
-
+Here are the inductive rules for Hoare Logic:
 \begin{mathpar}
   \infer*[left=Reasoning]{$R$ \Rightarrow $P$ \\ $Q$ \Rightarrow $S$ \\ \vdash \{ $P$ \} \;c \; \{ $Q$ \}}{\vdash \{ $R$ \} \; $c$ \; \{$S$ \}}
 \end{mathpar}
