@@ -77,13 +77,15 @@ $\uparrow$ : Bexpr $\rightarrow$ State $\rightarrow$ Set \newline
 $\uparrow$ takes a boolean expression and gives us back a predicate about states. \newline
 \newline
 $(P \wedge Q)$ $(\sigma)$ = $P$ $(\sigma)$ $\wedge$ $Q$ $(\sigma)$ \newline
-If $P$ and $Q$ hold about state $\sigma$ then $P$ holds for $\sigma$ and $Q$ hold for $\sigma$ \newline
+If $P$ and $Q$ hold with respect to the state, $\sigma$, then $P$ is true with respect to $\sigma$ and $Q$ is true with respect to $\sigma$ \newline
 \newline
-$P \Rightarrow Q$ = $\forall$ $\sigma$. $P$ $(\sigma)$ $\Rightarrow$ $Q$ $(\sigma)$ \newline
-$P$ implies $Q$ is equal to saying that for all states $\sigma$, $P$ of $\sigma$ implies $Q$ of $\sigma$ \newline
+\newpage
+\noindent $P \Rightarrow Q$ = $\forall$ $\sigma$. $P$ $(\sigma)$ $\Rightarrow$ $Q$ $(\sigma)$ \newline
+$P$ implies $Q$ is equal to saying that for all states $\sigma$, if $P$ is true with respect to a state, $\sigma$, then $Q$ must also be true with respect to $\sigma$ \newline
 \newline
-$P$ [$x$ $\mapsto$ $f$] $(\sigma)$ $\stackrel{\triangle}{\iff}$ $P$ ($\sigma$ [$x$ $\mapsto$ $f(\sigma)$]) \newline \newline
-
+$P$ [$x$ $\mapsto$ $f$] $(\sigma)$ $\stackrel{\triangle}{\iff}$ $P$ ($\sigma$ [$x$ $\mapsto$ $f(\sigma)$]) \newline
+This shows that if substituting on a predicate and then applying $\sigma$ to it yields the correct result, \newline
+then substituting on a $\sigma$ and then applying it to the predicate will also yield the correct result. \newline
 
 \section{Inductive Defenition of Hoare Logic}
 Here are the inductive rules for Hoare Logic:
@@ -91,34 +93,60 @@ Here are the inductive rules for Hoare Logic:
   \infer*[left=Reasoning]{$R$ \Rightarrow $P$ \\ $Q$ \Rightarrow $S$ \\ \vdash \{ $P$ \} \;c \; \{ $Q$ \}}{\vdash \{ $R$ \} \; $c$ \; \{$S$ \}}
 \end{mathpar}
 
+\noindent This rule aims to show that if we have two predicates, $R$ and $Q$ and both hold true, then the predicates they imply, $P$ and $S$, must also be true. \newline
+If this is all true, and the Hoare Triple \{$P$\} $c$ \{$Q$\} is provable, then the Hoare Triple \{$R$\} $c$ \{$S$\} must also be provable or else there would be a contradiction. \newline
+
 \begin{mathpar}
   \infer*[left=Skip]{{}}{\vdash \{ $P$ \} \; Skip \; \{ $P$ \}}
 \end{mathpar}
+
+\noindent This rule simply shows that if $c$ is a skip command, then the pre-condition and post-condition will be equivalent to each other. \newline
 
 \begin{mathpar}
   \infer*[left=Assgn]{{}}{\{ $P$ \; [$x$ \; \mapsto \llbracket \; $e$ \; \rrbracket] \}$x$ \; := \; $e$ \; \{ $P$ \}}
 \end{mathpar}
 
+\noindent This rule states that if the pre-condition is only true after performing the substitution in the command, then the post-condition will be true after the command's execution. \newline
+
 \begin{mathpar}
 \infer*[left=Seq]{\vdash \{ $P$ \} \; c_1 \; \{ $Q$ \} \\ \vdash \{ $Q$ \} \; c_2 \; \{ $R$ \}}{\vdash \{ $P$ \} \; c_1 \; ; c_2 \; \{ $R$ \}}
 \end{mathpar}
+
+\noindent This rule essentially shows that the transitive property holds for predicates when executing a series of commands. \newline
+If the Hoare Triple \{$P$\} $c_1$ \{$Q$\} is provable and the Hoare Triple \{$Q$\} $c_2$ \{$R$\} is provable, \newline
+Then the Hoare Triple \{$P$\} $c_1$ ; $c_2$ \{$Q$\} must also be provable. \newline
+If the first two Hoare Triples are provable then the third one must be provable because the second Hoare Triple takes the post-condition of the first and uses it as its pre-condition,
+so we must be able to use the chain of commands $c_1$ and $c_2$ to skip from $P$ to $R$ instead of having two separate programs.
+\newpage
 
 \begin{mathpar}
   \infer*[left=if]{\vdash \{ $P$ \; \wedge \;\uparrow b \} \; c_1 \; \{ $Q$ \} \\ \vdash \{ $P$ \; \wedge \;\uparrow \neg \; b \} \; c_2 \; \{ $Q$ \}}
   {\vdash \{ $P$ \} \; if \; $b$ \; then \; c_1 \; else \; c_2 \; \{ $Q$ \}}
 \end{mathpar}
 
+\noindent This rule shows that Hoare Triples are true for if/else statements no matter the value of the boolean. \newline
+The fist Hoare Triple covers the case of a true boolean value and the second Hoare Triple covers the case of a false boolean value. \newline
+Together they form the third Hoare Triple which uses the assertions of the other two to ensure the pre-conditions and post-conditions will be true before and after execution. \newline
+
 \begin{mathpar}
 \infer*[left=while]{\vdash \{ $P$ \; \wedge \;\uparrow b \} \; $c$ \; \{ $P$ \}}{\vdash \{ $P$ \} \; while \; $b$ \; do \; $c$ \; \{ $P$ \; \wedge \;\uparrow \neg \; b \}}
 \end{mathpar}
-\newline \newline
+
+\noindent This rule shows that Hoare Triples are functional for while loops. \newline
+The Hoare Triple on top is saying that if $P$ is true and the boolean value $b$ is true then after executing a command, $P$ will still be true. \newline
+The bottom Hoare Triple is saying that for a while loop, $P$ will be true before execution and will remain true after execution, but the boolean value will definetly be false after execution, \newline
+this makes sense as its the only way to ensure the while loop terminates. \newline
 
 \section{Axiomatic Soundness}
 
 If $\vdash$ \{$P$\} $c$ \{$Q$\} and $P$ $(\sigma)$ \newline
 and $\llbracket$ $c$ $\rrbracket$ $(\sigma)$ = $\sigma'$ \newline
-Then $Q$ $(\sigma')$
-
+Then $Q$ $(\sigma')$ \newline
+\newline
+The proof is stating that if the Hoare Triple, \{$P$\} $c$ \{$Q$\} is provable and $P$ is true with respect to state $\sigma$, \newline
+and after command $c$ is executed on the current state, the state is upated and named $\sigma'$. \newline
+Then it must be the case that $Q$ is true with respect to the new state $\sigma'$ or else the Hoare Triple would't be provable. \newline
+This fundamentally must be true or else none of the other rules or proofs can be true.
 \end{document}
 
 %%% Local Variables:
