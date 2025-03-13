@@ -1,0 +1,242 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\title{Basic Type Constructions}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{16}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Untyped $\lambda$~calculus is Turing-complete: you can write any program in it.
+\item However, STLC is very constraining.
+  In fact, it is \emph{not} Turing-complete, as we will prove later.
+  (Intuitively, the type system won't let you write something recursive---to do so, you would have to have something that is both 
+\item Our goal for the next few weeks is to add features to STLC in order to
+  \begin{enumerate}[(1)]
+  \item make it more pleasant to program in, and
+  \item make it more expressive, while
+  \item maintaining the safety (or at least most of the safety) that we achieved by adding types.
+  \end{enumerate}
+\item Today, we look at four basic type constructs: \utype, products, sum types (or coproducts), and \textsf{void}.
+\end{itemize}
+
+\section{The \utype Type}
+\label{sec:unit-type}
+
+\begin{itemize}
+\item One of the most-annoying points in the last lecture was the addition of the base type.
+\item After all, it was never able to type any (closed) terms, so it was kind of meaningless.
+\item Let's replace it with a type that's more worthwhile: the \utype type, which has exactly one element, $\unit$.
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{\utype}
+  \category[Expressions]{e} \alternative{\ldots} \alternative{\unit}
+  \category[Values]{v} \alternative{\abs{x}{e}} \alternative{\unit}
+\end{syntax}
+
+\begin{mathpar}
+  \infer*[left=unit]{ }{\Gamma \vdash \unit \colon \utype}
+\end{mathpar}
+
+\begin{itemize}
+\item There is only one additional rule, the \textsc{unit} rule.
+\item This rule says that $\unit$ has type \utype.
+\item Since $\unit$ is a closed expression, the \utype~type is actually meaningful.
+\item Moreover, $\unit$ is a value.
+\item We prove one useful theorem for CBV $\lambda$~calculus with units:
+\end{itemize}
+
+\begin{thm}[\utype Inversion]
+  If $\Gamma \vdash v \colon \utype$ and $v$ is a value, then $v = \unit$.
+\end{thm}
+\begin{proof}
+  By case analysis on the proof of $\Gamma \vdash v : \utype$.
+
+  \noindent\textbf{Case \textsc{var}:} In this case, $v$ is not a value.
+  
+  \noindent\textbf{Case \textsc{abs}:} In this case, $v$ has an arrow type and not type \utype.
+
+  \noindent\textbf{Case \textsc{app}:} In this case, $v$ is not a value.
+
+  \noindent\textbf{Case \textsc{unit}:} In this case, $v = \unit$ as required.
+\end{proof}
+
+\section{Product Types}
+\label{sec:product-types}
+
+\begin{itemize}
+\item Products are used in OCaml and Agda to write tuples.
+\item We can add them to STLC to get the same result.
+\item For any two types~$\tau_1$ and~$\tau_2$, we need to add a product type $\prodtype{\tau_1}{\tau_2}$ which has tuples as values.
+\item Of course, in order to do this we also need to add tuples to the language!
+\item If that's all we add, we have a problem.
+\item \textbf{Stop and Think:} What is this problem, and what do we need to add to solve it?
+\item Answer: right now, if we ever put data in a tuple it gets ``trapped'' there and we can never get it out!
+\item In order to fix it, we add two projections, $\projl{}$ and $\projr{}$, which allow us to get the first and second element of a tuple, respectively.
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{\prodtype{\tau_1}{\tau_2}}
+  \category[Expressions]{e} \alternative{\ldots} \alternative{\pair{e_1}{e_2}} \alternative{\projl{e}} \alternative{\projr{e}}
+  \category[Values]{v} \alternative{\ldots} \alternative{\pair{v_1}{v_2}}
+  \category[Evaluation Contexts]{C} \alternative{\ldots} \alternative{\pair{C}{e}} \alternative{\pair{v}{C}} \alternative{\projl{C}} \alternative{\projr{C}}
+\end{syntax}
+
+\begin{mathpar}
+  \infer*[left=projLeft]{ }{\projl{\pair{v_1}{v_2}} \to_{\text{CBV}} v_1}\and
+  \infer*[right=projRight]{ }{\projr{\pair{v_1}{v_2}} \to_{\text{CBV}} v_2}
+\end{mathpar}
+
+\begin{mathpar}
+  \infer*[left=pair]{\Gamma \vdash e_1 \colon \tau_1\\ \Gamma \vdash e_2 \colon \tau_2}{\Gamma \vdash \pair{e_1}{e_2} \colon \prodtype{\tau_1}{\tau_2}}\\
+  \infer*[left=projLeft]{\Gamma \vdash e : \prodtype{\tau_1}{\tau_2}}{\Gamma \vdash \projl{e} \colon \tau_1} \and
+  \infer*[left=projRight]{\Gamma \vdash e : \prodtype{\tau_1}{\tau_2}}{\Gamma \vdash \projr{e} \colon \tau_2}
+\end{mathpar}
+
+\begin{thm}[Product Type Inversion]
+  If $\Gamma \vdash v : \prodtype{\tau_1}{\tau_2}$ where $v$ is a value, then $v = (v_1, v_2)$ where $v_1$ and $v_2$ are both values and $\Gamma \vdash v_1 : \tau_1$ and $\Gamma \vdash v_2 : \tau_2$.
+\end{thm}
+\begin{proof}
+  By inspecting the possible proofs of $\Gamma \vdash v : \prodtype{\tau_1}{\tau_2}$.
+  The only possible rule that can produce a value of this type is the \textsc{pair} rule, which requires that $v = (v_1, v_2)$.
+  In order for a pair to be a value, it must be the case that $v_1$ and $v_2$ are values.
+  Finally, the \textsc{pair} typing rule gives the required type derivations.
+\end{proof}
+
+\section{Sum Types}
+\label{sec:sum-types}
+
+\begin{itemize}
+\item So far, our only types do not give any choice in terms of what data is provided.
+\item In OCaml and Agda, we have ADTs to give a selection of possible types to return from a function.
+\item In Agda, we used $\uplus$ as the name for a specific two-choice ADT which we referred to as a \emph{sum type}.
+\item We will add this type directly to STLC, rather than the more-general ADTs.
+\item However, this does not lose us any power: every (non-recursive) ADT is just a sum of products, which we can write now!
+\item In order to test which type we returned, we use a pattern-matching \textsf{case} statement, just as in Agda.
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{\sumtype{\tau_1}{\tau_2}}
+  \category[Expressions]{e} \alternative{\ldots} \alternative{\injl{e}} \alternative{\injr{e}} \alternative{\case{e_1}{x}{e_2}{y}{e_3}}
+  \category[Values]{v} \alternative{\ldots} \alternative{\injl{v}} \alternative{\injr{v}}
+  \category[Evaluation Contexts]{C} \alternative{\ldots} \alternative{\injl{C}} \alternative{\injr{C}} \alternative{\case{C}{x}{e_2}{y}{e_3}}
+\end{syntax}
+
+\begin{mathpar}
+  \infer*[left=caseLeft]{ }{\case{\injl{v}}{x}{e_2}{y}{e_3} \to_{\text{CBV}} e_2[x \mapsto v]}\and
+  \infer*[left=caseRight]{ }{\case{\injr{v}}{x}{e_2}{y}{e_3} \to_{\text{CBV}} e_3[y \mapsto v]}\and
+\end{mathpar}
+
+\begin{mathpar}
+  \infer*[left=injLeft]{\Gamma \vdash e \colon \tau_1}{\Gamma \vdash \injl{e} \colon \sumtype{\tau_1}{\tau_2}} \and
+  \infer*[right=injRight]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \injr{e} \colon \sumtype{\tau_1}{\tau_2}}\\
+  \infer*[left=case]{\Gamma \vdash e_1 : \sumtype{\tau_1}{\tau_2}\\ \Gamma, x \colon \tau_1 \vdash e_2 \colon \tau_3\\ \Gamma, y \colon \tau_2 \vdash e_3 \colon \tau_3}{\Gamma \vdash \case{e_1}{x}{e_2}{y}{e_3} \colon \tau_3}
+\end{mathpar}
+
+\begin{thm}[Sum Type Inversion]
+  If $\Gamma \vdash v \colon \sumtype{\tau_1}{\tau_2}$, then either $v = \injl{v'}$ where $v'$ is a value and $\Gamma \vdash v' \colon \tau_1$, or $v = \injr{v'}$ where $v'$ is a value such that $\Gamma \vdash v' \colon \tau_2$.
+\end{thm}
+\begin{proof}
+  Very similar to the proofs above.
+\end{proof}
+
+\section{The \vtype Type}
+\label{sec:void-type}
+
+\begin{itemize}
+\item We met the void type (named $\bot$) in Agda.
+\item It is the type that is never possible to construct.
+\item However, it is possible to \emph{destruct}: if someone hands something to you that doesn't exist, you can do whatever you want.
+\item We can add it to STLC, but we usually won't: it's not very useful for programming.
+\item Nevertheless, it's useful for other applications, and so it is important to talk about.
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{\vtype}
+  \category[Expressions]{e} \alternative{\ldots} \alternative{\vcase{e}}
+  \category[Evaluation Contexts]{C} \alternative{\ldots} \alternative{\vcase{C}}
+\end{syntax}
+
+\begin{mathpar}
+  \infer*[left=vcase]{\Gamma \vdash e \colon \vtype}{\Gamma \vdash \vcase{e} \colon \tau}
+\end{mathpar}
+
+\begin{itemize}
+\item Note that there are no evaluation rules except for evaluation-context rules.
+  This comes from the fact that there is never a possible value of type \vtype.
+  We'll understand that in more depth soon.
+\item The \textsc{vcase} rule says that if you find something of type $\vtype$, you can turn it into any type.
+\item This seems dangerous, but type safety won't let it be dangerous.
+\end{itemize}
+
+\begin{thm}[Void Inversion]
+  There is no closed value~$v$ such that $\vdash v \colon \vtype$.
+\end{thm}
+\begin{proof}
+  Examine all of the possible proofs of $\vdash v : \vtype$.
+  Either they are not values, or they do not give rise to the $\vtype$~type. 
+\end{proof}
+
+\section{An Aside on Duality}
+\label{sec:an-aside-duality}
+
+\begin{itemize}
+\item The notion of \emph{duality} is very important in PL Theory.
+\item We don't have the language to give a formal definition yet, but we can start to make some observations.
+\item First, the notions of injection and projection seem to be related: a projection ``gets something out of'' a product type, while an injection ``puts something in'' a sum type.
+\item Second, the notions of pair and case expression are related: a pair creates a product type by providing something of both types, while a case uses a sum type by being prepared to use something of either type.
+\item In other words, every way we have of putting together a product type ``corresponds to'' a way of using a sum type, while every way of using a product type ``corresponds to'' a way of putting together a sum type.
+\item Because of this, we say that they are \emph{dual} types.
+\item Dual types are very closely related: acting as the producer for one is exactly like acting as the consumer for the other.
+\item The \utype~and \vtype~types are similarly dual.
+\item We will explore this notion of duality more in the next few lectures, and in much more depth in the categorical-semantics unit.
+\end{itemize}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

@@ -1,0 +1,619 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+\newunicodechar{≟}{\ensuremath{\stackrel{?}{=}}}
+\newunicodechar{̬}{\ensuremath{{}_{\textsf{v}}}}
+\newunicodechar{ₐ}{\ensuremath{{}_{\textsf{a}}}}
+\newunicodechar{ₜ}{\ensuremath{{}_{\textsf{t}}}}
+\newunicodechar{ₖ}{\ensuremath{{}_{\textsf{k}}}}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+\newunicodechar{₃}{\ensuremath{{}_{3}}}
+\newunicodechar{⊕}{\ensuremath{\oplus}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{∸}{\ensuremath{\stackrel{.}{-}}}
+\newunicodechar{≮}{\ensuremath{\not<}}
+\newunicodechar{⋆}{\ensuremath{{}^{\ast}}}
+\newunicodechar{⇓}{\ensuremath{\Downarrow}}
+\newunicodechar{⇒}{\ensuremath{\implies}}
+\newunicodechar{‵}{\ensuremath{`}}
+\newunicodechar{ƛ}{\ensuremath{\mkern0.75mu-\mkern -12mu\lambda}}
+\newunicodechar{↦}{\ensuremath{\mapsto}}
+
+\title{Introduction to $\lambda$~Calculus}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{13}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\begin{document}
+\maketitle
+
+\begin{code}[hide]
+module lec13-akh where
+
+open import Relation.Binary.PropositionalEquality  using (_≡_; refl; sym)
+open import Data.Nat using (ℕ; zero; suc)
+open import Data.Bool using (Bool; true; false; _∨_)
+open import Relation.Nullary using (Dec; yes; no)
+open import Data.List using (List; []; _∷_; _++_)
+open import Data.String using (String)
+open import Data.String.Properties using (_≟_)
+open import Data.Empty using (⊥; ⊥-elim)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Relation.Nullary using (¬_)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩ )
+\end{code}
+
+
+\section{The Core of Functional Programming}
+\label{sec:core-funct-progr}
+
+\begin{itemize}
+\item So far, we've been looking at \textsc{Imp}, the core imperative programming language.
+\item Starting now, we will focus on $\lambda$~calculus, which is the core of \emph{functional} programming.
+\item Functional programming is much more powerful than pure imperative programming, because its \emph{higher-order} features allow for code reuse.
+  \begin{itemize}
+  \item Higher-order features = features which allow code to accept unknown code as an argument.
+  \item This allows the creation of powerful generic features, like \textsf{map} and \textsf{fold}.
+  \item There's nothing that says that imperative languages can't be higher-order---but higher-order imperative languages have other features.
+  \item For instance, object-orientation is arguably \emph{more} higher-order than functional programming.
+  \end{itemize}
+\item With \textsc{Imp}, we tried to minimize the language, finding the smallest imperative language that was Turing complete.
+\item With $\lambda$~calculus, this language is even smaller.
+\item There are only three possible programs: variables, functions, and function calls:
+  \begin{syntax}
+    \category[Expressions]{e,t,u}
+      \alternative{x}
+      \alternative{\abs{x}{e}}
+      \alternative{\app{e_1}{e_2}}
+  \end{syntax}
+\item Unlike in \textsc{Imp}, where programs are (structured) lists of instructions, $\lambda$-calculus programs compute values.
+\item Variables stand for some value, rather than changing throughout a computation.
+  \begin{itemize}
+  \item In other words, there's no notion of a ``state'' that assigns meanings to variables.
+  \item Instead, we can just replace a variable with (something that computes) what is stands for.
+  \end{itemize}
+\item Functions $\abs{x}{e}$ take an input $x$ and produce a value by computing $e$.
+\item In agda, we can make variables strings if we want to.
+  We can represent sets of variables as lists as well.
+  We need some auxilliary definitions to do this:
+\begin{code}
+Var : Set
+Var = String
+
+infix 3 _∈_
+data _∈_ {A : Set} : A → List A → Set where
+  here : ∀ {x : A} {xs : List A} → x ∈ x ∷ xs
+  there : ∀ {x y : A} {xs : List A} → x ∈ xs → x ∈ y ∷ xs
+
+infix 3 _∈?_
+_∈?_ : ∀ (x : Var) (xs : List Var) → Dec (x ∈ xs)
+x ∈? [] = no (λ())
+x ∈? y ∷ xs with x ≟ y
+... | yes refl  = yes here
+... | no  neq with x ∈? xs
+... | yes i = yes (there i)
+... | no ni = no  λ { here → neq refl ; (there i) → ni i }
+
+eqb : Var → Var → Bool
+eqb x y with x ≟ y
+... | yes _ = true
+... | no _ = false
+
+eqb-true : ∀ {x y : Var} → x ≡ y → eqb x y ≡ true
+eqb-true {x} {y} eq with x ≟ y
+... | yes _  = refl
+... | no neq = ⊥-elim (neq eq)
+
+infix 3 _∈b_
+_∈b_ : Var → List Var → Bool
+x ∈b [] = false
+x ∈b y ∷ ys = (eqb x y) ∨ (x ∈b ys)
+
+remove : List Var → Var → List Var
+remove [] x = []
+remove (y ∷ xs) x with x ≟ y
+... | yes eq = remove xs x
+... | no neq = y ∷ (remove xs x)
+
+removeAll : List Var → List Var → List Var
+removeAll [] ys = []
+removeAll (x ∷ xs) ys with x ∈? ys
+... | yes _ = removeAll xs ys
+... | no _ = x ∷ (removeAll xs ys)    
+\end{code}
+\item With this in hand, we can define our terms:
+\begin{code}
+infix 6 ƛ_⇒_
+infixl 8 _·_
+infix 10 ‵_
+
+data Expr : Set where
+  ‵_ : Var → Expr
+  ƛ_⇒_ : Var → Expr → Expr
+  _·_ : Expr → Expr → Expr    
+\end{code}
+\end{itemize}
+
+\section{Free and Bound Variables}
+\label{sec:free-bound-variables}
+\begin{itemize}
+\item We say that the variable $x$ is \emph{bound} in the term $\abs{x}{e}$ because it appears as the name for the argument of a function.
+\item If $x$ appears anywhere else, we say that it is \emph{free}.
+\item Knowing which variables are free and which are bound is important in $\lambda$~calculus.
+  Luckily, it is easy to compute $\FV(e)$, the set of free variables in $e$; and $\BV(e)$, the set of bound variables in $e$.
+  \begin{mathpar}
+    \FV(e) = \left\{
+      \begin{array}{l@{\hspace{2em}\text{if}~}l}
+        \{x\} & e = x\\
+        \FV(e') \setminus \{x\} & e = \abs{x}{e'}\\
+        \FV(e_1) \cup \FV(e_2) & e = \app{e_1}{e_2}
+      \end{array}
+    \right. \and
+    \BV(e) = \left\{
+      \begin{array}{l@{\hspace{2em}\text{if}~}l}
+        \emptyset & e = x\\
+        \BV(e') \cup \{x\} & e = \abs{x}{e'}\\
+        \BV(e_1) \cup \BV(e_2) & e = \app{e_1}{e_2}
+      \end{array}
+    \right.
+  \end{mathpar}
+\item In agda:
+\begin{code}
+FV : Expr → List Var
+FV (‵ x) = x ∷ []
+FV (ƛ x ⇒ e) = remove (FV e) x 
+FV (e₁ · e₂) = (FV e₁) ++ (FV e₂)
+
+BV : Expr → List Var
+BV (‵ x) = []
+BV (ƛ x ⇒ e) =  x ∷ BV e
+BV (e₁ · e₂) = (BV e₁) ++ (BV e₂)    
+\end{code}
+\item We say that a variable is \emph{fresh in $e$} if it is not free in $e$.
+\item We sometimes say fresh in $e_1, \dots, e_n$ to mean it cannot be free in any of the $e_i$.
+\item Commonly, we just say that the variable is \emph{fresh} to mean it is not free in any of the terms we are working with at the moment.
+\item We can always compute a fresh variable:
+\begin{code}
+fresh-int : Var → List Var → Var
+fresh-int x [] = x
+fresh-int x (y ∷ xs) = fresh-int (Data.String._++_ x y) xs
+
+fresh : List Var → Var
+fresh xs = fresh-int "x" xs
+\end{code}
+\end{itemize}
+
+\section{Substitution}
+\label{sec:substitution}
+\begin{itemize}
+\item The main operation on $\lambda$-calculus terms that we use to give them semantics is \emph{substitution} $t[x \mapsto u]$, which replaces the variable~$c$ with the term~$u$ inside of the term~$t$.
+\item Intuitively, substitution goes through the term and replaces every $x$ with a $u$.
+\item It would therefore be tempting to define substitution as follows:
+  $$
+  t[x \mapsto u] = \left\{
+    \begin{array}{l@{\hspace{2em}\text{if}~}l}
+      u & t = x \\
+      y & t = y \neq x\\
+      \abs{y}{e[x\mapsto u]} & t = \abs{y}{e}\\
+      \app{(e_1[x\mapsto u])}{(e_2[x \mapsto u])} & t = \app{e_1}{e_2}
+    \end{array}\right.
+  $$
+  However, \textbf{this definition is wrong}. Why?
+\item Here's a principle that makes programming much easier: \textbf{what you name your inputs does not matter}.
+  \begin{itemize}
+  \item This makes sense if $\abs{x}{e}$ is supposed to be a function: it just takes an input and produces an output.
+  \item In the body of the function~($e$), $x$ refers to its input.
+  \item On the outside, refers to something else; we don't know what.
+  \item We're replacing $x$ with what it refers to on the outside, but we don't want to change what it refers to on the inside.
+  \end{itemize}
+\item This definition of substitution breaks that principle.
+\item To see why, consider the following:
+  $$(\abs{x}{x})[x \mapsto y] = \abs{x}{(x [x \mapsto y])} = \abs{x}{y}$$
+  \begin{itemize}
+  \item Intuitively, $\abs{x}{x}$ is the function that takes an input and immediately returns it.
+  \item However, after doing the substitution, we get the function that takes $x$, discards it, and returns $y$.
+  \end{itemize}
+\item Compare it to the following:
+  $$(\abs{z}{z})[x \mapsto y] = \abs{z}{(z [x \mapsto y])} = \abs{z}{z}$$
+  \begin{itemize}
+  \item Again, $\abs{z}{z}$ is the function that takes an input and immediately returns it.
+  \item Now after doing \emph{the same} substitution, we get back the same function!
+  \end{itemize}
+\item So, after doing the same operation on ``the same'' function, we get back very different functions.
+\item In order to stop substitution from being broken like this, we need to stop doing substitution when we hit a function which uses the same name that we're substituting.
+\item This leads to the following definition:
+  $$
+  t[x \mapsto u] = \left\{
+    \begin{array}{l@{\hspace{2em}\text{if}~}l}
+      u & t = x \\
+      y & t = y \neq x\\
+      \abs{x}{e} & t = \abs{x}{e}\\
+      \abs{y}{e[x\mapsto u]} & t = \abs{x}{e} \mathrel{\text{and}} x \neq y\\
+      \app{(e_1[x\mapsto u])}{(e_2[x \mapsto u])} & t = \app{e_1}{e_2}
+    \end{array}\right.
+  $$
+  However, \textbf{this definition is still wrong}. Why?
+\item To see why, consider the following:
+  $$(\abs{x}{\app{y}{x}})[y \mapsto x] = \abs{x}{(\app{y}{x})[y \mapsto x]} = \abs{x}{\left(\app{(y [y \mapsto x])}{(x [y \mapsto x])}\right)} = \abs{x}{\app{x}{x}}$$
+  \begin{itemize}
+  \item We're replacing $y$ with its definition~$x$, which refers to something \emph{outside} the function $\abs{x}{\app{y}{x}}$.
+  \item But after the substitution, we get $\abs{x}{\app{x}{x}}$, where both $x$s refer to the argument of the function.
+  \item We say that the variable $x$ was \emph{captured} by the function.
+  \item This isn't what we wanted at all!
+  \end{itemize}
+\item To fix this problem, we need to \emph{rename} the argument to a function if it will capture a variable.
+\item When does a variable get captured in $(\abs{y}{e_1}) [x \mapsto e_2]$? When $y$ is free in $e_2$.
+\item This leads to the following definition:
+  $$
+  t[x \mapsto u] = \left\{
+    \begin{array}{l@{\hspace{2em}\text{if}~}l}
+      u & t = x \\
+      y & t = y \neq x\\
+      \abs{x}{e} & t = \abs{x}{e}\\
+      \abs{y}{e[x\mapsto u]} & t = \abs{x}{e} \mathrel{\text{and}} x \neq y \mathrel{\text{and}} x \notin \FV(u)\\
+      \abs{z}{\left((e[y \mapsto z])[x \mapsto u]\right)} & t = \abs{x}{e} \mathrel{\text{and}} x \neq y \mathrel{\text{and}} x \in \FV(u) \mathrel{\text{and}} z~\text{fresh}\\
+      \app{(e_1[x\mapsto u])}{(e_2[x \mapsto u])} & t = \app{e_1}{e_2}
+    \end{array}\right.
+  $$
+  \textbf{This definition is finally correct.}
+\item This is known as \emph{capture-avoiding} substitution.
+\item It is just as annoying in agda:
+\begin{code}
+{-# TERMINATING #-} -- Trust me, agda, this really terminates
+_[_↦_] : Expr → Var → Expr → Expr
+(‵ y) [ x ↦ e₂ ] with x ≟ y
+... | yes eq = e₂
+... | no neq = ‵ y
+(ƛ y ⇒ e₁) [ x ↦ e₂ ] with x ≟ y
+... | yes eq = ƛ y ⇒ e₁
+... | no neq with y ∈? FV e₂
+... | yes _ =
+  let z = fresh (BV e₁ ++ BV e₂)
+  in ƛ z ⇒ (e₁ [ x ↦ ‵ z ]) [ x ↦ e₂ ] -- agda can't tell that this terminates
+                                       -- because e₁ [ x ↦ ‵ z ] is not a subterm!
+... | no ni = ƛ y ⇒ e₁ 
+(e₁ · e₂) [ x ↦ e₃ ] = (e₁ [ x ↦ e₂ ]) · (e₂ [ x ↦ e₃ ])    
+\end{code}
+\item \textbf{N.B.:} Agda cannot tell that this definition terminates.
+  It does, but proving it is more than it's worth at this point in time.
+\end{itemize}
+
+\section{$\alpha$-Equivalence}
+\label{sec:alpha-equivalence}
+
+\begin{itemize}
+\item Recall our principle: what you call the input to a function should not matter.
+\item Therefore, we should treat all $\lambda$~calculus terms that only differ in the names of bound variables.
+\item This gives rise to an equivalence relation known as \emph{$\alpha$~equivalence}~($\cong_\alpha$).
+\item We can define $\alpha$ equivalence as follows:
+  \begin{mathpar}
+    \infer*[left=refl]{ }{e \cong_\alpha e}\and
+    \infer*[left=sym]{e_1 \cong_\alpha e_2}{e_2 \cong_\alpha e_1} \and
+    \infer*[left=trans]{e_1 \cong_\alpha e_2\\ e_2 \cong_\alpha e_3}{e_1 \cong_\alpha e_3}\\
+    \infer*[left=abs-compat]{e_1 \cong_\alpha e_2}{\abs{x}{e_1} \cong_\alpha \abs{x}{e_2}} \and
+    \infer*[left=app-compat]{e_1 \cong_\alpha e_2\\ e_3 \cong_\alpha e_4}{\app{e_1}{e_3} \cong_\alpha \app{e_2}{e_4}}\\
+    \infer*[left=$\alpha$]{z \notin \FV(e) }{\abs{x}{e} \cong_\alpha \abs{z}{(e [x \mapsto z])}}
+  \end{mathpar}
+\item The rule $\alpha$ is the most important rule here: it says that two functions are equivalent if the only way they differ is in the way they are named.
+\item The first three rules (\textsc{refl}, \textsc{sym}, and \textsc{trans}) force the relation to be an equivalence.
+\item The next group of two (\textsc{abs-compat} and \textsc{app-compat}) force the relation to be a \emph{congruence}---that is, an equivalence that works under every constructor.
+\item We define it in agda in an equivalent way:
+\begin{code}
+infix 4 _≅α_    
+
+data _≅α_ : Expr → Expr → Set where
+  var-refl : ∀ {x : Var} → ‵ x ≅α ‵ x
+  app-compat : ∀ {e₁ e₂ e₁′ e₂′ : Expr} →
+         e₁ ≅α e₁′ →
+         e₂ ≅α e₂′ →
+    --------------------
+    e₁ · e₂ ≅α e₁′ · e₂′
+  abs-compat : ∀ {x : Var} {e e′ : Expr} →
+          e ≅α e′ →
+    -------------------
+    ƛ x ⇒ e ≅α ƛ x ⇒ e′
+  α : ∀ {x y : Var} {e : Expr} →
+    ¬ (y ∈ FV e) → 
+    ƛ x ⇒ e ≅α ƛ y ⇒ (e [ x ↦ ‵ y ])
+  α-inv : ∀ {x y : Var} {e : Expr} →
+    ¬ (x ∈ FV e) → 
+    ƛ x ⇒ (e [ y ↦ ‵ x ]) ≅α ƛ y ⇒ e
+  α-trans : ∀ {e₁ e₂ e₃ : Expr} →
+    e₁ ≅α e₂ →
+    e₂ ≅α e₃ →
+    ---------
+    e₁ ≅α e₃
+
+≅α-refl : ∀ {e : Expr} → e ≅α e
+≅α-refl {‵ x} = var-refl
+≅α-refl {ƛ x ⇒ e} = abs-compat ≅α-refl
+≅α-refl {e · e₁} = app-compat ≅α-refl ≅α-refl
+
+≅α-sym : ∀ {e₁ e₂ : Expr} →
+  e₁ ≅α e₂ →
+  -----------
+  e₂ ≅α e₁
+≅α-sym var-refl = var-refl
+≅α-sym (app-compat eqv₁ eqv₂) = app-compat (≅α-sym eqv₁) (≅α-sym eqv₂)
+≅α-sym (abs-compat eqv) = abs-compat (≅α-sym eqv)
+≅α-sym (α ni) = α-inv ni
+≅α-sym (α-inv ni) = α ni
+≅α-sym (α-trans eqv₁ eqv₂) = α-trans (≅α-sym eqv₂) (≅α-sym eqv₁)    
+\end{code}
+\end{itemize}
+
+\section{$\beta$ Equivalence and Reduction}
+\label{sec:beta-equivalence}
+
+\begin{itemize}
+\item When we write functions in normal mathematics, we talk about equality.
+  For instance, we would say $f(x) = x + 3$ to define a function, and we'd then say that $f(4) = 7$.
+  \begin{itemize}
+  \item Note that we really do mean equality here: anywhere you have $7$, you can use $f(4)$.
+  \end{itemize}
+\item In $\lambda$ calculus, we want to have a similar notion of equality: if you replace the bound variable in a function with its argument, you get back the same thing as the original function call.
+\item This gives rise to $\beta$~equivalence~($\cong_\beta$), which we can define as follows:
+  \begin{mathpar}
+    \infer*[left=refl]{ }{e \cong_\beta e} \and
+    \infer*[left=sym]{e_1 \cong_\beta e_2}{e_2 \cong_\beta e_1} \and
+    \infer*[left=trans]{e_1 \cong_\beta e_2\\ e_2 \cong_\beta e_3}{e_1 \cong_\beta e_3}\\
+    \infer*[left=abs-compat]{e_1 \cong_\beta e_2}{\abs{x}{e_1} \cong_\beta \abs{x}{e_2}}\and
+    \infer*[left=app-compat]{e_1 \cong_\beta e_2\\ e_3 \cong_\beta e_4}{\app{e_1}{e_3} \cong_\beta \app{e_2}{e_4}}\\
+    \infer*[left=$\beta$]{ }{\app{(\abs{x}{e_1})}{e_2} \cong_\beta e_1 [x \mapsto e_2]}
+  \end{mathpar}
+\item Again, here the most important rule is $\beta$, which says that anywhere you call a function defined as $\abs{x}{e}$, this is the same as the body of the function (i.e.,~$e$) with $x$ replaced by the argument.
+\item The other rules force it to be an equivalence and, in particular, a congruence.
+\item Sometimes, we want to talk about $\alpha$ and $\beta$ equivalence together.
+  (Actually, we almost always want to talk about $\alpha$ and $\beta$ together if we want to talk about $\beta$ at all.)
+\item To do that, we can easily combine the two:
+  \begin{mathpar}
+    \infer*[left=refl]{ }{e \cong_{\alpha{}\beta} e} \and
+    \infer*[left=sym]{e_1 \cong_{\alpha{}\beta} e_2}{e_2 \cong_{\alpha{}\beta} e_1} \and
+    \infer*[left=trans]{e_1 \cong_{\alpha{}\beta} e_2\\ e_2 \cong_{\alpha{}\beta} e_3}{e_1 \cong_{\alpha{}\beta} e_3}\\
+    \infer*[left=abs-compat]{e_1 \cong_{\alpha{}\beta} e_2}{\abs{x}{e_1} \cong_{\alpha{}\beta} \abs{x}{e_2}}\and
+    \infer*[left=app-compat]{e_1 \cong_{\alpha{}\beta} e_2\\ e_3 \cong_{\alpha{}\beta} e_4}{\app{e_1}{e_3} \cong_{\alpha{}\beta} \app{e_2}{e_4}}\\
+    \infer*[left=$\alpha$]{z \notin \FV(e) }{\abs{x}{e} \cong_{\alpha{}\beta} \abs{z}{(e [x \mapsto z])}} \and
+    \infer*[left=$\beta$]{ }{\app{(\abs{x}{e_1})}{e_2} \cong_{\alpha{}\beta} e_1 [x \mapsto e_2]}
+  \end{mathpar}
+\item This is the smallest congruence that contains both $\alpha$ and $\beta$.
+\item We can formulate these in agda as follows:
+\begin{code}
+infix 4 _≅β_
+
+data _≅β_ : Expr → Expr → Set where
+  var-refl : ∀ {x : Var} → ‵ x ≅β ‵ x
+  app-compat : ∀ {e₁ e₂ e₁′ e₂′ : Expr} →
+         e₁ ≅β e₁′ →
+         e₂ ≅β e₂′ →
+    --------------------
+    e₁ · e₂ ≅β e₁′ · e₂′
+  abs-compat : ∀ {x : Var} {e e′ : Expr} →
+          e ≅β e′ →
+    -------------------
+    ƛ x ⇒ e ≅β ƛ x ⇒ e′
+  β : ∀ {x : Var} {e₁ e₂ : Expr} →
+    (ƛ x ⇒ e₁) · e₂ ≅β (e₁ [ x ↦ e₂ ])
+  β-inv : ∀ {x : Var} {e₁ e₂ : Expr} →
+    (e₁ [ x ↦ e₂ ]) ≅β (ƛ x ⇒ e₁) · e₂
+  β-trans : ∀ {e₁ e₂ e₃ : Expr} →
+    e₁ ≅β e₂ →
+    e₂ ≅β e₃ →
+    ---------
+    e₁ ≅β e₃
+
+≅β-refl : ∀ {e : Expr} → e ≅β e
+≅β-refl {‵ x} = var-refl
+≅β-refl {ƛ x ⇒ e} = abs-compat ≅β-refl
+≅β-refl {e · e₁} = app-compat ≅β-refl ≅β-refl
+
+≅β-sym : ∀ {e₁ e₂ : Expr} →
+  e₁ ≅β e₂ →
+  ---------
+  e₂ ≅β e₁
+≅β-sym var-refl = var-refl
+≅β-sym (app-compat eqv₁ eqv₂) = app-compat (≅β-sym eqv₁) (≅β-sym eqv₂)
+≅β-sym (abs-compat eqv) = abs-compat (≅β-sym eqv)
+≅β-sym β = β-inv
+≅β-sym β-inv = β
+≅β-sym (β-trans eqv₁ eqv₂) = β-trans (≅β-sym eqv₂) (≅β-sym eqv₁)
+  
+infix 4 _≅αβ_
+
+data _≅αβ_ : Expr → Expr → Set where
+  var-refl : ∀ {x : Var} → ‵ x ≅αβ ‵ x
+  app-compat : ∀ {e₁ e₂ e₁′ e₂′ : Expr} →
+         e₁ ≅αβ e₁′ →
+         e₂ ≅αβ e₂′ →
+    --------------------
+    e₁ · e₂ ≅αβ e₁′ · e₂′
+  abs-compat : ∀ {x : Var} {e e′ : Expr} →
+          e ≅αβ e′ →
+    -------------------
+    ƛ x ⇒ e ≅αβ ƛ x ⇒ e′
+  β : ∀ {x : Var} {e₁ e₂ : Expr} →
+    (ƛ x ⇒ e₁) · e₂ ≅αβ (e₁ [ x ↦ e₂ ])
+  β-inv : ∀ {x : Var} {e₁ e₂ : Expr} →
+    (e₁ [ x ↦ e₂ ]) ≅αβ (ƛ x ⇒ e₁) · e₂
+  α : ∀ {x y : Var} {e : Expr} →
+    ¬ (y ∈ FV e) →
+    ƛ x ⇒ e ≅αβ ƛ y ⇒ (e [ x ↦ ‵ y ])
+  α-inv : ∀ {x y : Var} {e : Expr} →
+    ¬ (x ∈ FV e) → 
+    ƛ x ⇒ (e [ y ↦ ‵ x ]) ≅αβ ƛ y ⇒ e
+  αβ-trans : ∀ {e₁ e₂ e₃ : Expr} →
+    e₁ ≅αβ e₂ →
+    e₂ ≅αβ e₃ →
+    ---------
+    e₁ ≅αβ e₃
+
+≅αβ-refl : ∀ {e : Expr} → e ≅αβ e
+≅αβ-refl {‵ x} = var-refl
+≅αβ-refl {ƛ x ⇒ e} = abs-compat ≅αβ-refl
+≅αβ-refl {e · e₁} = app-compat ≅αβ-refl ≅αβ-refl
+
+≅αβ-sym : ∀ {e₁ e₂ : Expr} →
+  e₁ ≅αβ e₂ →
+  ---------
+  e₂ ≅αβ e₁
+≅αβ-sym var-refl = var-refl
+≅αβ-sym (app-compat eqv₁ eqv₂) = app-compat (≅αβ-sym eqv₁) (≅αβ-sym eqv₂)
+≅αβ-sym (abs-compat eqv) = abs-compat (≅αβ-sym eqv)
+≅αβ-sym β = β-inv
+≅αβ-sym β-inv = β
+≅αβ-sym (α ni) = α-inv ni
+≅αβ-sym (α-inv ni) = α ni
+≅αβ-sym (αβ-trans eqv₁ eqv₂) = αβ-trans (≅αβ-sym eqv₂) (≅αβ-sym eqv₁)
+
+≅α-≅αβ : ∀ {e₁ e₂ : Expr} →
+  e₁ ≅α  e₂ →
+  ----------
+  e₁ ≅αβ e₂
+≅α-≅αβ var-refl = var-refl
+≅α-≅αβ (app-compat eqv₁ eqv₂) = app-compat (≅α-≅αβ eqv₁) (≅α-≅αβ eqv₂)
+≅α-≅αβ (abs-compat eqv) = abs-compat (≅α-≅αβ eqv)
+≅α-≅αβ (α ni) = α ni
+≅α-≅αβ (α-inv ni) = α-inv ni
+≅α-≅αβ (α-trans eqv₁ eqv₂) = αβ-trans (≅α-≅αβ eqv₁) (≅α-≅αβ eqv₂)
+
+≅β-≅αβ : ∀ {e₁ e₂ : Expr} →
+  e₁ ≅β  e₂ →
+  ----------
+  e₁ ≅αβ e₂
+≅β-≅αβ var-refl = var-refl
+≅β-≅αβ (app-compat eqv₁ eqv₂) = app-compat (≅β-≅αβ eqv₁) (≅β-≅αβ eqv₂)
+≅β-≅αβ (abs-compat eqv) = abs-compat (≅β-≅αβ eqv)
+≅β-≅αβ β = β
+≅β-≅αβ β-inv = β-inv
+≅β-≅αβ (β-trans eqv₁ eqv₂) = αβ-trans (≅β-≅αβ eqv₁) (≅β-≅αβ eqv₂)    
+\end{code}
+\end{itemize}
+
+\subsection{$\beta$ Reduction}
+\label{sec:beta-reduction}
+
+\begin{itemize}
+\item One useful trick when dealing with an equivalence is to try and \emph{orient it} and turn it into a reduction.
+  This allows you to check whether two things are equal by reducing them over and over again.
+  This only works if one side is ``smaller'' than the other, though.
+\item Doing this to $\beta$~equivalence is what gave rise to small-step operational semantics.
+\item To see this, consider $\beta$ reduction, written $\to_\beta$:
+  \begin{mathpar}
+    \infer*[left=in-$\lambda$]{e \to_\beta e'}{\abs{x}{e} \to_\beta \abs{x}{e'}} \and
+    \infer*[left=in-app1]{e_1 \to_\beta e_1'}{\app{e_1}{e_2} \to_\beta \app{e_1'}{e_2}}\and
+    \infer*[left=in-app2]{e_2 \to_\beta e_2'}{\app{e_1}{e_2} \to_\beta \app{e_1}{e_2'}}\\
+    \infer*[left=$\beta$]{ }{\app{(\abs{x}{e_1})}{e_2} \to_\beta e_1 [x \mapsto e_2]}
+  \end{mathpar}
+\item This is a perfectly suitable notion of reduction for $\beta$ equivalence.
+\item However, for operational semantics, it doesn't always do what we want.
+\item First of all, it's nondeterministic: there may be many places where we can apply the $\beta$ rule.
+\item There are several ways we can fix this.
+  We will look at three.
+  The first two are used for the semantics of actual programming languages, while the last one is more theoretical.
+\item The first one we will look at is the \emph{call-by-value} or \emph{strict} semantics.
+\item There are two key ideas here: first, we should only call functions after we have fully evaluated their arguments, and second, we should not evaluate a function's body until it has all of its arguments.
+  We can define call-by-value as follows:
+  \begin{mathpar}
+    \infer*[left=in-app1]{e_1 \to_\beta e_1'}{\app{e_1}{e_2} \to_\text{CBV} \app{e_1'}{e_2}}\and
+    \infer*[left=in-app2]{e_2 \to_\beta e_2'}{\app{v}{e_2} \to_\text{CBV} \app{v}{e_2'}}\\
+    \infer*[left=$\beta$]{ }{\app{(\abs{x}{e})}{v} \to_\text{CBV} e [x \mapsto v]}
+  \end{mathpar}
+\item This relies on the notion of a \emph{value}, or a fully-evaluated program.
+\item In plain $\lambda$-calculus, the only values are functions.
+  \begin{syntax}
+    \category[Values]{v} \alternative{\abs{x}{e}}
+  \end{syntax}
+\item The second evaluation order we will look at is the call-by-name reduction.
+  Some people will refer to call-by-name reduction as \emph{lazy}, while others reserve that for the more-complicated but related \emph{call-by-need} evaluation.
+\item In call-by-need order we again do not evaluate under lambdas.
+  However, we also \emph{never} evaluate a function's arguments.
+  This has the nice side effect that if an argument is not needed, we never have to do the work!
+  \begin{mathpar}
+    \infer*[left=in-app1]{e_1 \to_\text{CBN} e_1'}{\app{e_1}{e_2} \to_\beta \app{e_1'}{e_2}}\\
+    \infer*[left=$\beta$]{ }{\app{(\abs{x}{e_1})}{e_2} \to_\text{CBN} e_1 [x \mapsto e_2]}
+  \end{mathpar}
+\item Finally, we look at the \emph{normal order} evaluation.
+  As the name suggests, this is a popular order among theoreticians.
+\item Like call-by-name, we do not evaluate arguments.
+  However, we do evaluate under lambdas.
+  \begin{mathpar}
+    \infer*[left=in-$\lambda$]{e \to_\beta e'}{\abs{x}{e} \to_\text{NO} \abs{x}{e'}} \and
+    \infer*[left=in-app1]{e_1 \to_\beta e_1'}{\app{e_1}{e_2} \to_\text{NO} \app{e_1'}{e_2}}\\
+    \infer*[left=$\beta$]{ }{\app{(\abs{x}{e_1})}{e_2} \to_\text{NO} e_1 [x \mapsto e_2]}
+  \end{mathpar}
+  \begin{itemize}
+  \item We say a term~$t$ is in \emph{normal form} if there is no term $u$ such that $t \to_\beta u$.
+  \item For any term~$t$, if there is a normal form term~$n$ such that $t \to_\beta^\ast n$, then $t \to_{\text{NO}}^\ast n$
+  \item However, unlike full $\beta$ reduction, normal order is fully deterministic!
+  \end{itemize}
+\item We can define our reductions in agda as such:
+\begin{code}
+infixr 5 _→β_
+data _→β_ : Expr → Expr → Set where
+  in-lambda : ∀ {x : Var} {e e′ : Expr} → e →β e′ → ƛ x ⇒ e →β ƛ x ⇒ e′
+  in-app₁ : ∀ {e₁ e₁′ e₂ : Expr} → e₁ →β e₁′ → e₁ · e₂ →β e₁′ · e₂
+  in-app₂ : ∀ {e₁ e₂ e₂′ : Expr} → e₂ →β e₂′ → e₁ · e₂ →β e₁ · e₂′
+  fun-beta : ∀ {x : Var} {e₁ e₂ : Expr} → (ƛ x ⇒ e₁) · e₂ →β e₁ [ x ↦ e₂ ]
+
+data Val : Expr → Set where
+  Val-ƛ : ∀ {x : Var} {e : Expr} → Val (ƛ x ⇒ e)
+
+infixr 5 _→CBV_
+data _→CBV_ : Expr → Expr → Set where
+  in-app₁ : ∀ {e₁ e₁′ e₂ : Expr} → e₁ →CBV e₁′ → e₁ · e₂ →CBV e₁′ · e₂
+  in-app₂ : ∀ {e₁ e₂ e₂′ : Expr} → Val e₁ → e₂ →CBV e₂′ → e₁ · e₂ →CBV e₁ · e₂′
+  fun-beta : ∀ {x : Var} {e₁ e₂ : Expr} → Val e₂ → (ƛ x ⇒ e₁) · e₂ →CBV e₁ [ x ↦ e₂ ]
+
+infixr 5 _→CBN_
+data _→CBN_ : Expr → Expr → Set where
+  in-app₁ : ∀ {e₁ e₁′ e₂ : Expr} → e₁ →CBN e₁′ → e₁ · e₂ →CBN e₁′ · e₂
+  fun-beta : ∀ {x : Var} {e₁ e₂ : Expr} → (ƛ x ⇒ e₁) · e₂ →CBN e₁ [ x ↦ e₂ ]
+
+infixr 5 _→NO_
+data _→NO_ : Expr → Expr → Set where
+  in-lambda : ∀ {x : Var} {e e′ : Expr} → e →NO e′ → ƛ x ⇒ e →NO ƛ x ⇒ e′
+  in-app₁ : ∀ {e₁ e₁′ e₂ : Expr} → e₁ →NO e₁′ → e₁ · e₂ →NO e₁′ · e₂
+  fun-beta : ∀ {x : Var} {e₁ e₂ : Expr} → (ƛ x ⇒ e₁) · e₂ →NO e₁ [ x ↦ e₂ ]    
+\end{code}
+\end{itemize}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

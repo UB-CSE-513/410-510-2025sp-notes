@@ -1,0 +1,275 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\title{The Propisitions-as-Types Principle}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{18}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item We've been looking at types in $\lambda$~calculus so far, and in particular at the simple type constructors $\times$, $+$, \utype, and \vtype.
+\item In Agda, we used these type constructors for logic. 
+\item In this lecture, we will see that there is in fact a deep connection between intuitionistic propositional logic and the type system we have seen so far.
+\item In order to see this, we first have to define intuitionistic propositional logic and its proof theory---i.e., what are the logical statements and how do we prove them?
+\end{itemize}
+
+\section{The Language of Intuitionistic Propositional Formulae}
+\label{sec:lang-intu-prop}
+
+\begin{syntax}
+  \abstractCategory[Basic Propositions]{p,q,\dots}
+  \category[Formulae]{\varphi, \psi, \dots} \alternative{\top} \alternative{\bot} \alternative{p}\\
+  \alternative{\varphi \land \psi} \alternative{\varphi \lor \psi} \alternative{\varphi \to \psi} 
+\end{syntax}
+
+\begin{itemize}
+\item The formulae, or logical statements, of intuitionistic propositional logic can be found above.
+\item Here, the basic propositions $p, q, \dots$ represent statements that cannot be broken down logically.
+  Usually, these are statements about the world, like ``It is snowing in Buffalo'' or ``The value of $x$ in the current state is $510$''.
+\item We also have the ``basic'' propositions $\top$ (which is always true) and $\bot$ (which is always false).
+  \begin{itemize}
+  \item So why don't we just insist that they are in the set of basic propositions?
+  \item We could, but it's more natural to put them directly in the syntax of our language.
+  \item Because of that, it's more natural to view them as constants or ``$0$-ary connectives''.
+  \end{itemize}
+\item We can then combine these with the three binary connectives $\varphi \land \psi$ (``$\varphi$ \emph{and} $\psi$''), $\varphi \lor \psi$ (``$\varphi$ \emph{or} $\psi$), and $\varphi \to \psi$ (``$\varphi$ \emph{implies} $\psi$'').
+\item As in Agda, we use $\lnot \varphi$ as shorthand for $\varphi \to \bot$ and read it as ``not $\varphi$''.
+  We can think of $\lnot$ as a unary connective.
+\item At this point, you should have some intuition for how these connectives work, both from Agda and from your previous experience with logic.
+\item However, we can do better: we can formally define what proofs of these formulae look like.
+\end{itemize}
+
+\section{Proof Theory}
+\label{sec:proof-theory}
+
+\begin{itemize}
+\item Today, we will be studying a form of proof theory called \emph{natural deduction with localized hypotheses}.
+  \begin{itemize}
+  \item For those of you in the know, this is sort of in between natural deduction and sequent calculus.
+  \item It keeps track of its assumptions in a context like sequent calculus, but is otherwise the same as natural deduction.
+  \item This allows us to get rid of ``justified'' versus ``unjustified'' assumptions, which causes a lot of confusion in natural deduction proofs.
+  \end{itemize}
+\item Proof theory is defined as a relation $\Gamma \vdash \varphi$ where $\Gamma$ is a set of formulae and $\varphi$ is a formula.
+  We read this relation as ``if everything in $\Gamma$ is true, then $\varphi$ is true''.
+\item This looks very similar to the notation for type systems.
+  In fact, the notation for type systems is inspired by this notation!
+  \begin{itemize}
+  \item Historically, this notation comes from Gentzen, who invented natural deduction and sequent calculus.
+  \item However, he used it for sequent calculus; natural deduction has a one-place relation $\vdash \varphi$.
+  \item This notation comes from Frege, one of the first people to study formal proof.
+  \item Frege also invented the two-dimensional ``fraction-like'' syntax for defining and proving inductive relations, though he  combined it with the turnstile ($\vdash$) notation to create some bizarre contortions of notation.
+  \item Gentzen refined it to its modern version.
+  \end{itemize}
+\item We can write the proof system for intuitionsitic propositional logic as follows:
+\end{itemize}
+
+\begin{mathparpagebreakable}
+  \infer*[left=Axiom]{\varphi \in \Gamma}{\Gamma \vdash \varphi}\\
+  \infer*[left=$\top$-I]{ }{\Gamma \vdash \top}\and
+  \infer*[left=$\bot$-E]{\Gamma \vdash \bot}{\Gamma \vdash \varphi}\\
+  \infer*[left=$\land$-I]{\Gamma \vdash \varphi\\ \Gamma \vdash \psi}{\Gamma \vdash \varphi \land \psi}\and
+  \infer*[left=$\land$-E$_1$]{\Gamma \vdash \varphi \land \psi}{\Gamma \vdash \varphi}\and
+  \infer*[left=$\land$-E$_2$]{\Gamma \vdash \varphi \land \psi}{\Gamma \vdash \psi}\\
+  \infer*[left=$\lor$-I$_1$]{\Gamma \vdash \varphi}{\Gamma \vdash \varphi \lor \psi}\and
+  \infer*[left=$\lor$-I$_2$]{\Gamma \vdash \psi}{\Gamma \vdash \varphi \lor \psi}\and
+  \infer*[left=$\lor$-E]{\Gamma \vdash \varphi \lor \psi\\\Gamma, \varphi \vdash \chi\\\Gamma, \psi \vdash \chi}{\Gamma \vdash \chi}\\
+  \infer*[left=$\to$-I]{\Gamma, \varphi \vdash \psi}{\Gamma \vdash \varphi \to \psi} \and
+  \infer*[left=$\to$-E]{\Gamma \vdash \varphi \to \psi\\ \Gamma \vdash \varphi}{\Gamma \vdash \psi}
+\end{mathparpagebreakable}
+\begin{itemize}
+\item If $\varphi \in \Gamma$, then $\varphi$ is assumed to be true and so we can always prove it.
+\item Similarly, we can always prove $\top$.
+\item However, we can never prove $\bot$---if we do, then something has gone wrong and the universe blows up.
+\item To prove $\varphi \land \psi$, you must prove $\varphi$ and $\psi$.
+  Given such a proof, you can extract either a proof of $\varphi$ or a proof of $\psi$ from it.
+\item To prove $\varphi \lor \psi$, you must prove either $\varphi$ or $\psi$.
+  Given such a proof, you can prove $\chi$ if you can prove $\chi$ no matter which of $\varphi$ or $\psi$ was used to prove $\varphi \lor\psi$.
+\item To prove $\varphi \to \psi$, assume $\varphi$ is true and prove $\psi$.
+  Given such a proof, if $\varphi$ is true you can prove $\psi$.
+\item You might ask about the basic propositions.
+  Without making an assumption, we have no idea if they are true or false---after all, this system doesn't know anything about whether it's raining in Buffalo or not!
+  Therefore, we can only prove anything about them using the \textsc{Axiom} rule.
+\end{itemize}
+
+\newpage
+\section{Propositions as Types}
+\label{sec:prop-as-types}
+
+\begin{itemize}
+\item Hopefully, the connection between this system in the previous system is obvious: we've simply deleted the programs and renamed some constructors.
+  \begin{itemize}
+  \item Well, we also started using Greek more, but that's not in the system itself.
+  \end{itemize}
+\item We can formalize this via a translation.
+  For a type~$\tau$, we'll write $\toform{\tau}$ for the formula that corresponds to $\tau$, and given a formula~$\varphi$, we'll write $\totype{\tau}$ for the type corresponding to $\varphi$.
+\end{itemize}
+
+$$\toform{\tau} = \left\{\begin{array}{ll}
+  \top & \text{if}\;\tau = \utype\\
+  \bot & \text{if}\;\tau = \vtype\\
+  \toform{\tau_1} \land \toform{\tau_2} & \text{if}\;\tau=\tau_1 \times \tau_2\\
+  \toform{\tau_1} \lor \toform{\tau_2} & \text{if}\;\tau=\tau_1 + \tau_2\\
+  \toform{\tau_1} \to \toform{\tau_2} & \text{if}\;\tau=\tau_1 \to \tau_2
+\end{array}\right.
+\hspace{5em}
+\totype{\varphi} = \left\{\begin{array}{ll}
+  \utype & \text{if}\;\varphi = \top\\
+  \vtype & \text{if}\;\varphi = \bot\\
+  \totype{\psi} \times \totype{\chi} & \text{if}\;\varphi = \psi \land \chi\\
+  \totype{\psi} + \totype{\chi} & \text{if}\;\varphi = \psi \lor \chi\\
+  \totype{\psi} \to \totype{\chi} & \text{if}\;\varphi = \psi \to \chi
+\end{array}\right.
+$$
+
+\begin{itemize}
+\item Two observations made without proof:
+  \begin{itemize}
+  \item $\toform{-}$ and $\totype{-}$ form an isomorphism.
+    In other words, $\toform{\totype{\varphi}} = \varphi$ and $\totype{\toform{\tau}} = \tau$ for every formula~$\varphi$ and type~$\tau$.
+  \item Any typing derivation $\Gamma \vdash e : \tau$ in $\lambda$~calculus corresponds to exactly one proof of $\toform{\Gamma} \vdash \toform{\tau}$.
+    Moreover, for any proof $\Gamma\vdash \varphi$ we can find a program $e$ such that $\totype{\Gamma} \vdash e : \totype{\varphi}$.
+    This $e$ is unique up to the choice of names.
+  \end{itemize}
+\item Together, these form the \emph{Curry-Howard Correspondence} for intuitionistic propositional logic.
+\item The Curry-Howard correspondence comes from a simple principle of logic:
+  \begin{itemize}
+  \item \textbf{\large Propositions are Types}
+  \item \textbf{\large Programs are Proofs}
+  \end{itemize}
+\item We call this principle the \emph{propositions-as-types} principle.
+\item Later, we will expand this to the principle of \emph{computational trinitarianism}.
+\item Note that most people use the phrases ``Curry-Howard Correspondence'' and ``Propositions-as-Types Principle'' interchangeably.
+  You will also hear ``Curry-Howard Isomorphism'', even though an isomorphism suggests some structure being preserved that is ill-defined.
+\end{itemize}
+
+\section{Normal Forms and Consistency}
+\label{sec:norm-forms-cons}
+
+\begin{itemize}
+\item Remember that a $\lambda$~term is in $\beta$-normal form if it cannot $\beta$ reduce any further.
+\item More specifically, a $\lambda$~term is in $\beta$-normal form if it is a variable, stuck on a variable, stuck on something stuck on a variable, or a function whose body is in normal form.
+\item We can describe this mathematically by defining normal forms mutually inductively with \emph{neutral} forms, which are stuck on some variable.
+\item We write $\neutral{e}$ to mean that $e$ is in neutral form, and $\nf{e}$ to mean $e$ is in normal form.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{ }{\neutral{x}} \and
+  \infer{\neutral{e}}{\neutral{\projl{e}}}\and
+  \infer{\neutral{e}}{\neutral{\projr{e}}} \\
+  \infer{\neutral{e_1}\\ \nf{e_2}\\ \nf{e_3}}{\neutral{\case{e_1}{x}{e_2}{y}{e_3}}}\\
+  \infer{\neutral{e_1}}{\neutral{\vcase{e_1}}}\\
+  \infer{\neutral{e}}{\nf{e}}\\
+  \infer{ }{\nf{\unit}}\and
+  \infer{\nf{e}}{\nf{\abs{x}{e}}}\\
+  \infer{\nf{e_1}\\\nf{e_2}}{\nf{\pair{e_1}{e_2}}}\and
+  \infer{\nf{e}}{\nf{\injl{e}}}\and
+  \infer{\nf{e}}{\nf{\injr{e}}}
+\end{mathpar}
+
+\begin{itemize}
+\item Think about what a typing derivation for a normal form looks like: first, we use all of the elimination rules, then we move into ``introduction mode'' and we are no longer allowed to use elimination rules, only introduction rules.
+\item We say that a proof is in normal form if and only if the $\lambda$~term corresponding to it is in normal form.
+\item We then have two easy lemmata:
+\end{itemize}
+
+\begin{lem}
+  There are no closed neutral-form expressions.
+  In other words, if $v$ is closed, then $\lnot (\neutral{v})$ 
+\end{lem}
+\begin{proof}
+  A simple induction on the neutral-form rules.
+  Note that the only ``top-level'' neutral-form rule that does not require a subterm to be neutral is the variable rule.
+\end{proof}
+
+\begin{lem}
+  There is no normal-form term of type $\vtype$.
+  In other words $\not\vdash v : \vtype$ when $\nf{v}$.
+\end{lem}
+\begin{proof}
+  None of the introduction forms can create something of type $\vtype$, and there are no closed neutral forms.
+\end{proof}
+
+\begin{cor}
+  There is no normal-form proof of falsity.
+  In other words, if $\vdash \bot$ then the proof is not in normal form.
+\end{cor}
+
+\begin{itemize}
+\item This gets us a good way towards \emph{consistency}: it is impossible to prove falsity in intuitionistic propositional logic.
+\item However, we only know this for normal-form proofs.
+\item Maybe falsity is provable, but only for some not-normal-form proof?
+\item This turns out to be impossible!
+\end{itemize}
+
+\begin{thm}[Normalization]
+  If $\Gamma \vdash \varphi$, then there is a normal-form proof of $\Gamma \vdash \varphi$.
+\end{thm}
+\begin{proof}[Proof Sketch]
+  Since $\Gamma \vdash \varphi$, there is an (unique) $e$ such that $\totype{\Gamma} \vdash e : \totype{\varphi}$.
+  We can start $\beta$ reducing $e$ until it will not $\beta$ reduce any more.
+  By preservation, this will still have the right type.
+  
+  But will we ever finish?
+  It turns out the answer is \emph{yes}, but we don't have the technology to prove it yet.
+\end{proof}
+
+\begin{thm}[Consistency]
+  $\not\vdash \bot$
+\end{thm}
+\begin{proof}
+  If $\vdash \bot$, then by normalization, there would be a normal-form proof of falsity.
+  But we already said that this is impossible.
+\end{proof}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
