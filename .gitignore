@@ -19,3 +19,7 @@ auto
 *.ptb
 agda.sty
 lec02.tex
+
+#macOS
+.DS_Store
+._*
