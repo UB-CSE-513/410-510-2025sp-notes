@@ -1,0 +1,262 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\title{Recursive Types}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{19}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Recursive Types}
+The types we've discussed so far describe finite sets of values.
+However, we often find that we'd like to describe infinite types.
+A common example of this is OCaml lists
+\[
+  \textsf{type 'a list = nil | cons of 'a * 'a list}
+\]
+
+\noindent We can describe an infinite number of values that should fall under this type.
+For instance, if we write out a few simple integer lists and a type which could be used to describe that particular list:
+\begin{gather*}
+  \textsf{[] : nil}\\
+  \textsf{1 :: [] : cons (1, nil)}\\
+  \textsf{2 :: 1 :: [] : cons (2, cons (1, nil))}
+\end{gather*}
+
+Describing a single list wasn't difficult, but what happens if we want a type to describe a list of any length.
+This could come up when designing a map, filter, or fold function, for example.
+It is hopefully obvious why we would need to be able to provide a type that includes all length lists (of a particular type) as values.
+
+Let's see how we'd do this in our current system.
+We haven't discussed parameterized types yet, so we'll just rewrite things to work with types we know.
+\[
+  \textsf{type list = \sumtype{\utype}{\prodtype{\utype}{\textsf{list}}}}
+\]
+
+Type is an OCaml keyword that lets us write possibly recursive types.
+However, the only way we've seen to represent recursion in our $\lambda$-calculi is to use function binding.
+Type is then just a binder $\mu$.
+\[
+  \mu \textsf{list. \sumtype{\utype}{\prodtype{\utype}{\textsf{list}}}}
+\]
+
+The only difference is that this binder is over types, which we will need to formalise.
+We'll do that next.
+
+\section{Intro/Elmination Rules}
+\epigraph{With new types comes newer intro and elimination rules}{\textit{Uncle Ben (Pierce)}}
+
+We add a few new things to our system.
+
+\begin{syntax}
+  \abstractCategory[Type Variables]{X, Y, Z, \dots}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{X} \alternative{\rectype{X}{\tau}}
+  \category[Expressions]{e} \alternative{\ldots} \alternative{\roll{e}} \alternative{\unroll{e}}
+\end{syntax}
+
+\begin{mathpar}
+\inferrule*[Left=$\mu$-I]
+  {\Gamma \vdash e : \tau[X \mapsto \rectype{X}{\tau}]}
+  {\Gamma \vdash \roll{e} : \rectype{X}{\tau}}\and
+\inferrule*[Left=$\mu$-E]
+  {\Gamma \vdash e : \rectype{X}{\tau}}
+  {\Gamma \vdash \unroll e : \tau[X \mapsto \rectype{X}{\tau}]}
+\end{mathpar}
+
+We also get $\beta$ and $\eta$ laws
+\begin{mathpar}
+  \inferrule*[Left=$\cong_\beta$]{ }{\unroll{(\roll e)} \cong_\beta e}\and
+  \inferrule*[Left=$\cong_\eta$]{ }{\roll{(\unroll e)} \cong_\eta e}
+\end{mathpar}
+
+We note that $\roll{ }$ and $\unroll{ }$ seem to ``Cancel out", in the sense that they bring us from a type $\tau[X \mapsto \rectype{X}{\tau}$ to $\rectype{X}{\tau}$ and back.
+This implies there might be an isomorphism between the two types, which will let us treat them essentially as equal.
+All we need to show is that $\unroll{(\roll{e})} = e$ and $\roll{(\unroll{e})} = e$, which is given by our $\beta$ and $\eta$ laws.
+
+\section{Examples}
+How can we encode things with these new types?
+We need to provide 3 things
+\begin{itemize}
+  \item A recursive type
+  \item Constructors for each branch of the recursive type
+  \item Pattern matching for each constructor
+\end{itemize}
+Here are a few examples
+\subsection{Lists}
+\subsubsection{Type}
+\[
+  \textsf{list}\, A \triangleq\, \rectype{X}{\sumtype{\utype}{\prodtype{A}{X}}}\\
+\]
+
+\subsubsection{Constructors}
+\begin{gather*}
+  \textsf{nil} \triangleq\, \roll{(\injl{\unit})}\\
+  \textsf{cons} \triangleq\, \tabs{x}{A}{\tabs{xs}{list A}{\roll{(\injr{\pair{x}{xs}})}}}
+\end{gather*}
+
+\subsubsection{Pattern Matching}
+
+\begin{gather*}
+  \textsf{case of xs nil => $e_1$; y::ys => $e_2$} =\\
+  \textsf{\case{(\unroll{xs})}{_}{e_1}{p}{e_2[y \mapsto \projl{p}, ys \mapsto \projr{p}]}}
+\end{gather*}
+
+\subsection{Natural Numbers}
+\subsubsection{Type}
+
+\[
+  \mathbb{N} = \textsf{\rectype{X}{\sumtype{\utype}{X}}}
+\]
+
+\subsubsection{Constructors}
+\begin{gather*}
+  \textsf{0} = \roll{(\injl{\unit})}\\
+  \textsf{suc} = \tabs{x}{\mathbb{N}}{\roll{(\injr{x})}}
+\end{gather*}
+
+\subsubsection{Pattern Matching}
+\begin{gather*}
+  \textsf{case n of 0 => $e_1$; suc x => $e_2$} =\\
+  \textsf{\case{(\unroll{n})}{_}{e_1}{x}{e_2}}
+\end{gather*}
+
+\section{Type Contexts}
+A problem still remains with our formulation.
+How should we type the following closed program?
+
+\[
+  \vdash \tabs{x}{X}{x}
+\]
+
+According to our syntax, this is valid, as type variables are now allowed.
+However, the meaning of such a function is unknown without knowing what $X$ is.
+We therefore have to introduce type contexts.
+
+We will write
+
+\begin{gather*}
+  \Delta \vdash \tau\\
+  \Delta \vdash \Gamma
+\end{gather*}
+
+to mean a type $\tau$ and the types in context $\Gamma$ are well formed.
+This means they only reference types in $\Delta$.
+We will also add the following to our language.
+
+\begin{syntax}
+  \category[Type Context]{\Delta} \alternative{\cdot} \alternative{\Delta, X}
+\end{syntax}
+
+And we will add the following rules
+
+\begin{mathpar}
+  \infer*[left=Axiom]{X \in \Delta}{\Delta \vdash X}\and
+  \infer*[left=Unit]{ }{\Delta \vdash \utype}\\
+  \infer*[left=Prod]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \prodtype{\tau_1}{\tau_2}}\and
+  \infer*[left=Sum]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \sumtype{\tau_1}{\tau_2}}\and
+  \infer*[left=Arrow]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \tau_1 \to \tau_2}\and
+  \infer*[left=Rec]{\Delta, X \vdash \tau}{\Delta \vdash \rectype{X}{\tau}}x
+\end{mathpar}
+
+We add rules that allow us to create well-formed contexts from other well-formed contexts.
+\begin{mathpar}
+  \infer*[left=Empty]{ }{\Delta \vdash\cdot} \and
+  \infer*[left=Cons]{\Delta \vdash \Gamma\\ \Delta \vdash \tau}{\Delta \vdash \Gamma, x : \tau}
+\end{mathpar}
+
+We must change two of our original rules to make sure we're only working with well-formed types
+\begin{mathpar}
+  \infer*[left=Axiom]{\vdash \Gamma\\ x : \tau \in \Gamma}{\Gamma \vdash x : \tau} \and
+  \infer*[left=Unit-I]{\vdash \Gamma}{\Gamma \vdash \unit : \utype}
+\end{mathpar}
+
+These rules allow us to write out a new theorem.
+\begin{thm}
+  If \Gamma\, \vdash\, e : \tau, then \cdot\, \vdash\, \Gamma and \cdot\, \vdash\, \tau
+\end{thm}
+
+\section{Untyped $\lambda$-Calculus}
+With the power of recursive types, we can do something incredible.
+We can actually embed the untyped $\lambda$-calculus within our new typed language.
+
+We do this by defining a recursive type
+\[
+  D \triangleq \rectype{X}{X \to X}
+\]
+
+This allows us to encode terms of untyped $\lambda$-calculus as
+
+\[
+  \llbracket e \rrbracket = \begin{cases}
+    x & e = x\\
+    \roll{(\tabs{x}{D}{\llbracket e \rrbracket})} & e = \lambda. x\, e\\
+    \app{(\unroll{e_1})}{e_2} & e = e_1\, e_2
+  \end{cases}
+\]
+
+Because of the addition of recursive types, we also recover recursive functions from untyped $\lambda$-calculus.
+Let us have the following
+\[
+  \omega_f = \lambda x. f(\app{(\unroll{x})} {x})
+\]
+
+Which is typed as
+
+\[
+  f : \tau \to \tau \vdash \omega_f : (\rectype{X}{X \to \tau}) \to \tau
+\]
+
+This allows us to write
+\[
+  \textsf{fix} \triangleq \tabs{f}{\tau \to \tau}{\omega_f}: \tau \to \tau
+\]
+
+The \textsf{fix} function is what allows us to write loops in untyped $\lambda$-calculus, and it therefore allows us to include recursive functions in our language.
+\end{document}
