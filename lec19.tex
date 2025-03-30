@@ -62,27 +62,15 @@ A common example of this is OCaml lists
   \textsf{type 'a list = nil | cons of 'a * 'a list}
 \]
 
-\noindent We can describe an infinite number of values that should fall under this type.
-For instance, if we write out a few simple integer lists and a type which could be used to describe that particular list:
-\begin{gather*}
-  \textsf{[] : nil}\\
-  \textsf{1 :: [] : cons (1, nil)}\\
-  \textsf{2 :: 1 :: [] : cons (2, cons (1, nil))}
-\end{gather*}
-
-Describing a single list wasn't difficult, but what happens if we want a type to describe a list of any length.
-This could come up when designing a map, filter, or fold function, for example.
-It is hopefully obvious why we would need to be able to provide a type that includes all length lists (of a particular type) as values.
-
 Let's see how we'd do this in our current system.
 We haven't discussed parameterized types yet, so we'll just rewrite things to work with types we know.
 \[
   \textsf{type list = \sumtype{\utype}{\prodtype{\utype}{\textsf{list}}}}
 \]
 
-Type is an OCaml keyword that lets us write possibly recursive types.
+\textsf{type} is an OCaml keyword that lets us write possibly recursive types.
 However, the only way we've seen to represent recursion in our $\lambda$-calculi is to use function binding.
-Type is then just a binder $\mu$.
+\textsf{type} is then just a binder $\mu$.
 \[
   \mu \textsf{list. \sumtype{\utype}{\prodtype{\utype}{\textsf{list}}}}
 \]
@@ -91,8 +79,6 @@ The only difference is that this binder is over types, which we will need to for
 We'll do that next.
 
 \section{Intro/Elmination Rules}
-\epigraph{With new types comes newer intro and elimination rules}{\textit{Uncle Ben (Pierce)}}
-
 We add a few new things to our system.
 
 \begin{syntax}
@@ -116,7 +102,7 @@ We also get $\beta$ and $\eta$ laws
   \inferrule*[Left=$\cong_\eta$]{ }{\roll{(\unroll e)} \cong_\eta e}
 \end{mathpar}
 
-We note that $\roll{ }$ and $\unroll{ }$ seem to ``Cancel out", in the sense that they bring us from a type $\tau[X \mapsto \rectype{X}{\tau}$ to $\rectype{X}{\tau}$ and back.
+We note that $\roll{ }$ and $\unroll{ }$ seem to ``Cancel out", in the sense that they bring us from a type $\tau[X \mapsto \rectype{X}{\tau}]$ to $\rectype{X}{\tau}$ and back.
 This implies there might be an isomorphism between the two types, which will let us treat them essentially as equal.
 All we need to show is that $\unroll{(\roll{e})} = e$ and $\roll{(\unroll{e})} = e$, which is given by our $\beta$ and $\eta$ laws.
 
