@@ -1,0 +1,290 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{⊎}{\ensuremath{\uplus}}
+\newunicodechar{₁}{\ensuremath{{}_1}}
+\newunicodechar{₂}{\ensuremath{{}_2}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{≤}{\ensuremath{\mathord{\leq}}}
+\newunicodechar{≡}{\ensuremath{\mathord{\equiv}}}
+\newunicodechar{≐}{\ensuremath{\mathord{\doteq}}}
+\newunicodechar{∘}{\ensuremath{\circ}}
+\newunicodechar{≃}{\ensuremath{\simeq}}
+\newunicodechar{≲}{\ensuremath{\precsim}}
+
+
+\newcommand{\agdanats}{\textsf{ℕ}\xspace}
+\newcommand{\agdaempty}{\textsf{⊥}\xspace}
+
+\title{Quantifiers}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{8}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{code}
+module lec08 where
+
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl)
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _≤_; z≤n)
+open import Isomorphism using (_≃_; _≲_; extensionality; _⇔_)
+open import Data.Empty using (⊥; ⊥-elim)
+open import Relation.Nullary using (¬_)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Function using (_∘_)
+\end{code}
+
+\section{Quantifiers}
+\label{sec:quantifiers}
+
+In logic we use two quantifiers:
+\begin{itemize}
+  \item The \textbf{universal quantifier} ($\forall$) states that a property holds for every element of a set.
+  \item The \textbf{existential quantifier} ($\exists$) asserts that there is at least one element in the set for which the property holds.
+\end{itemize}
+In Agda these are represented by:
+\begin{itemize}
+  \item $\forall$ is just a function type, or a Pi-type.
+  \item $\exists$ is represented by a Sigma-type, which is a pair of an element of the set and a proof that the element satisfies the property.
+\end{itemize}
+
+\section{Universals}
+\label{sec:universals}
+
+The statement $\forall x : A.P(x)$ means that for every $x$ in $A$, the property $P(x)$ holds. In Agda we write this as a function type:
+\begin{code}
+_ : ∀ (x : ℕ) → 0 ≤ x
+_ = λ x → _≤_.z≤n
+\end{code}
+Here the input $x$ is explicitly named so that it appears in the output type (i.e. the proof that $0 ≤ x$). Compare this with a function where the input name is implicit:
+\begin{code}
+_ : ℕ → ℕ
+_ = λ x → x + 510
+\end{code}
+Even though both examples define functions, in the first case we use an explicit name in the type (with $\forall$) to indicate that the result depends on that particular $x$.
+
+\newpage
+
+Here we have an elimination rule for the universal quantifier:
+\begin{code}
+∀-elim : ∀ {A : Set} {B : A → Set} →
+  (f : ∀ (x : A) → B x) →
+      (a : A) →
+  -----------------
+        B a
+
+∀-elim f a = f a
+\end{code}
+This tells us that if we have a function $f$ giving a proof for every $x$ (i.e. $B(x)$), then for any specific $a$ we obtain a proof of $B(a)$ by applying $f$ to $a$.
+\newline \textbf{Note:} The usual function arrow ($\rightarrow$) is just a forall type:
+\[
+A \rightarrow B \equiv \forall (\_ : A) \rightarrow B.
+\]
+We also have function extensionality:
+\begin{code}
+postulate
+  ∀-extensionality : {A : Set} {B : A → Set} {f g : ∀ (x : A) → B x}
+    → (∀ (x : A) → f x ≡ g x)
+    -------------------------
+            → f ≡ g
+
+-- Note: This version of function extensionality is more general than the one imported from Isomorphism.
+
+lecture-extensionality : ∀ {A B : Set}{f g : A → B}
+  → (∀ (x : A) → f x ≡ g x)
+  --------------------------
+          → f ≡ g
+
+lecture-extensionality = ∀-extensionality
+\end{code}
+This tells us that if two functions give equal outputs for all inputs, then the functions themselves are equal.
+\newline \newline
+Here we see that universal quantification distributes over conjunction, 
+meaning a universal statement about a product is equivalent to a product of universal statements:
+\begin{code}
+∀-distrib-× : ∀ {A : Set} {B C : A → Set} →
+  (∀ (x : A) → B x × C x) ≃ (∀ (x : A) → B x) × (∀ (x : A) → C x)
+
+∀-distrib-× =
+  record
+  {
+     to      = λ f → ⟨ (λ x → proj₁ (f x)), (λ x → proj₂ (f x)) ⟩
+   ; from    = λ { ⟨ f , g ⟩ → λ x → ⟨ f x , g x ⟩ }
+   ; from∘to = λ f → refl
+   ; to∘from = λ f → refl
+   }
+\end{code}
+This shows that giving a pair for each $x$ is equivalent to giving two functions, one for each component.
+\newpage
+
+\section{Existentials}
+\label{sec:existentials}
+
+The statement $\exists x : A.\; P(x)$ means that there exists some $x$ in $A$ for which $P(x)$ holds. In Agda we represent this with a $\Sigma$-type:
+\begin{code}
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor ⟨_,_⟩
+  field
+    proj₁ : A
+    proj₂ : B proj₁
+\end{code}
+This record pairs an element of $A$ with a proof that the element satisfies the given condition. 
+Meaning that type $B$ specifies the condition that must hold for the element.
+\newline \newline
+We define a custom syntax for $\Sigma$, which is simply syntactic sugar for improved readability:
+\begin{code}
+Σ-syntax = Σ
+infix 2 Σ-syntax
+syntax Σ-syntax A (λ x → Bx) = Σ[ x ∈ A ] Bx
+
+∃ : ∀ {A : Set} (B : A → Set) → Set
+∃ {A} B = Σ A B
+
+∃-syntax = ∃
+syntax ∃-syntax (λ x → B) = ∃[ x ] B
+\end{code}
+Writing $\exists[ x ] B$ is just a shorthand for the corresponding $\Sigma$-type.
+\newline \newline
+To “use” an existential proof, we have the elimination rule:
+\begin{code}
+∃-elim : ∀ {A : Set} {B : A → Set} {C : Set} →
+  (∀ x → B x → C) →
+    ∃[ x ] B x →
+  -----------------
+        C
+
+∃-elim f ⟨ x , y ⟩ = f x y
+\end{code}
+This means that if, for every $x$ and that $B x$ implies $C$, 
+and also for some $x$ of type $A$ that $B x$ holds then we can conclude that $C$ holds.
+\newline 
+We can see that the converse also holds, and the two together form an isomorphism:
+\begin{code}
+∀∃-currying : ∀ {A : Set} {B : A → Set} {C : Set}
+  → (∀ x → B x → C) ≃ (∃[ x ] B x → C)
+∀∃-currying =
+  record
+  {
+     to      = λ {f → λ { ⟨ x , y ⟩ → f x y } }
+   ; from    = λ {g → λ x → λ y → g ⟨ x , y ⟩ }
+   ; from∘to = λ f → refl
+   ; to∘from = λ g → refl
+   }
+\end{code}
+This shows that a function taking two arguments (an $x$ and a proof of $B(x)$) is equivalent to a function taking a single $\Sigma$-pair.
+\textbf{Note:} In the finite case, the size of a $\Pi$-type (product) is given by the product of the sizes of each $B(x)$, 
+while the size of a $\Sigma$-type (sum) is given by the sum of the sizes, hence the names.
+\subsection{Existential Example}
+Here's an example of how we can use existentials.
+We can define even and odd numbers as follows:
+\begin{code}
+data even : ℕ → Set
+data odd : ℕ → Set
+
+data even where
+  even-zero : even zero
+
+  even-suc : ∀ {n : ℕ} →
+        odd n →
+     ------------
+     even (suc n)
+
+data odd where
+  odd-suc : ∀ {n : ℕ} →
+      even n →
+   -------------
+    odd (suc n)
+\end{code}
+
+We can then relate even/odd proofs to an existential statement. 
+For example, we might express that an even number $n$ is of the form $2 \times m$:
+\begin{code}
+even-∃ : ∀ {n : ℕ} → even n → ∃[ m ] (m * 2 ≡ n)
+odd-∃ : ∀ {n : ℕ} → odd n → ∃[ m ] (1 + m * 2 ≡ n)
+
+even-∃ even-zero = ⟨ 0 , refl ⟩
+even-∃ (even-suc on) with odd-∃ on
+... | ⟨ m , refl ⟩ = ⟨ suc m , refl ⟩
+
+odd-∃ (odd-suc en) with even-∃ en
+... | ⟨ m , refl ⟩ = ⟨ m , refl ⟩
+\end{code}
+\begin{itemize}
+  \item If the number is even because it is zero, then return the pair.
+  \item If the number is even because it is one more than an odd number, 
+  then apply the induction hypothesis to obtain a number $m$ and evidence that $1 + m \times 2 \equiv n$. Then return the pair.
+  \item If the number is odd because it is the successor of an even number, 
+  then apply the induction hypothesis to obtain a number $m$ and evidence that $m \times 2 \equiv n$. Then return the pair.
+\end{itemize}
+\newpage
+\section{Existentials, Universals, and Negation}
+\label{sec:additional}
+
+\subsection{Negation and Quantifiers}
+We now consider relationships between negation and quantifiers.
+One useful equivalence is between the negation of an existential and a universal of a negation,
+which we see here that they are isomorphic:
+\begin{code}
+¬∃≃∀¬ : ∀ {A : Set} {B : A → Set} →
+  (¬ ∃[ x ] B x ≃ ∀ x → ¬ B x)
+¬∃≃∀¬ =
+  record
+  {
+    to      = λ {f → λ x → λ y → f ⟨ x , y ⟩ }
+   ; from    = λ {g → λ { ⟨ x , y ⟩ → g x y } }
+   ; from∘to = λ f → refl
+   ; to∘from = λ g → refl
+   }
+\end{code}
+Additionally, if there exists an $x$ for which $B(x)$ fails then it cannot be that $B(x)$ holds for every $x$:
+\begin{code}
+∃¬-implies-¬∀ : ∀ {A : Set}{B : A → Set} →
+  ∃[ x ] (¬ B x) →
+  -----------------
+  ¬ (∀ x → B x)
+
+∃¬-implies-¬∀ ⟨ x , ¬Bx ⟩ = λ f → ¬Bx (f x)
+\end{code}
+Finally, we have two related equivalences involving negation of products and sums:
+\begin{code}
+postulate
+  ¬×≃+¬ : ∀ {A B : Set} → ¬ (A × B) ≃ ¬ A ⊎ ¬ B
+  +¬≃¬× : ∀ {A B : Set} → ¬ (A ⊎ B) ≃ ¬ A × ¬ B
+\end{code}
+\textbf{Note:} In Agda the equivalence 
+\[
+\neg (A \uplus B) \simeq \neg A \times \neg B
+\]
+holds as a full isomorphism, while the equivalence 
+\[
+\neg (A \times B) \simeq \neg A \uplus \neg B
+\]
+only holds in one direction (i.e. it is an embedding rather than a full isomorphism). 
+This shows the differences in how negation interacts with product types versus sum types.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
