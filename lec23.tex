@@ -1,0 +1,300 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{agda}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{mathtools}
+\usepackage{pl-syntax/pl-syntax}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\CC}{\mathbb{C}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\lr}[2]{\ensuremath{\mathsf{P}(#1)(#2)}}
+\newcommand{\gdsubst}[2]{\ensuremath{\mathsf{C}(#1)(#2)}}
+
+\newcommand{\proves}{\vdash}
+
+\newenvironment{proof-attempt}{\noindent{\bf Proof Attempt}\hspace*{1em} \textbf{\textcolor{red}{Note: This Proof Fails!}}}{\textbf{\textcolor{red}{Proof Fails.}}}
+
+\title{Logical Relations and Normalization}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{23}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Strong Normalization of STLC}
+
+Recall the syntax of the Simply-Typed Lambda Calculus (STLC) without extensions:
+
+\begin{center}
+  \begin{syntax}   
+    \category[Expressions]{e}
+      \alternative{x}
+      \alternative{\lambda x:\tau.e}
+      \alternative{e_1~e_2}
+    \category[Values]{v}
+      \alternative{\lambda x:\tau.e}
+    \category[Types]{\tau}
+      \alternative{A}
+      \alternative{\tau_1 \rightarrow \tau_2}
+    \category[Typing Contexts]{\Gamma}
+      \alternative{\cdot}
+      \alternative{\Gamma, x : \tau}
+    \category[Evaluation Context]{\CC}
+      \alternative{[ ~\cdot~ ]}
+      \alternative{\CC ~e}
+      \alternative{v~\CC}
+  \end{syntax}
+\end{center}
+
+We use a call-by-name operational semantics:
+
+\begin{mathpar}
+  \inferrule* [left = BetaStep]
+    { }
+    { (\lambda x.e) v \rightarrow e [x \mapsto v] }
+
+  \inferrule* [left = ContextStep]
+    { e_1 \rightarrow e_2}
+    { \CC~[ e_1 ] \rightarrow \CC~[ e_2 ] }
+\end{mathpar}
+
+As well as its typing rules:
+
+\begin{mathpar}
+  \inferrule* [left = Axiom] 
+    { x : \tau \in \Gamma}
+    { \Gamma \vdash x : \tau}
+
+  \inferrule* [left = $\to$-I]
+    { \Gamma, x : \tau_1 \vdash e : \tau_2}
+    { \Gamma \vdash \lambda x:\tau_1 .e : \tau_1 \rightarrow \tau_2}
+
+  \inferrule* [left = $\to$-E]
+    { 
+    \Gamma \vdash e_1 : \tau_1 \rightarrow \tau_2 \\ 
+    \Gamma \vdash e_2 : \tau_1
+    }
+    { \Gamma \vdash e_1 e_2 : \tau_2}
+\end{mathpar}
+
+Finally, recall how neutral and normal forms are defined in STLC:
+
+\begin{mathpar}
+  \infer{ }{\neutral{x}} \and
+  \infer{\neutral{e}}{\nf{e}} \and
+  \infer{\nf{e}}{\nf{\abs{x}{e}}} \and
+  \infer{\neutral{e_1} \\ \nf{e_2}}{\nf{\app{e_1}{e_2}}}
+\end{mathpar}
+
+It is a well-known fact that STLC is \emph{strongly-normalizing}.
+That is, that all well-typed terms in STLC eventually $\beta$-reduce to a normal form.
+
+\begin{thm}[Strong Normalization]
+  \label{thm:strong-norm}
+  $\forall e. \Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
+\end{thm}
+
+Note that, while Untyped Lambda Calculus does not terminate, well-typed STLC terms do terminate because they reduce to normal forms.
+Hence, there is something about the types of STLC that limits our programs to ones that terminate.
+Let us now try to prove strong normalization of STLC.
+
+\section{Attempt 1: Induction}
+
+As we have seen, our proofs often proceed by induction, so our first attempt at proving strong normalization is via induction.
+
+\begin{thm}[Strong Normalization]
+  \label{thm:strong-norm}
+  $\forall e. \Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
+\end{thm}
+\begin{proof-attempt}
+  By induction on the evidence for $\Gamma \proves e : \tau$.
+
+  The \textsc{Axiom} and \textsc{$\to$-I} cases are fairly easy, so we will skip them and focus on the \textsc{$\to$-E} case.
+
+  
+  \begin{enumerate}[\text{Case}:]
+    \item \textsc{$\to$-E}
+    
+    $e = \app{e_1}{e_2}$ where $\Gamma \proves e_1 : \tau_1 \to \tau_2$ and $\Gamma \proves e_2 : \tau_1$. \\
+
+    IH1: $\exists n_1.~ \nf{n_1} \land e_1 \to^\ast n_1$
+
+    IH2: $\exists n_2.~ \nf{n_2} \land e_2 \to^\ast n_2$
+
+    Using our inductive hypotheses, we can deduce:
+
+    $\app{e_1}{e_2} \to^\ast \app{n_1}{e_2} \to^\ast \app{n_1}{n_2}$
+
+    Since $n_1$ is in normal form, we have two cases.
+    First, $n_1$ could be a neutral form, in which case we are done since this means that $\nf{\app{n_1}{n_2}}$.
+    Second, $n_1$ could be in normal form, and since it has type $\tau_1 \to \tau_2$ it must have the form $\tabs{x}{\tau_1}{e}$, for some $x$ and $e$.
+    So, we can further deduce:
+
+    $\app{\tabs{x}{\tau_1}{e}}{n_2} \to e[x \mapsto n_2]$
+
+    However, at this point, we know nothing about $e$, so we are stuck and the proof cannot proceed further.
+
+  \end{enumerate}
+
+\end{proof-attempt}
+
+\section{Attempt 2: Logical Relation}
+
+Another approach we could take is to use a \emph{logical relation} to prove strong normalization.
+
+\subsection{What is a Logical Relation?}
+
+A logical relation is really a family of recursive relations that are indexed by type.
+In Agda, a logical relation \textsf{P} might have the type:
+
+$$\mathsf{P : Type \to Term \to Set}$$
+
+\textsf{P} is a predicate that takes in a type and a term and says that the input term behaves like the input type.
+
+When designing a logical relation, there are three design principles to keep in mind:
+
+\begin{enumerate}[(1)]
+  \item Only terms of interest are in the relation.
+  \item The property of interest should be baked into the relation.
+  \item The relation should be preserved by elimination forms.
+\end{enumerate}
+
+If we define a logical relation where our property of interest is strong normalization, the logical relation might look something like this:
+
+\begin{mathpar}
+  \lr{A}{e} \triangleq \exists n.~ \nf{n} \land e \to^\ast n \\
+  \lr{\tau_1 \to \tau_2}{e} \triangleq (\exists n.~\nf{n} \land e \to^\ast n) \land (\forall e_2.~\lr{\tau_1}{e_2} \implies \lr{\tau_2}{\app{e}{e_2}})
+\end{mathpar}
+
+Let us check to make sure that our logical relation follows our design principles.
+In our case, all terms are terms of interest, so our logical relation satisfies principle (1).
+Note that the property of interest---that $e$ reduces to a normal form---is baked into the logical relation for both types, satisfying principle (2).
+Finally, we must show that the relation is preserved by elimination forms.
+Expressions of type $A$ have no elimination forms, so we are done for the $A$ case.
+Expressions of type $\tau_1 \to \tau_2$ must preserve the relation under function application, which is covered by the second conjunct in \lr{\tau_1 \to \tau_2}{e}.
+
+\subsection{The Fundamental Theorem}
+
+There are two theorems that we are interested in proving using logical relations.
+The first theorem says, intuitively, that all well-typed terms are in the logical relation.
+The second theorem says, intuitively, that if a term is in the logical relation, then the property of interest is preserved by that term.
+Typically, the first theorem, called the \emph{Fundamental Theorem} of the logical relation, is the harder theorem to prove.
+The second theorem is typically quite easy to prove, as is the case for our logical relation.
+So, our goal will be to prove the Fundamental Theorem for our logical relation.
+
+Before we try to prove the Fundamental Theorem, we must first define what it means to be \emph{semantically well-typed}.
+Our logical relation only deals with closed terms---i.e., terms with no free variables---but we can have syntactically well-typed terms that contain free variables.
+To deal with this, we need to somehow close the term of interest.
+We will leverage parallel substitutions for this---recall that a parallel substitution is simply multiple variable substitutions that occur simultaneously.
+We first define what it means to be a ``good (parallel) substitution''.
+
+If $\Gamma$ is a typing context and $\gamma$ is a parallel substitution, then a ``good substitution'' is defined as: \\
+
+\begin{center}
+  $\gdsubst{\Gamma}{\gamma} \triangleq$ ``$\gamma$ maps variables to terms that behave like $\Gamma$ says they should''
+\end{center}
+
+More formally,
+
+$$\gdsubst{\Gamma}{\gamma} \triangleq \forall x : \tau \in \Gamma.~\lr{\tau}{\gamma(x)}$$
+
+Finally, we define semantic well-typedness, first informally: \\
+
+\begin{center}
+  $\Gamma \vDash e : \tau \triangleq$ ``No matter hat I give for $\Gamma$, $e$ acts like a $\tau$''
+\end{center}
+
+More formally,
+
+$$\Gamma \vDash e : \tau \triangleq \forall \gamma.~\gdsubst{\Gamma}{\gamma} \implies \lr{\tau}{e[\gamma]}$$
+
+\subsection{Strong Normalization}
+
+We are now ready to prove the Fundamental Theorem for our logical relation.
+
+\begin{thm}[Strong Normalization]
+  \label{thm:strong-norm}
+  $\forall e. \Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
+\end{thm}
+\begin{proof}
+  By induction on the evidence of $\Gamma \proves e : \tau$.
+
+  \item Case: \textsc{Axiom} $\infer{x : \tau \in \Gamma}{\Gamma \proves x : \tau}$
+  
+  Let $\gamma$ be s.t. $\gdsubst{\Gamma}{\gamma}$. \\
+  
+  Since we know that $x : \tau \in \Gamma$, then $x[\gamma] = \gamma(x)$.
+  Apply $\gdsubst{\Gamma}{\gamma}$ to $x : \tau \in \Gamma$ to obtain $\lr{\tau}{\gamma(x)}$, as desired.
+
+  \item Case: \textsc{$\rightarrow$-I} $\infer{\Gamma, x : \tau_1 \proves e : \tau_2}{\Gamma \proves \tabs{x}{\tau_1 \to \tau_2}{e}}$ \\
+
+  WTS: (1) $\lr{\tau_2}{x[\gamma]}$, (2) $\forall a.~\lr{\tau_1}{a} \implies \lr{\tau_2}{(\tabs{x}{\tau_1}{e})}$ \\
+
+  \begin{enumerate}[(1)]
+    \item 
+    
+    By IH, $\forall \gamma. \gdsubst{\Gamma, x : \tau_1}{\gamma} \implies \lr{\tau_2}{e[\gamma]}$.
+    Let $\gamma$ be s.t. $\gdsubst{\Gamma}{\gamma}$.
+    Then, $\gamma[x \mapsto x]$ is good: $\gdsubst{\Gamma, x : \tau_1}{\gamma[x \mapsto x]}$.
+  
+    $$(\tabs{x}{\tau_1}{e})[\gamma] = \tabs{x}{\tau_1}{e[\gamma]} = \tabs{x}{\tau_1}{e[\gamma[x \mapsto x]]}$$
+  
+    \begin{nb}
+    By IH, $e[\gamma]$ normalizes.
+    \end{nb}
+
+    $$\tabs{x}{\tau_1}{e[\gamma]} \to^\ast \tabs{x}{\tau_1}{n}\mathsf{,~where }~e[\gamma] \to^\ast n$$.
+
+    \item
+    
+    Let $a$ be s.t. $\lr{\tau_1}{a}$. \\
+
+    WTS: $\lr{\tau_2}{\tabs{x}{\tau_1}{e[\gamma]}}$ \\
+
+    We will use the following lemma, but we will not prove it.
+    \textcolor{blue}{Convince yourself that the following statement is true:}
+
+    $$e \to^\ast e' \land \lr{\tau}{e'} \implies \lr{\tau}{e}$$
+
+    \begin{nb}
+      $\gdsubst{\Gamma}{\gamma[x \mapsto a]}$ holds since:
+
+      $$\app{(\tabs{x}{\tau_1}{e[\gamma]})}{a} \to e[\gamma[x \mapsto a]]$$
+    \end{nb}
+
+    By IH, $\lr{\tau_2}{\tabs{x}{\tau_1}{e[\gamma[x \mapsto a]]}}$.
+
+  \end{enumerate}
+
+  \item Case: \textsc{$\rightarrow$-E}
+  
+  \textcolor{blue}{Left as exercise.}
+
+\end{proof}
+
+We can see just by inspecting the logical relation that it all terms in the logical relation are strongly-normalizing.
+Since we have proved the Fundamental Theorem, it follows that all syntactically well-typed terms $e$ must be strongly-normalizing.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
