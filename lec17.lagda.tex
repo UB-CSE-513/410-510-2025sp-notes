@@ -1,0 +1,115 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\title{Type System Organization}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{17}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Introduction and Elimination Rules}
+$$\begin{array}{c|c}
+  \multicolumn{2}{c}{\infer*[left=Axiom]{x \colon \tau \in \Gamma}{\Gamma \vdash x \colon \tau}}\\[2em]
+  \infer*[left=arrI]{\Gamma, x \colon \tau_1 \vdash e \colon \tau_2}{\Gamma \vdash \tabs{x}{\tau_1}{e} \colon \tau_1 \to \tau_2} & \infer*[right=arrE]{\Gamma \vdash f \colon \tau_1 \to \tau_2\\ \Gamma \vdash e \colon \tau_1}{\Gamma \vdash \app{f}{e} \colon \tau_2}\\[2em]
+  \infer*[left=unitI]{ }{\Gamma \vdash \unit \colon \utype} & \\[2em]
+                                                                             & \infer*[right=voidE]{\Gamma \vdash e \colon \vtype}{\Gamma \vdash \vcase{e} \colon \tau}\\[2em]
+  \infer*[left=prodI]{\Gamma \vdash e_1 \colon \tau_1\\ \Gamma \vdash e_2 \colon \tau_2}{\Gamma \vdash (e_1, e_2) \colon \prodtype{\tau_1}{\tau_2}} & \infer*[right=prodE${}_1$]{\Gamma \vdash e \colon \prodtype{\tau_1}{\tau_2}}{\Gamma \vdash \projl{e} \colon \tau_1} \hspace{1em} \infer*[right=prodE${}_2$]{\Gamma \vdash e \colon \prodtype{\tau_1}{\tau_2}}{\Gamma \vdash \projr{e} \colon \tau_2}\\[2em]
+  \infer*[left=sumI${}_1$]{\Gamma \vdash e \colon \tau_1}{\Gamma \vdash \injl{e} \colon \sumtype{\tau_1}{\tau_2}} \hspace{1em} \infer*[left=sumI${}_2$]{\Gamma \vdash e \colon \tau_2}{\Gamma \vdash \injr{e} \colon \sumtype{\tau_1}{\tau_2}} &\infer*[right=sumE]{\Gamma \vdash e_1 \colon \sumtype{\tau_1}{\tau_2}\\ \Gamma, x \colon \tau_1 \vdash e_2 \colon \tau_3\\ \Gamma, y \colon \tau_2 \vdash e_3 \colon \tau_3}{\Gamma \vdash \case{e_1}{x}{e_2}{y}{e_3} \colon \tau_3}\\
+\end{array}$$
+
+\section{$\beta$ reduction}
+Just to remind ourselves, this is the $\beta$ law:
+  $$\app{(\tabs{x}{\tau_1}{e_1})}{e_2} \equiv_\beta e_1[x \mapsto e_2]$$
+
+\noindent The typing derivation of the left-hand side is:
+  $$\begin{array}{c|c}
+    $$\app{(\tabs{x}{\tau_1}{e_1})}{e_2} \equiv_\beta e_1[x \mapsto e_2]$$
+    &
+    \infer*[left=arrE]{\infer*[left=arrI]{\Gamma, x \colon \tau_1 \vdash e_1 \colon \tau_2}{\Gamma \vdash \tabs{x}{\tau_1}{e_1} \colon \tau_1 \to \tau_2}\\ \Gamma \vdash e_2 \colon \tau_1}{\Gamma \vdash \app{(\tabs{x}{\tau_1}{e_1})}{e_2} \vdash \tau_2}
+\end{array}$$\\
+
+\noindent Similarly, the $\beta$ law can be used for the product rules:
+  $$\begin{array}{c|c}
+    $$\projl{\pair{e_1}{e_2}} \equiv_\beta e_1 \colon$$
+    &
+    \infer*[left=projE${}_1$]{\infer*[left=prodI]{\Gamma \vdash e_1 : \tau_1\\ \Gamma \vdash e_2 \colon \tau_2}{\Gamma \vdash \pair{e_1}{e_2} \colon \prodtype{\tau_1}{\tau_2}}}{\Gamma \vdash \projl{\pair{e_1}{e_2}} \colon \tau_1}\\
+\end{array}$$ 
+
+\noindent As well as for sum: 
+    $$\case{\injl{e_1}}{x}{e_2}{y}{e_3} \equiv_\beta e_2[x \mapsto e_1]$$ \\
+    $$\infer*[left=sumE]{\infer*[left=sumI${}_1$]{\Gamma \vdash e_1 \colon \tau_1}{\Gamma \vdash \injl{e_1} \colon \sumtype{\tau_1}{\tau_2}}\\ \Gamma, x \colon \tau_1 \vdash e_2 \colon \tau_3\\ \Gamma, y \colon \tau_2 \vdash e_3 \colon \tau_3}{\case{\injl{e_1}}{x}{e_2}{y}{e_3}}$$
+
+\noindent Note: $$C[\vcase{e}] \equiv_\beta \vcase{e}$$
+\noindent Note: there's no $\beta$ law for \utype.
+
+\section{$\eta$ law}
+$\eta$ Law looks the following way:
+$$e \equiv_\eta \abs{x}{(\app{e}{x})}$$
+
+\noindent Every pair of I + E rules constitutes an $\eta$ law.\\
+\\
+\noindent Arr:
+    $$\begin{array}{c|c}
+        $$e \equiv_\eta \abs{x}{(\app{e}{x})}$$
+        &
+        $$\infer*[left=arrI]{ \infer*[left=arrE]{ \Gamma, x \colon \tau_1 \vdash e \colon \tau_1 \to \tau_2\\\infer*[left=Axiom]{ }{\Gamma, x \colon \tau_1 \vdash x \colon \tau_1}}{ \Gamma, x \colon \tau_1 \vdash \app{e}{x} \colon \tau_2}}{\Gamma \vdash \tabs{x}{\tau_1}{(\app{e}{x})} \colon \tau_1 \to \tau_2}$$
+    \end{array}$$
+\\
+\noindent Prod:
+    $$\begin{array}{c|c}
+        $$e \equiv_\eta \pair{\projl{e}}{\projr{e}}$$
+        &
+        $$\infer*[left=prodI]{\infer*[left=prodE${}_1$]{\Gamma \vdash e \colon \tau_1 \times \tau_2}{\Gamma \vdash \projl{e} \colon \tau_1}\\\infer*[left=prodE${}_2$]{\Gamma \vdash e \colon \tau_1 \times \tau_2}{\Gamma \vdash \projr{e} \colon \tau_2}}{\Gamma \vdash \pair{\projl{e}}{\projr{e}} \colon \prodtype{\tau_1}{\tau_2}}$$
+    \end{array}$$
+\\
+\noindent Sum:
+        $$e \equiv_\eta \case{e}{x}{\injl{x}}{y}{\injr{y}}$$ \\
+        $$\infer*[left=sumE]{\infer*[left=sumI${}_1$]{\Gamma \vdash e_1 \colon \tau_1}{\Gamma \vdash \injl{e_1} \colon \sumtype{\tau_1}{\tau_2}}\\ \Gamma, x \colon \tau_1 \vdash e_2 \colon \tau_3\\ \Gamma, y \colon \tau_2 \vdash e_3 \colon \tau_3}{\case{\injl{e_1}}{x}{e_2}{y}{e_3}}$$
+
+\noindent Note: There's no $\eta$ law for \vtype.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
