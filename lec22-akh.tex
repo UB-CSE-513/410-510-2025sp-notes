@@ -1,0 +1,227 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Existential types}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{22}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Parametric polymorphism allows a program to take on different types at different times.
+\item However, polymorphism can also be used to abstract over a type, hiding an implementation detail.
+\item Think about OCaml modules: you can have a type element, and other modules don't get to know what type it is.
+\item Similarly, think about objects: you know that you have some \textsf{Printable}, but not what that \textsf{Printable} is.
+\item We allow this using \emph{existential types}.
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{\extype{X}{\tau}}
+  \category[Expressions]{e} \alternative{\dots} \alternative{\pack{\tau_1}{X}{e}} \alternative{\unpack{e_1}{X}{x}{e_2}}
+  \category[Evaluation Contexts]{\mathcal{C}} \alternative{\ldots} \alternative{\pack{\tau_1}{X}{C}} \alternative{\unpack{\mathcal{C}}{X}{x}{e_2}}
+\end{syntax}
+
+\begin{itemize}
+\item Here, $\extype{X}{\tau}$ means ``a $\tau$ where the definition of the type $X$ is hidden.''
+\item We can create an $\extype{X}{\tau}$ by picking a definition of $X$, writing $\pack{\tau'}{X}{e}$ to mean ``choose $\tau'$ as the definition of $X$, and then use the value $e$.''
+\item In order to use this, we need to write a program that uses a $\tau$ without knowing what $X$ is.
+  We do this via $\unpack{e_1}{X}{x}{e_2}$, which means ``run $e_2$ using $e_1$ as a $\tau$, without knowing how $e_1$ implements $X$.''
+\item Because $X$ could be anything in \textsf{unpack}, $e_2$ cannot rely on the definition of $X$ inside of $e_1$.
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=$\exists$-I]{\Delta; \Gamma \vdash e : \tau_2[X \mapsto \tau_1]}{\Delta; \Gamma \vdash \pack{\tau_1}{X}{e} : \extype{X}{\tau_2}} \and
+  \infer*[right=$\exists$-E]{\Delta; \Gamma \vdash e_1 : \extype{X}{\tau_1}\\ \Delta, X; \Gamma, x : \tau_1 \vdash e_2 : \tau_2\\\Delta \vdash \tau_2}{\Delta; \Gamma \vdash \unpack{e_1}{X}{x}{e_2} : \tau_2}
+\end{mathpar}
+
+\begin{itemize}
+\item Note the premise of $\Delta \vdash \tau_2$ in \textsc{$\exists$-E}.
+\item This means that $\tau_2$ cannot contain $X$ free.
+\item This means that the return type of an \textsf{unpack} \emph{cannot} leak the implementation of $X$ in $e_1$ to the outside world.
+\end{itemize}
+
+\begin{mathpar}
+  \unpack{(\pack{\tau_1}{X}{v})}{X}{x}{e_2} \to e_2[X \mapsto \tau_1, x \mapsto v] \and
+  \unpack{e}{X}{x}{\left(\pack{X}{X}{x}\right)} \equiv_\eta e
+\end{mathpar}
+
+\newpage
+\section{Example: The Counter}
+\label{sec:counter}
+\begin{itemize}
+\item Let's see an example: a counter that can only tick up or reset.
+\item This example will use numbers and records from previous lectures:
+  $$\textsf{counter} \triangleq \extype{X}{\{\textsf{init} : \utype \to X; \textsf{getCount} : X \to \mathbb{N}; \textsf{tick} : X \to X; \textsf{reset} : X \to X\}}$$
+  $$\textsf{numCounter} \triangleq \pack{\mathbb{N}}{X}{\{\textsf{init} = \abs{x}{0}; \textsf{getCount} = \abs{x}{x}; \textsf{tick} = \abs{x}{x + 1}; \textsf{reset} = \abs{x}{0}\}} : \textsf{counter}$$
+\item Let's examine what this counter is doing:
+  \begin{itemize}
+  \item A counter is a type that supports 4 functions: \textsf{init}, \textsf{getCount}, \textsf{tick}, and \textsf{reset}.
+  \item A \textsf{numCounter} is an implementation of the counter as a natural number.
+    \begin{itemize}
+    \item \textsf{init} returns 0 no matter what its input
+    \item \textsf{getCount} is just the identity
+    \item \textsf{tick} just adds one to the number
+    \item \textsf{reset} returns 0 no matter what its input
+    \end{itemize}
+  \end{itemize}
+\item A client can \emph{almost} use a counter as follows:
+  $$
+  \begin{array}{l}
+    \lambda \textsf{ctr} \mathrel{:} \textsf{counter}.\\
+    \begin{array}{l}
+      \textsf{unpack}\mkern5mu\textsf{ctr} \mathrel{\textsf{as}} X,\, \textsf{impl}\;\textsf{in}\\
+      \begin{array}{l}
+        \textsf{let}\mkern5mux = \app{\textsf{impl}.\textsf{init}}{\unit}\;\textsf{in}\\
+        \begin{array}{l}
+          \textsf{let}\mkern5mux' = \app{\textsf{impl}.\textsf{tick}}{x}\;\textsf{in}\\
+          \begin{array}{l}
+            (\app{\textsf{impl}.\textsf{getCount}}{x'}, \app{\textsf{impl}.\textsf{reset}}{x'})
+          \end{array}
+        \end{array}
+      \end{array}
+    \end{array}
+  \end{array}
+  $$
+\item However, since this would return a counter, it is not a valid type!
+\item We can, however, do the following:
+  $$
+  \begin{array}{l}
+    \lambda \textsf{ctr} \mathrel{:} \textsf{counter}.\\
+    \begin{array}{l}
+      \textsf{unpack}\mkern5mu\textsf{ctr} \mathrel{\textsf{as}} X,\, \textsf{impl}\;\textsf{in}\\
+      \begin{array}{l}
+        \textsf{let}\mkern5mux = \app{\textsf{impl}.\textsf{init}}{\unit}\;\textsf{in}\\
+        \begin{array}{l}
+          \textsf{let}\mkern5mux' = \app{\textsf{impl}.\textsf{tick}}{x}\;\textsf{in}\\
+          \begin{array}{l}
+            (\app{\textsf{impl}.\textsf{getCount}}{x'}, \app{\textsf{impl}.\textsf{getCount}}{(\app{\textsf{impl}.\textsf{reset}}{x'})})
+          \end{array}
+        \end{array}
+      \end{array}
+    \end{array}
+  \end{array}
+  $$  
+\item Note that, since this function has no idea how \textsf{counter} is implemented, the only thing it can do with the type $X$ are the operations in the record.
+\item We often use existential types for this sort of ``abstract type with supported operations'' notion.
+\item This is basis of OCaml's modules and Java's objects, for instance.
+\end{itemize}
+
+\section{Example: Complex Numbers}
+\label{sec:compl-numb}
+
+\begin{itemize}
+\item Not every type has such an obvious single implementation.
+\item For instance, we can write:
+  $$
+  \textsf{complex} \triangleq \extype{\mathbb{C}}{\begin{array}[t]{@{\hspace{1em}}l}\hspace{-0.65em}\{\textsf{inj} : \mathbb{R} \to \mathbb{C};\\ i : \mathbb{C};\\ \textsf{conj} : \mathbb{C} \to \mathbb{C};\\ \textsf{add} : \mathbb{C} \to \mathbb{C};\\ \textsf{mul} : \mathbb{C} \to \mathbb{C};\\ \textsf{module} : \mathbb{C} \to \mathbb{R}^+\}}\end{array}
+  $$
+\item This is an abstract type of complex numbers. 
+\item We can then implement it two different ways:
+  $$
+  \textsf{descart} \triangleq \pack{\mathbb{R} \times \mathbb{R}}{\mathbb{C}}{\begin{array}[t]{@{\hspace{1em}}l}\hspace{-0.65em}\{\\
+    \textsf{inj} = \tabs{r}{\mathbb{R}}{(r, 0)};\\
+    i = (0, 1);\\
+    \dots\\
+    \hspace{-0.65em}\}\end{array}}
+$$
+$$
+\textsf{bessel} \triangleq \pack{\mathbb{R} \times \mathbb{R}}{\mathbb{C}}{\begin{array}[t]{@{\hspace{1em}}l}\hspace{-0.65em}\{\\
+  \textsf{inj} = \tabs{r}{\mathbb{R}}{\textsf{if}\mkern5mur \geq 0 \mathrel{\textsf{then}} (0, r) \mathrel{\textsf{else}} (\pi, r)};\\
+  i = (\frac{\pi}{2}, 1);\\
+  \dots\\
+  \hspace{-0.65em}\}\end{array}}
+$$
+\item Here, we have two different implementations of complex numbers: one use Cartesian coordinates and one use polar coordinates.
+\item While they have the same underlying type implementing $\mathbb{C}$, they implement all of the operations differently.
+\item Nevertheless, these operations satisfy the equational theory of complex numbers.
+\item Thus, if $e$ is an expression which uses complex numbers in accordance with their equational theory, then $$\unpack{\textsf{descart}}{\mathbb{C}}{\textsf{impl}}{e} = \unpack{\textsf{bessel}}{\mathbb{C}}{\textsf{impl}}{e}$$
+\end{itemize}
+
+\section{Encoding Existential Types}
+\label{sec:encod-exist-types}
+
+\begin{itemize}
+\item Much like other types, we can encode existential types using universal types.
+\item The idea is this: any client of an existential type is the same as someone who can use any implementation type of the existential.
+\item We can encode this as follows:
+  $$
+  \begin{array}{rl}
+    \extype{X}{\tau} \triangleq& \fatype{Y}{(\fatype{X}{\tau} \to Y) \to Y}\\
+    \pack{\tau_1}{X}{e} \triangleq& \Abs{Y}{\tabs{f}{\fatype{X}{\tau \to Y}}{\app{\App{f}{\tau_1}}{e}}}\\
+    \unpack{e_1}{X}{x}{e_2} \triangleq& \app{\App{e_1}{\tau_2}}{(\Abs{X}{\tabs{x}{\tau}{e_2}})}
+  \end{array}
+  $$
+\item We can check the $\beta$ law:
+  $$
+  \begin{array}{rl}
+    \unpack{(\pack{\tau_1}{X}{v})}{X}{x}{e_2} =& \app{\App{(\Abs{Y}{\tabs{f}{\fatype{X}{\tau \to Y}}{\app{\App{f}{\tau_1}}{v}}})}{\tau_2}}{(\Abs{X}{\tabs{x}{\tau}{e_2}})}\\
+    \to& \app{(\tabs{f}{\fatype{X}{\tau \to \tau_2}}{\app{\App{f}{\tau_1}}{v}})}{(\Abs{X}{\tabs{x}{\tau}{e}})}\\
+    \to& \app{\App{(\Abs{X}{\tabs{x}{\tau_1}{e}})}{\tau}}{v}\\
+    \to& \app{(\tabs{x}{\tau_1[X\mapsto\tau]}{e[X \mapsto \tau}])}{v}\\
+    \to& e[X \mapsto \tau, x \mapsto v]
+  \end{array}
+  $$
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

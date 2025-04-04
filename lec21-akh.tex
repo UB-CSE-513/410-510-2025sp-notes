@@ -1,0 +1,266 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Parametric Polymorphism}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{21}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Our first form of polymorphism, subtype polymorphism (sometimes known as \emph{ad-hoc polymorphism}), actually allows a single term to have multiple types during type checking.
+\item At runtime, however, a term cannot change its behavior: a record has a type, and that is that.
+\item In this lecture, we will talk about \emph{parametric polymorphism}, which allows a term to \emph{behave} like it has many different types.
+\item This is the polymorphism of OCaml, and is very related to Agda's $\forall$ types. 
+\end{itemize}
+
+\section{System~F}
+\label{sec:system-f}
+
+\begin{itemize}
+\item The Polymorphic $\lambda$~Calculus, or System~F, is the simplest polymorphic system.
+\item As we will see, it's powerful enough to express a lot of the material we have already seen.
+\item The syntax, however, is refreshingly lean:
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{X} \alternative{\tau_1 \to \tau_2} \alternative{\fatype{X}{\tau}}
+  \category[Values]{v} \alternative{\tabs{x}{\tau}{e}} \alternative{\Abs{X}{e}}
+  \category[Expressions]{e} \alternative{x} \alternative{\tabs{x}{\tau}{e}} \alternative{\app{e_1}{e_2}}\\
+                                                 \alternative{\Abs{X}{e}} \alternative{\App{e}{\tau}}
+  \category[Evaluation Contexts (Full $\beta$)]{\mathcal{C}} \alternative{[\cdot]} \alternative{\tabs{x}{\tau}{\mathcal{C}}} \alternative{\app{\mathcal{C}}{e}} \alternative{\app{e}{\mathcal{C}}}\\
+                                                                \alternative{\Abs{X}{\mathcal{C}}} \alternative{\App{\mathcal{C}}{\tau}}
+  \category[Evaluation Contexts (CBV)]{\mathcal{C}} \alternative{[\cdot]} \alternative{\app{\mathcal{C}}{e}} \alternative{\app{v}{\mathcal{C}}} \alternative{\App{\mathcal{C}}{\tau}}
+  \category[Typing Contexts]{\Gamma} \alternative{\cdot} \alternative{\Gamma, x : \tau}
+  \category[Type Contexts]{\Delta} \alternative{\cdot} \alternative{\Delta, X}
+\end{syntax}
+
+\begin{itemize}
+\item The first line of expressions are just simply-typed $\lambda$~calculus.
+\item The expression $\Abs{X}{e}$ is the introduction form for $\fatype{X}{\tau}$.
+  We can think of it as a function that takes a type as input.\\
+  (Note that $\Lambda$ is a capital $\lambda$, not an upside-down $V$ or similar.)
+\item The expression $\App{x}{\tau}$ is the elimination form for $\fatype{X}{\tau}$.
+  It provides a function with a type argument.
+\item Here, $\tau$ may be open, and therefore $e$ contains type variables.
+\item $\Abs{X}{e}$ is a binder for the type variable $X$ in $e$.
+\item We can substitute types in types, types in terms, and terms in terms.
+\item The operational semantics are familiar.
+  For regular functions, we distinguish between the full $\beta$ and CBV versions; otherwise, the difference between the two is the difference in evaluation contexts above.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{e \to e'}{\mathcal{C}[e] \to \mathcal{C}[e']} \\
+  \app{(\tabs{x}{\tau}{e_1})}{e_2} \to_\beta e_1[x \mapsto e_2] \and \app{(\tabs{x}{\tau}{e})}{v} \to_{\text{CBV}} e[x \mapsto v]\\
+  \App{(\Abs{X}{e})}{\tau} \to e[X \mapsto \tau]
+\end{mathpar}
+
+\begin{itemize}
+\item We yet again have a notion of type well-formedness $\Delta \vdash \tau$, wherein types should only reference type variables in scope.
+\item We also have $\Delta \vdash \Gamma$ which says that all of the types in $\Gamma$ are well formed.
+\item In types, the only binder for type variables is $\forall$, so we can easily define this:
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Axiom]{X \in \Delta}{\Delta \vdash X} \and
+  \infer*[left=Arrow]{\Delta \vdash \tau_1\\ \Delta \vdash \tau_2}{\Delta \vdash \tau_1 \to \tau_2}\and
+  \infer*[left=Forall]{\Delta, X \vdash \tau}{\Delta \vdash \fatype{X}{\tau}}\\
+  \infer*[left=Empty]{ }{\Delta \vdash \cdot} \and
+  \infer*[left=Cons]{\Delta \vdash \Gamma\\ \Delta \vdash \tau}{\Delta \vdash \Gamma, x : \tau}
+\end{mathpar}
+
+\begin{itemize}
+\item We now have a substitution lemma similar to that for programs, but for types.
+\item We also have a weakening lemma.
+\item Together, these tell us that we can do all of the operations we're used to on variables on type variables.
+\end{itemize}
+
+\begin{thm}[Substitution]
+  If $\Delta \vdash \tau_1$ and $\Delta_1, X, \Delta_2 \vdash \tau_2$, then $\Delta_1, \Delta, \Delta_2 \vdash \tau_2[X \mapsto \tau_1]$.
+\end{thm}
+
+\begin{thm}[Weakening]
+  If $\Delta_1 \vdash \tau$ and $\Delta_1 \subseteq \Delta_2$, then $\Delta_2 \vdash \tau$.
+\end{thm}
+
+\begin{itemize}
+\item The typing judgment has changed form: we now have $\Delta; \Gamma \vdash e : \tau$.
+\item This says that with the type-variable scope $\Delta$ and variable scope $\Gamma$, $e$ has type $\tau$.
+\item Other than the inclusion of the type-variable scope $\Delta$, this should be very familiar.
+\item Note that $\tabs{x}{X}{e}$ has meaning now: $X$ is some type to be filled in later, just like in OCaml.
+  With the inclusion of $\Lambda$, we now have a way to actually fill it in later, unlike when we just had recursive types.
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Axiom]{\Delta \vdash \Gamma\\ x : \tau \in \Gamma}{\Delta; \Gamma \vdash x : \tau}\\
+  \infer*[left=$\to$-I]{\Delta; \Gamma, x : \tau_1 \vdash e : \tau_2}{\Delta; \Gamma \vdash \tabs{x}{\tau_1}{e} : \tau_1 \to \tau_2} \and
+  \infer*[right=$\to$-E]{\Delta; \Gamma \vdash f : \tau_1 \to \tau_2\\ \Delta; \Gamma \vdash a : \tau_1}{\Delta; \Gamma \vdash \app{f}{a} : \tau_2}\\
+  \infer*[left=$\forall$-I]{\Delta, X; \Gamma \vdash e : \tau}{\Delta; \Gamma \vdash \Abs{X}{e} : \fatype{X}{\tau}} \and
+  \infer*[right=$\forall$-E]{\Delta; \Gamma \vdash e : \fatype{X}{\tau_1}\\ \Delta \vdash \tau_2}{\Delta; \Gamma \vdash \App{e}{\tau} : \tau_1[X \mapsto \tau_2]}
+\end{mathpar}
+
+\begin{thm}
+  If $\Delta; \Gamma \vdash e : \tau$, then $\Delta \vdash \Gamma$ and $\Delta \vdash \tau$.
+\end{thm}
+
+\begin{thm}
+  If $\Delta \vdash \tau_1$ and $\Delta_1, X, \Delta_2; \Gamma \vdash e : \tau_2$, then $\Delta_1, \Delta, \Delta_2; \Gamma[X \mapsto \tau_1] \vdash e[X \mapsto \tau_1] : \tau_2[X \mapsto \tau_1]$.
+\end{thm}
+
+\section{Simulating Basic Types}
+\label{sec:simul-basic-types}
+
+\begin{itemize}
+\item We've dropped all of our basic type constructions from earlier in the semester.
+\item However, that doesn't mean we've lost their power: we can simulate them using polymorphic types.
+\item The idea is to encode how a type can be used; in other words, encode its elimination rule(s).
+\item The exception is \utype, as we will see below.
+\end{itemize}
+
+\newpage
+\paragraph{Product Types}
+$$
+\begin{array}{rl}
+  \prodtype{\tau_1}{\tau_2} \triangleq &\fatype{X}{(\tau_1 \to \tau_2 \to X) \to X}\\
+  \textsf{pair} :& \fatype{\tau_1}{\fatype{\tau_2}{\tau_1 \to \tau_2 \to \tau_1 \times \tau_2}}\\
+  \textsf{pair} \triangleq& \Abs{\tau_1}{\Abs{\tau_2}{\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{\Abs{X}{\tabs{f}{\tau_1 \to \tau_2 \to X}{\app{\app{f}{x}}{y}}}}}}} \\
+  \pi_1 :& \fatype{\tau_1}{\fatype{\tau_2}{\tau_1 \times \tau_2 \to \tau_1}}\\
+  \pi_1 \triangleq& \Abs{\tau_1}{\Abs{\tau_2}{\tabs{p}{\tau_1 \times \tau_2}{\app{\App{p}{\tau_1}}{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{x}})}}}}\\
+  \pi_2 :& \fatype{\tau_1}{\fatype{\tau_2}{\tau_1 \times \tau_2 \to \tau_2}}\\
+  \pi_2 \triangleq& \Abs{\tau_1}{\Abs{\tau_2}{\tabs{p}{\tau_1 \times \tau_2}{\app{p}{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{y}})}}}}
+\end{array}
+$$
+
+$$
+\begin{array}{ll}
+  \app{(\App{\App{\pi_1}{\tau_1}}{\tau_2})}{(\app{\app{\App{\App{\textsf{pair}}{\tau_1}}{\tau_2}}{v_1}}{v_2})} &= \begin{array}[t]{l}(\App{\App{(\Abs{\tau_1}{\Abs{\tau_2}{\tabs{p}{\tau_1 \times \tau_2}{\app{\App{p}{\tau_1}}{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{x}})}}}})}{\tau_1}}{\tau_2})\\(\app{\app{\App{\App{(\Abs{\tau_1}{\Abs{\tau_2}{\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{\Abs{X}{\tabs{f}{\tau_1 \to \tau_2 \to X}{\app{\app{f}{x}}{y}}}}}}})}{\tau_1}}{\tau_2}}{v_1}}{v_2})\end{array}\\
+                                                                                             &\to^\ast \app{(\tabs{p}{\tau_1 \times \tau_2}{\app{\App{p}{\tau_1}}{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{x}})}})}{(\Abs{X}{\tabs{f}{\tau_1 \to \tau_2 \to X}{\app{\app{f}{v_1}}{v_2}}})}\\
+                                                                                             &\to \app{\App{(\Abs{X}{\tabs{f}{\tau_1 \to \tau_2 \to X}{\app{\app{f}{v_1}}{v_2}}})}{\tau_1}}{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{x}})}\\
+                                                                                             &\to \app{(\tabs{f}{\tau_1 \to \tau_2 \to \tau_1}{\app{\app{f}{v_1}}{v_2}})}{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{x}})}\\
+                                                                                             &\to \app{\app{(\tabs{x}{\tau_1}{\tabs{y}{\tau_2}{x}})}{v_1}}{v_2}\\
+                                                                                             &\to \app{(\tabs{y}{\tau_2}{v_1})}{v_2}\\
+                                                                                             &\to v_1
+\end{array}
+$$
+
+\paragraph{Sum Types}
+$$
+\begin{array}{rl}
+  \sumtype{\tau_1}{\tau_2} \triangleq& \fatype{X}{(\tau_1 \to X) \to (\tau_2 \to X) \to X}\\
+  \textsf{inj}_1 :& \fatype{\tau_1}{\fatype{\tau_2}{\tau_1 \to \tau_1 + \tau_2}}\\
+  \textsf{inj}_1 \triangleq& \Abs{\tau_1}{\Abs{\tau_2}{\tabs{x}{\tau_1}{\Abs{X}{\tabs{f}{\tau_1 \to X}{\tabs{g}{\tau_2 \to X}{\app{f}{x}}}}}}}\\
+  \textsf{inj}_2 :& \fatype{\tau_1}{\fatype{\tau_2}{\tau_2 \to \tau_1 + \tau_2}}\\
+  \textsf{inj}_2 \triangleq& \Abs{\tau_1}{\Abs{\tau_2}{\tabs{y}{\tau_2}{\Abs{X}{\tabs{f}{\tau_1 \to X}{\tabs{g}{\tau_2 \to X}{\app{g}{y}}}}}}}\\
+  \case{e_1}{x}{e_2}{y}{e_3} \triangleq& \app{\app{\App{e_1}{\tau}}{(\tabs{x}{\tau_1}{e_2})}}{(\tabs{y}{\tau_2}{e_3})}
+\end{array}
+$$
+
+$$
+\begin{array}{l}
+  \hspace{1em}\begin{array}[t]{l}
+    \textsf{case}\mkern5mu(\app{\App{\App{\textsf{inj}_1}{\tau_1}}{\tau_2}}{v})\mkern5mu\textsf{of}\\
+    \app{\textsf{inj}_1}{x} \Rightarrow e_1;\\
+    \app{\textsf{inj}_2}{y} \Rightarrow e_2
+  \end{array}\\
+  = \app{\app{\App{(\app{\App{\App{\textsf{inj}_1}{\tau_1}}{\tau_2}}{v})}{\tau}}{(\tabs{x}{\tau_1}{e_1})}}{(\tabs{y}{\tau_2}{e_2})}\\
+  = \begin{array}[t]{l}(\app{\App{\App{(\Abs{Y}{\Abs{Z}{\tabs{x}{Y}{\Abs{X}{\tabs{f}{Y \to X}{\tabs{g}{Z \to X}{\app{f}{x}}}}}}})}{\tau_1}}{\tau_2}}{v})\\[0em] [\tau] \\(\tabs{x}{\tau_1}{e_1})\\(\tabs{y}{\tau_2}{e_2})\end{array}\\
+  \to^\ast \app{\app{\App{(\Abs{X}{\tabs{f}{\tau_1 \to X}{\tabs{g}{\tau_2 \to X}{\app{f}{v}}}})}{\tau}}{(\tabs{x}{\tau_1}{e_1})}}{(\tabs{y}{\tau_2}{e_2})}\\
+  \to \app{\app{(\tabs{f}{\tau_1 \to \tau}{\tabs{g}{\tau_2 \to \tau}{\app{f}{v}}})}{(\tabs{x}{\tau_1}{e_1})}}{(\tabs{y}{\tau_2}{e_2})}\\
+  \to \app{(\tabs{g}{\tau_2 \to \tau}{\app{(\tabs{x}{\tau_1}{e_1})}{v}})}{(\tabs{y}{\tau_2}{e_2})}\\
+   \to \app{(\tabs{x}{\tau_1}{e_1})}{v}\\
+   \to e_1[x \mapsto v]
+\end{array}
+$$
+
+\paragraph{Void}
+$$
+\begin{array}{rl}
+  \vtype \triangleq& \fatype{X}{X}\\
+  \vcase{e} \triangleq& \App{e}{\tau}
+\end{array}
+$$
+
+\paragraph{Unit}
+$$
+\begin{array}{rl}
+  \utype \triangleq& \fatype{X}{X \to X}\\
+  \unit \triangleq& \Abs{X}{\tabs{x}{X}{x}}
+\end{array}
+$$
+
+\begin{itemize}
+\item The fact that there's only one value of type \utype, that there are no possible values of type \vtype, now requires a more intense argument.
+\item In particular, we need \emph{parametricity}, which requires the use of logical relations.
+\item We will get to that in a couple of weeks.
+\end{itemize}
+
+\section{Hindley-Milner}
+\label{sec:hindley-milner}
+
+\begin{itemize}
+\item As you may have noticed, writing all of these type annotations is a real pain.
+\item Real-world languages with polymorphism tend to be weaker than System~F: they require that all of the $\forall$s appear at the beginning of the type.
+\item Then, we can leave off the $\forall$s, since any free type variables are implicitly bound by a $\forall$ at the beginning of the type.
+\item At that point, we can algorithmically reconstruct the type applications.
+\item In fact, \emph{type inference} becomes decidable: given a term, we can determine what type it has or if it cannot type check for \emph{any} type.
+\item This is done using the famous Hindley-Milner algorithm (named after its two inventors, including Turing-award winner Robin Milner) and the \emph{unification} algorithm.
+\end{itemize}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

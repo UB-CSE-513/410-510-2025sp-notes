@@ -1,0 +1,218 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Call-By-Value Logical Relations}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{24}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Last week, we saw how we can use \emph{logical relations} to prove that STLC terms fully normalize under full $\beta$ reduction.
+\item However, we want to know something more: we want to know that in CBV $\lambda$-calculus, all terms terminate with a \emph{value}.
+\item Technically, we don't know that this holds, because we may need to rewrite under $\lambda$s in order to obtain a normal form.
+  We know that, for values, it doesn't matter what the body of a function is, but does that help at all?
+\item Instead of trying to massage the last proof, we are going to build a new logical-relations proof.
+\item In fact, when dealing with a CBV language, there's a nice structure we can put on logical relations:
+  instead of just writing one relation, we write a \emph{value} relation and an \emph{expression} relation.
+\item Then, we can constrain the \emph{shape} of the values.
+\item This lets us get away without explicitly mentioning all of the elimination forms, while still ensuring that everything can eliminate correctly.
+\item Let's see an example:
+\end{itemize}
+
+$$
+\begin{array}{r@{\;\triangleq\;}l}
+  \mathcal{V}(\utype)(v) & v = \unit\\
+  \mathcal{V}(\vtype)(v) & \bot\\
+  \mathcal{V}(\prodtype{\tau_1}{\tau_2})(v) & \exists v_1, v_2.\, v = (v_1, v_2) \land \mathcal{V}(\tau_1)(v_1) \land \mathcal{V}(\tau_2)(v_2)\\
+  \mathcal{V}(\sumtype{\tau_1}{\tau_2})(v) & \exists v'.\, (v = \injl{v'} \land \mathcal{V}(\tau_1)(v')) \lor (v = \injr{v'} \land \mathcal{V}(\tau_2)(v'))\\
+  \mathcal{V}(\tau_1 \to \tau_2)(v) & \exists x, e.\, v = \tabs{x}{\tau_1}{e} \land \forall v'.\, \mathcal{V}(\tau_1)(v') \to \mathcal{E}(\tau_2)(e[x \mapsto v'])\\
+  \mathcal{E}(\tau)(e) & \exists v.\, e \to^\ast v \land \mathcal{V}(\tau)(v)
+\end{array}
+$$
+
+\begin{itemize}
+\item Here $\mathcal{V}(\tau)(v)$ means ``$v$ acts like a value of type $\tau$,'' while $\mathcal{E}(\tau)(e)$ means ``$e$ acts like an expression of type $\tau$.''
+\item It's easy to verify that $\mathcal{V}(\tau)(v) \to \mathcal{E}(\tau)(v)$.
+  This makes sense: something that acts like a value of type~$\tau$ should also act like an expression of type~$\tau$.
+  After all, values are expressions.
+\item It's also easy to verify that if $\mathcal{E}(\tau)(e)$, then $e \to^\ast v$ where $v$ is a value.
+  Note that we did not have to repeat it for all of the cases of the value function; instead, it's only in the expression relation.
+\item Note also that we did not have to talk about \textsf{case} expressions in the case for sum types.
+  Instead, we can just constrain $v$ to be either an $\textsf{inj}_1$ or a $\textsf{inj}_2$.
+  \begin{itemize}
+  \item \textbf{Stop and Think:} Why can we do this now, but not before?
+  \item Because variables can be normal forms.
+    But values can only have variables under $\lambda$s, so we know that there can't be a variable before a constructor here.
+  \end{itemize}
+\item We again write $$\mathcal{C}(\Gamma)(\gamma) \triangleq \forall x : \tau \in \Gamma.\, \mathcal{V}(\tau)(\gamma(x))$$
+  Here, $\gamma$ is a value substitution---it maps all variables to values.
+\item We can then again define $$\Gamma \vDash e : \tau \triangleq \forall \gamma.\,\mathcal{C}(\Gamma)(\gamma) \to \mathcal{E}(\tau)(e)$$
+\item We will spend most of the rest of the lecture proving the fundamental theorem.
+\end{itemize}
+
+\newpage
+\begin{thm}[Fundamental Theorem]
+  If $\Gamma \vdash e : \tau$, then $\Gamma \vDash e : \tau$.
+\end{thm}
+\begin{proof}
+  By induction on the evidence of $\Gamma \vdash e : \tau$.
+
+  \noindent \textbf{Case \textsc{Axiom}:}
+  In this case, $e = x$ and $x : \tau \in \Gamma$.
+  Now, let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e[\gamma] = \gamma(x)$ and $\mathcal{V}(\tau)(\gamma(x))$, so $\mathcal{E}(\tau)(\gamma(x))$, as desired.
+
+  \noindent\textbf{Case \textsc{Unit-I}:}
+  In this case, $e = \unit$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e[\gamma] = \unit[\gamma] = \unit$.
+  But $\mathcal{V}(\utype)(\unit)$, so $\mathcal{E}(\utype)(\unit)$ as desired.
+
+  \noindent\textbf{Case \textsc{Void-E}:}
+  In this case, $e = \vcase{e'}$ and $\Gamma \vdash e' : \vtype$.
+  By IH, then, $\Gamma \vDash e' : \vtype$.
+  Now, let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $\mathcal{E}(\vtype)(e'[\gamma])$ by IH, and so there is a $v$ such that $e'[\gamma] \to^\ast v$ and $\mathcal{V}(\vtype)(v)$.
+  But this is impossible, so we are done.
+
+  \noindent\textbf{Case \textsc{$\to$-I}:}
+  In this case, $\tau = \tau_1 \to \tau_2$ and $e = \tabs{x}{\tau_1}{e'}$ where $\Gamma, x : \tau_1 \vdash e' : \tau_2$.
+  Now, let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e[\gamma] = (\tabs{x}{\tau_1}{e'})[\gamma] = \tabs{x}{\tau_1}{(e'[\gamma])}$.
+  Moreover, let $v$ be such that $\mathcal{V}(\tau_1)(v)$.
+  Then $\mathcal{C}(\Gamma, x : \tau)(\gamma[x \mapsto v])$.
+  But, $e'[\gamma][x \mapsto v] = e'[\gamma[x \mapsto v]]$ and so $\mathcal{E}(\tau_2)(e'[\gamma][x \mapsto v])$ by IH.
+  But then $\mathcal{V}(\tau_1 \to \tau_2)(e)$, and thus $\mathcal{E}(\tau_1 \to \tau_2)(e)$ as desired.
+
+  \noindent\textbf{Case \textsc{$\to$-E}:}
+  In this case, $e = \app{f}{a}$ where $\Gamma \vdash f : \tau' \to \tau$ and $\Gamma \vdash a : \tau'$ for some $\tau'$.
+  By IH, $\Gamma \vDash f : \tau' \to \tau$ and $\Gamma \vDash a : \tau'$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e[\gamma] = (\app{f}{a})[\gamma] = \app{(f[\gamma])}{(a[\gamma])}$.
+  By IH, $\mathcal{E}(\tau' \to \tau)(f[\gamma])$ and so $f[\gamma] \to^\ast \tabs{x}{\tau'}{e'}$ where $\mathcal{V}(\tau' \to \tau)(\tabs{x}{\tau'}{e'})$.
+  Similarly, $a[\gamma] \to^\ast v$ where $\mathcal{V}(\tau')(v)$.
+  But then we have $$e[\gamma] = \app{(f[\gamma])}{(a[\gamma])} \to^\ast \app{(\tabs{x}{\tau'}{e'})}{a} \to^\ast \app{(\tabs{x}{\tau'}{e'})}{a} \to e'[x \mapsto a]$$
+  But since $\mathcal{V}(\tau' \to \tau)(\tabs{x}{\tau'}{e'})$ and $\mathcal{V}(\tau')(v)$, we get $\mathcal{E}(\tau)(e'[x \mapsto a])$, and so $e'[x \mapsto a] \to^\ast v'$ where $\mathcal{V}(\tau)(v')$.
+  Thus, $$e[\gamma] \to^\ast v' \mathrel{\text{where}} \mathcal{V}(\tau)(v')$$ and so $\mathcal{E}(\tau)(e[\gamma])$, as desired.
+
+  \noindent\textbf{Case \textsc{$\times$-I}:}
+  In this case, $e = (e_1, e_2)$ where $\Gamma \vdash e_1 : \tau_1$ and $\Gamma \vdash e_2 : \tau_2$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then by IH, $\mathcal{E}(\tau_1)(e_1[\gamma])$ and so $e_1[\gamma] \to^\ast v_1$ where $\mathcal{V}(\tau_1)(v_1)$.
+  Similarly, $\mathcal{E}(\tau_2)(e_2[\gamma])$ and so $e_2[\gamma] \to^\ast v_2$ where $\mathcal{V}(\tau_2)(v_2)$.
+  Hence $$e[\gamma] = (e_1, e_2)[\gamma] = (e_1[\gamma], e_2[\gamma]) \to^\ast (v_1, e_2[\gamma]) \to^\ast (v_1, v_2) \mathrel{\text{where}} \mathcal{V}(\tau_1)(v_1) \land \mathcal{V}(\tau_2)(v_2)$$
+  and thus $\mathcal{E}(\tau_1 \times \tau_2)(e[\gamma])$ as desired.
+
+  \noindent\textbf{Case \textsc{$\times$-E$_1$}:}
+  In this case, $e = \projl{e'}$ where $\Gamma \vdash e' : \tau_1 \times \tau_2$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e[\gamma] = \projl{(e'[\gamma])}$, and by IH $\mathcal{E}(\tau_1 \times \tau_2)(e'[\gamma])$
+  But then $e'[\gamma] \to^\ast (v_1, v_2)$ where $\mathcal{V}(\tau_1)(v_1)$.
+  Thus, $$e[\gamma] = \projl{(e'[\gamma])} \to^\ast \projl{(v_1, v_2)} \to v_1 \mathrel{\text{where}} \mathcal{V}(\tau_1)(v_1)$$
+  and so $\mathcal{E}(\tau_1)(e[\gamma])$ as desired.
+
+  \noindent\textbf{Case \textsc{$\times$-E$_2$}:}
+  Very similar to the previous case.
+
+  \noindent\textbf{Case \textsc{$+$-I$_1$}:}
+  In this case, $e = \injl{e'}$ where $\Gamma \vdash e' : \tau_1$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then by IH $e'[\gamma] \to v$ where $\mathcal{V}(\tau_1)(v)$.
+  But then $$e[\gamma] = \injl{(e'[\gamma])} \to^\ast \injl{v} \mathrel{\text{where}} \mathcal{V}(\tau_1)(v)$$
+  and so $\mathcal{E}(\sumtype{\tau_1}{\tau_2})(e[\gamma])$ as desired.
+
+  \noindent\textbf{Case \textsc{$+$-I$_2$}:}
+  Very similar to the previous case.
+
+  \noindent\textbf{Case \textsc{$+$-E}:}
+  In this case, $e = \case{e'}{x}{e_1}{y}{e_2}$ where $\Gamma \vdash e' : \sumtype{\tau_1}{\tau_2}$, $\Gamma, x : \tau_1 \vdash e_1 : \tau$, and $\Gamma, y : \tau_2 \vdash e_2 : \tau$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e'[\gamma] \to^\ast v$ where $\mathcal{V}(\sumtype{\tau_1}{\tau_2})(v)$.
+  Hence, either $v = \injl{v'}$ where $\mathcal{V}(\tau_1)(v')$ or $v =\injr{v'}$ where $\mathcal{V}(\tau_2)(v')$.
+  In the first case, we get
+  $$
+  \begin{array}{ll}
+    e[\gamma] = \case{(e'[\gamma])}{x}{e_1[\gamma]}{y}{e_2[\gamma]} &\to^\ast \case{(\injl{v'})}{x}{e_1[\gamma]}{y}{e_2[\gamma]}\\
+                                                &\to e_1[\gamma][x \mapsto v'] = e_1[\gamma[x\mapsto v']]\\
+                                                &\to^\ast v \mathrel{\text{where}} \mathcal{V}(\tau)(v)
+  \end{array}
+  $$
+  where the last mutlistep comes from the IH along with the fact that $\mathcal{C}(\Gamma, x : \tau_1)(\gamma[x \mapsto v'])$.
+
+  The second case is very similar.
+  
+\end{proof}
+
+\begin{cor}[Termination]
+  If $\vdash e : \tau$, then $e \to^\ast v$ where $v$ is a value.
+\end{cor}
+\begin{proof}
+  Since $\vdash e : \tau$, by the fundamental theorem $\vDash e : \tau$.
+  Note that $\mathcal{C}(\cdot)([\,])$, where $[\,]$ is the empty substitution.
+  Thus, $\mathcal{E}(\tau)(e[\,]) = \mathcal{E}(\tau)(e)$.
+  But this means that $e \to^\ast v$, as desired.
+\end{proof}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

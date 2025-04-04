@@ -1,0 +1,215 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Contextual Equivalence}
+\coursenumber{CSE 4510}
+\coursename{Programming Language Theory}
+\lecturenumber{25}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item When are two programs ``equal''?
+  Or, better yet, when are they \emph{semantically equivalent}?
+\item The most important thing: no observer can tell them apart.
+\item So, you need to have some sort of observer model.
+\item Very common observer model: the observer is some other program in the same language.
+  We can model this as an evaluation context $\mathcal{C}$.
+  \begin{itemize}
+  \item But this just begs the question.
+    After all, if we want to know if two programs~$p$ and~$q$ are equivalent, this just tells us to check if the program~$\mathcal{C}[p]$ is equivalent to the program~$\mathcal{C}[q]$ for every possible choice of $\mathcal{C}$.
+  \end{itemize}
+\item Alternatively, we can ask if every decidable property of $p$'s return value is also true of $q$'s return value, or vice-versa.
+\item Well, for a decision procedure is essentially a function that returns $\mathbb{B} \triangleq \sumtype{\utype}{\utype}$.
+\item So, we can say that $p$ and $q$ are equivalent if for every context $\mathcal{C}$ that returns a boolean, $\mathcal{C}[p] \cong_\beta \mathcal{C}[q]$.
+\item This is perfect for pure languages, but for effectful languages this needs to be modified to take into account the effects of $p$ and $q$.
+\item This definition is very intuitive, but really hard to work with.
+\item For instance, what if we want to show that if $e \cong_{\alpha,\beta,\eta} e'$, then we need to do two inductions: one on the equivalence and an internal one on every possible context.
+\item Can we do better?
+\item Yes! We use a \emph{binary} logical relation.
+\end{itemize}
+
+\section{The Binary Relation}
+\label{sec:binary-relation}
+
+\begin{itemize}
+\item We now write a logical relation that is intended to mean ``these two valuexpressions act like semantically equivalent valuexpressions of this type.''
+\item We write $\mathcal{V}(\tau)(v_1 \sim v_2)$ for the value relation, and $\mathcal{E}(\tau)(e_1 \sim e_2)$ for the expression relation.
+\end{itemize}
+
+$$
+\begin{array}{r@{\;\triangleq\;}l}
+  \mathcal{V}(\utype)(v_1 \sim v_2) & v_1 = v_2 = \unit\\
+  \mathcal{V}(\vtype)(v_1 \sim v_2) & \bot\\
+  \mathcal{V}(\prodtype{\tau_1}{\tau_2})(v_1 \sim v_2) & \exists v_{11}, v_{12}, v_{21}, v_{22}.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}v_1 = (v_{11}, v_{12})\\ {} \land v_2 = (v_{21}, v_{22})\\ {} \land \mathcal{V}(\tau_1)(v_{11} \sim v_{21})\\ {} \land \mathcal{V}(\tau_2)(v_{12} \sim v_{22})\end{array}\\[1em]
+  \mathcal{V}(\sumtype{\tau_1}{\tau_2})(v_1 \sim v_2) & \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}(\exists v'_1, v'_2.\, v_1 = \injl{v'_1} \land v_2 = \injl{v'_2} \land \mathcal{V}(\tau_1)(v'_1 \sim v'_2))\\ {} \lor (\exists v'_1, v'_2.\,v_1 = \injr{v'_1} \land v_2 = \injr{v'_2} \land \mathcal{V}(\tau_2)(v'_1 \sim v'_2)\end{array}\\
+  \mathcal{V}(\tau_1 \to \tau_2)(v_1 \sim v_2) & \exists x, e_1, y, e_2.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}v_1 = \tabs{x}{\tau_1}{e_1}\\{} \land v_2 = \tabs{y}{\tau_2}{e_2}\\{} \land (\forall a_1, a_2.\, \mathcal{V}(\tau_1)(a_1 \sim a_2) \to \mathcal{E}(\tau_2)(e_1[x \mapsto a_1] \sim e_2[y \mapsto a_2])\end{array}\\
+  \mathcal{E}(\tau)(e_1 \sim e_2) & \exists v_1, v_2.\, e_1 \to^\ast v_1 \land e_2 \to^\ast v_2 \land \mathcal{V}(\tau)(v_1 \sim v_2)
+\end{array}
+$$
+
+\begin{itemize}
+\item First question: does this capture our desired notion of contextual equivalence?
+\item Well, first thing to note is that $\mathcal{V}(\sumtype{\utype}{\utype})(v_1 \sim v_2) \iff v_1 = v_2$.
+  Therefore, $\mathcal{E}(\sumtype{\utype}{\utype})(e_1 \sim e_2) \iff e_1 \cong_\beta e_2$.
+\item We write $$\Gamma \vdash \mathcal{C} : \tau_1 \Rrightarrow \tau_2 \triangleq \forall e.\, \Gamma \vdash e : \tau_1 \mathrel{\text{implies}} \Gamma \vdash \mathcal{C}[e] : \tau_2$$
+\item Then, we can use the following theorem:
+\begin{thm}[Relation Contexts]
+  If $\mathcal{E}(\tau_1)(e_1 \sim e_2)$ and $\vdash \mathcal{C} : \tau_1 \Rrightarrow \tau_2$, then $\mathcal{E}(\tau_2)(\mathcal{C}[e_1] \sim \mathcal{C}[e_2])$.
+\end{thm}
+\item Thus, if $\vdash \mathcal{C} : \tau_1 \Rrightarrow \mathbb{B}$, then $\mathcal{E}(\tau_1)(e_1 \sim e_2)$ implies that $\mathcal{C}[e_1] \cong_\beta \mathcal{C}[e_2]$, as desired.
+\end{itemize}
+
+\section{Whither Equivalence?}
+\label{sec:whither-equivalence}
+
+\begin{itemize}
+\item It might be natural to ask: is the logical relation an equivalence relation on terms?
+\item The answer is no! In particular, it is \emph{not} reflexive.
+\item After all, there is no type~$\tau$ such that $\mathcal{E}(\tau)(\app{(\tabs{x}{\vtype}{\app{x}{x}})}{(\tabs{x}{\vtype}{\app{x}{x}})})$, since this term loops forever and thus cannot be in the expression relation.
+\item However, it is a \emph{partial equivalence relation~(PER)}.
+  \begin{itemize}
+  \item A PER is a relation that is symmetric and transitive.
+  \item For a PER $R$, if $x \mathrel{R} y$, then $x \mathrel{R} x$ and $y \mathrel{R} y$.
+  \item To see this, note that $x \mathrel{R} y \Rightarrow y \mathrel{R} x$ by symmetry.
+  \item But by transitivity, $x \mathrel{R} y$ and $y \mathrel{R} x$ mean that $x \mathrel{R} x$ and $y \mathrel{R} y$.
+  \end{itemize}
+\end{itemize}
+
+\begin{thm}[Symmetry]
+  If $\mathcal{E}(\tau)(e_1 \sim e_2)$, then $\mathcal{E}(\tau)(e_2 \sim e_1)$ and if $\mathcal{V}(\tau)(v_1 \sim v_2)$ then $\mathcal{V}(\tau)(v_2 \sim v_1)$.
+\end{thm}
+\begin{proof}
+  Clearly, the expression relation is symmetric if the value relation is.
+  We prove that the value relation is by induction on $\tau$.
+
+  \noindent\textbf{Case $\tau = \utype$:} In this case, $v_1 = v_2 = \unit$, so we are done.
+
+  \noindent\textbf{Case $\tau = \vtype$:} This case is impossible.
+
+  \noindent\textbf{Case $\tau = \tau_1 \times \tau_2$:} In this case, $v_1 = (v_{11}, v_{12})$ and $v_2 = (v_{21}, v_{22})$ where $\mathcal{V}(\tau_1)(v_{11} \sim v_{21})$ and $\mathcal{V}(\tau_2)(v_{12} \sim v_{22})$.
+  By IH, then, $\mathcal{V}(\tau_1)(v_{21} \sim v_{11})$ and $\mathcal{V}(\tau_2)(v_{22} \sim v_{12})$, so $\mathcal{V}(\tau_1 \times \tau_2)(v_2 \sim v_1)$, as desired.
+
+  \noindent\textbf{Case $\tau = \tau_1 + \tau_2$:} In this case, WLOG assume that $v_1 = \injl{v'_1}$ and $v_2 = \injl{v'_2}$, where $\mathcal{V}(\tau_1)(v'_1 \sim v'_2)$.
+  Then by IH, $\mathcal{V}(\tau_1)(v'_2 \sim v'_1)$, and so we get the desired result.
+
+  \noindent\textbf{Case $\tau = \tau_1 \to \tau_2$:} In this case, $v_1 = \tabs{x}{\tau_1}{e_1}$ and $v_2 = \tabs{y}{\tau_1}{e_2}$.
+  Moreover, for any $a_1$ and $a_2$ such that $\mathcal{V}(\tau_1)(a_1 \sim a_2)$, we get $\mathcal{E}(\tau_2)(e_1[x \mapsto a_1] \sim e_2[y \mapsto a_2])$.
+  In order to get $\mathcal{V}(\tau_1 \to \tau_2)(v_2 \sim v_1)$, we need to know that if $\mathcal{V}(\tau_1)(a_1 \sim a_2)$, we get $\mathcal{E}(\tau_2)(e_2[y \mapsto a_1] \sim e_1[x \mapsto a_2])$.
+  But we can clearly get this from two uses of the IH, and we're done.
+\end{proof}
+
+\begin{thm}[Transitivity]
+  If $\mathcal{E}(\tau)(e_1 \sim e_2)$ and $\mathcal{E}(\tau)(e_2 \sim e_3)$, then $\mathcal{E}(\tau)(e_1 \sim e_3)$.
+  Moreover, if $\mathcal{V}(\tau)(v_1 \sim v_2)$ and $\mathcal{V}(\tau)(v_2 \sim v_3)$, then $\mathcal{V}(\tau)(v_1 \sim v_3)$.
+\end{thm}
+\begin{proof}
+  Similar to the proof for symmetry.
+\end{proof}
+
+\newpage
+\begin{itemize}
+\item While the relation is \emph{not} reflexive (as discussed before), the fundamental theorem says that it \emph{is} reflexive on well-typed terms.
+\item We write $\mathcal{K}(\Gamma)(\gamma_1 \sim \gamma_2) \triangleq \forall x : \tau \in \Gamma.\,\mathcal{V}(\tau)(\gamma_1(x) \sim \gamma_2(x))$.
+  \begin{itemize}
+  \item Here, we use $\mathcal{K}$ for ``kontext'' since $\mathcal{C}$ is already taken.
+  \end{itemize}
+\item Then, we write $\Gamma \vDash e_1 \sim e_2 : \tau$ to mean that for any $\gamma_1$ and $\gamma_2$ such that $\mathcal{K}(\Gamma)(\gamma_1 \sim \gamma_2)$, we get\\ $\mathcal{E}(\tau)(e_1[\gamma_1] \sim e_2[\gamma_2])$.
+\end{itemize}
+
+\begin{thm}[Fundamental Theorem]
+  If $\Gamma \vdash e : \tau$, then $\Gamma \vDash e \sim e : \tau$.
+\end{thm}
+\begin{proof}
+  By induction on the evidence of $\Gamma \vdash e : \tau$.
+  Very similar to the other proofs of the fundamental theorem we have gone through before.
+\end{proof}
+
+\begin{itemize}
+\item Thus, we get that the expression relation is a PER on terms for every type, and that well-typed terms are reflexive in their type.
+\item A common model of extensional type theory is just that: a type is a PER on terms, and a term is well-typed at $\tau$ if and only if that term is reflexive in the PER at that type.
+\item Thus, the expression relation really is building a denotational model of type theory!
+\end{itemize}
+
+\section{Standard Equivalences}
+\label{sec:stand-equiv}
+
+\begin{itemize}
+\item It's relatively easy to prove that $\alpha$, $\beta$, and $\eta$ equivalences all hold in $\mathcal{E}$.
+\item As an example, let's prove that $\eta$ equivalence holds at arrow types.
+\end{itemize}
+
+\begin{lem}[Arrow $\eta$]
+  $\mathcal{E}(\tau_1 \to \tau_2)(e \sim e)$ if and only if $\mathcal{E}(\tau_1 \to \tau_2)(e \sim \tabs{x}{\tau_1}{\app{e}{x}})$ for fresh $x$.
+\end{lem}
+\begin{proof}
+  Since $\mathcal{E}(\tau_1 \to \tau_2)(e \sim e)$, we know that there is a $y$ and $e'$ such that $e \to^\ast \tabs{y}{\tau_1}{e'}$ and that for every $a_1$ and $a_2$ such that $\mathcal{V}(\tau_1)(a_1 \sim a_2)$, we get $\mathcal{E}(\tau_2)(e'[y \mapsto a_1] \sim e'[y \mapsto a_2])$.
+  Now, clearly $\tabs{x}{\tau_1}{\app{e}{x}} \to^\ast \tabs{x}{\tau_1}{\app{e}{x}}$, so we need only show that $\mathcal{V}(\tau_1 \to \tau_2)(\tabs{y}{\tau_1}{e'} \sim \tabs{x}{\tau_1}{\app{e}{x}})$.
+  This means that we get $a_1$ and $a_2$ such that $\mathcal{V}(\tau_1)(a_1 \sim a_2)$ and we need to show that $\mathcal{E}(\tau_2)(e'[y \mapsto a_1] \sim \app{e}{a_2})$.
+  But $$\app{e}{a_2} \to^\ast \app{(\tabs{y}{\tau_1}{e'})}{a_2} \to e'[y \mapsto a_2]$$ and we already know that $\mathcal{E}(\tau_2)(e'[y \mapsto a_1] \sim \mathcal{E}(\tau_2)(e'[y \mapsto a_2])$.
+  Thus, $e'[y \mapsto a_1] \to^\ast v_1$ and $e'[y \mapsto a_2] \to^\ast v_2$ where $\mathcal{V}(\tau_2)(v_1 \sim v_2)$, as desired.
+
+  A very similar proof holds in the other direction.
+\end{proof}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

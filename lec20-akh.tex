@@ -1,0 +1,214 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Subtyping}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{20}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Up until now, all of our types have been very precise.
+  In fact, every given term has exactly one type.
+\item This week, we will be studying systems where one term might have multiple types.
+\item We start with the most famous and commonly-used version: subtyping.
+\item The idea is to develop a relation $\tau \subtype \tau'$ that means ``every term of type $\tau$ also has type $\tau'$.''
+\item In order to use it, we start by introducing record types.
+\end{itemize}
+
+\section{Record Types}
+\label{sec:record-types}
+
+\begin{syntax}
+  \abstractCategory[Labels]{\ell}
+  \category[Types]{\tau} \alternative{\utype} \alternative{\tau_1 \to \tau_2} \alternative{\prodtype{\tau_1}{\tau_2}} \alternative{\sumtype{\tau_1}{\tau_2}} \alternative{\{\ell_1 : \tau_1; \dots; \ell_n : \tau_n\}}
+  \category[Expressions]{e} \alternative{\dots} \alternative{\{\ell_1 = e_1; \dots; \ell_n = e_n\}} \alternative{e.\ell}
+\end{syntax}
+
+\begin{mathpar}
+  \{\ell_1 = e_1; \dots; \ell_n = e_n\}.\ell_i \to_\beta e_i \and
+  e \equiv_\eta \{\ell_1 = e.\ell_1; \dots; \ell_n = e.\ell_n\}
+\end{mathpar}
+
+\begin{mathpar}
+  \infer*[left=Record-I]{\forall i \in \{1, \dots, n\}.\;\Gamma \vdash e_i : \tau_i}{\{\ell_1 = e_1; \dots; \ell_n = e_n\} : \{\ell_1 : \tau_1; \dots; \ell_n : \tau_n\}}\and
+  \infer*[left=Record-E]{\Gamma \vdash e : \{\ell_1 : \tau_1; \dots; \ell_n : \tau_n\}}{\Gamma \vdash e.\ell_i : \tau_i}
+\end{mathpar}
+
+\begin{itemize}
+\item You've seen records before in agda and OCaml.
+\item They act like product types, but they don't care about order.
+  Instead, the projections are named explicitly by labels $\ell$.
+\item Thus, the type $\{x : \mathbb{N}, y : \mathbb{N}\}$ is the type of records with \emph{exactly} two natural numbers labeled by $x$ and $y$, respectively.
+\item In Agda and OCaml, the order of elements does not matter for records.
+\item However, here is matters: in \textsc{Record-I}, the expression and the type must have exactly the same labels in the same order.
+\item In the next section, we will use subtyping to get rid of this requirement.
+\end{itemize}
+
+\section{Subtyping}
+\label{sec:subtyping}
+
+\begin{itemize}
+\item Again, our goal is to build a relation $\tau \subtype \tau'$ that means ``every term of type $\tau$ also has type $\tau'$.''
+\item The most important goal for this principle is the \emph{Liskov Substitution Principle}, named after Turing laureate Barbara Liskov:
+\end{itemize}
+
+\begin{defn}[Liskov Substitution Principle]
+  If $\tau \subtype \tau'$ then in any context that demands a $\tau'$, a $\tau$ should be usable.
+\end{defn}
+
+\begin{itemize}
+\item For example, if I need an animal in order to do something, and you provide me with a mammal, I should be okay with that.
+\item For the type system we explored in the last section, we can define $\subtype$ as follows:
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=UnitRefl]{ }{\utype \subtype \utype} \and
+  \infer*[left=ProdSub]{\tau_1 \subtype \tau'_1\\  \tau_2 \subtype \tau'_2}{\prodtype{\tau_1}{\tau_2} \subtype \prodtype{\tau'_1}{\tau'_2}} \and
+  \infer*[left=SumSub]{\tau_1 \subtype \tau'_1\\  \tau_2 \subtype \tau'_2}{\sumtype{\tau_1}{\tau_2} \subtype \sumtype{\tau'_1}{\tau'_2}} \\
+  \infer*[left=ArrSub]{\tau'_1 \subtype \tau_1\\  \tau_2 \subtype \tau'_2}{\tau_1 \to \tau_2 \subtype \tau'_1 \to \tau'_2} \\
+  \infer*[left=RecordSub]{\exists f : \{1, \dots, m\} \hookrightarrow \{1, \dots, n\}. \forall i \in \{1, \dots, m\}.\; \ell_{f(i)} = \ell'_i \land \tau_{f(i)} \subtype \tau'_i}{\{\ell_1 : \tau_1; \dots; \ell_n : \tau_n\} \subtype \{\ell'_1: \tau'_1; \dots; \ell'_m : \tau'_m\}}
+\end{mathpar}
+
+\begin{itemize}
+\item The first three rules in this definition are pretty obvious.
+\item The rule for arrow types is less obvious: note that the subtyping relation for the arguments is reversed.
+  \begin{itemize}
+  \item To see why this is the correct thing to do, consider that a function that can work for any animal is also one that can work for any mammal.
+    However, a function that can work for any mammal may not work for any animal; for instance, it may do something like return the chemical formulation for the milk of the mammal, but snakes don't have milk.
+  \item This is in many ways ``just'' an application of the Liskov Substitution Principle: a more-precise function type promises to be able to do fewer things, which means it can take more things as a result!
+  \end{itemize}
+\item The rule for records is also potentially confusing: we require an injective mathematical function $f : \{1, \dots, n\} \hookrightarrow \{1, \dots, m\}$ and use that to match up labels.
+  \begin{itemize}
+  \item The notation $X \hookrightarrow Y$ just means ``injective function from $X$ to $Y$.''
+  \item Because $f$ is injective, we know that $m < n$.
+  \item Every label~$\ell_I$ in the subtype must exist in the supertype as $\ell_{f(i)}$, and the type $\tau_i$ must be a subtype of $\tau_{f(i)}$
+  \end{itemize}
+\item Our subtyping relation admits the following rules:
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=SubRefl]{ }{\tau \subtype \tau}\and
+  \infer*[left=SubTrans]{\tau_1 \subtype \tau_2\\ \tau_2 \subtype \tau_3}{\tau_1 \subtype \tau_3}\\
+  \infer*[left=RecordRearrange]{ }{\{\ell_1 : \tau_1; \dots; \ell_i : \tau_i; \ell_{i+1} : \tau_{i+1}; \dots; \ell_n : \tau_n\} \subtype \{\ell_1 : \tau_1; \dots; \ell_{i+1} : \tau_{i+1}; \ell_i : \tau_i; \dots; \ell_n : \tau_n\}} \and
+  \infer*[left=RecordDepth]{\forall i \in \{1, \dots, n\}.\; \tau_i \subtype \tau'_i}{\{\ell_1 : \tau_1; \dots; \ell_n : \tau_n\} \subtype \{\ell_1 : \tau'_1; \dots; \ell_n : \tau'_n\}} \and
+  \infer*[left=RecordBreadth]{ }{\{\ell_1 : \tau_1; \dots; \ell_n : \tau_n; \ell_{n+1} : \tau_{n+1}; \dots; \ell_m : \tau_m\} \subtype \{\ell_1 : \tau_1; \dots; \ell_n : \tau_n\}}
+\end{mathpar}
+
+\begin{itemize}
+\item The first two say that subtyping is a preorder.
+  \begin{itemize}
+  \item It is \emph{not} a partial order: if $\tau_1 \subtype \tau_2$ and $\tau_2 \subtype \tau_1$ then they have the same values, but they are not necessarily (syntactically) the same type.
+    We write $\tau_1 \equiv \tau_2$ if $\tau_1 \subtype \tau_2$ and $\tau_2 \subtype \tau_1$, and say that $\tau_1$ and $\tau_2$ are equivalent.
+  \item   An example of two equivalent types are $\{x : \mathbb{N}; y : \mathbb{N}\} \equiv \{y : \mathbb{N}; x : \mathbb{N}\}$.
+    In fact, any rearrangement of labels in a record type gives an equivalent record type.
+  \item As with any preorder, $\equiv$ is an equivalence relation.
+  \end{itemize}
+\item The last three are all about records:
+  \begin{itemize}
+  \item The first allows us to rearrange the labels in a record type.
+  \item The second allows us to go ``deeper'' inside of a record type at every label.
+  \item The last one allows us to remove labels to a record type, ``hiding'' them from view.
+    Think about it this way: there are more things that offer an~$x$ and a~$y$ then those that offer an~$x$, a~$y$, and a~$z$.
+  \end{itemize}
+\item Right now, our language does not follow the Liskov Substitution Principle.
+\item After all, we cannot use record types wherever we want; they have to match precisely!
+\item There are two ways to fix this.
+\item First, we can just declare by fiat that we will allow subtypes.
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Sub]{\Gamma \vdash e : \tau\\ \tau \subtype \tau'}{\Gamma \vdash e : \tau'}
+\end{mathpar}
+
+\begin{itemize}
+\item This is the most common thing to do, and it's very easy from the perspective of language design.
+\item However, it can often be hard to prove things about and to implement.
+\item Instead, we can ``bake in'' the subtyping rules to our typing rules.
+\item In our case, that only requires changing the \textsc{Record-I} rule:
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=Record-I]{\exists f : \{1, \dots, m\} \hookrightarrow \{1, \dots, n\}.\; \forall i \in \{1, \dots, m\}.\; \ell_{f(i)} = \ell'_i \land \Gamma \vdash e_{f(i)} : \tau_i}{\Gamma \vdash \{\ell_1 = e_1; \dots; \ell_m = e_m\} : \{\ell'_1 : \tau_1; \ldots; \ell'_n : \tau_n\}}
+\end{mathpar}
+
+\begin{itemize}
+\item If we take this option, then the \textsc{Sub} rule above becomes admissible.
+\end{itemize}
+
+\section{Recursive Typing, Redux}
+\label{sec:recurs-typing-redux}
+
+\begin{itemize}
+\item Last time, we looked at \emph{isorecursive} types: we had an isomorphism $\textsf{unroll} : \rectype{X}{\tau} \cong\tau[X \mapsto \rectype{X}{\tau}] : \textsf{roll}$.
+\item However, we often don't want to write the roll and unroll terms; instead, we want to treat $\rectype{X}{\tau}$ and $\tau[X \mapsto \rectype{X}{\tau}]$ as equivalent.
+\item Now we have an appropriate notion of equivalence!
+\item We can add type variables and recursive types \emph{without} adding \textsf{roll} and \textsf{unroll}, but then we have to add the following to our subtyping rules:
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=$\mu$-Left]{ }{\rectype{X}{\tau} \subtype \tau[X \mapsto \rectype{X}{\tau}]} \and
+  \infer*[left=$\mu$-Right]{ }{\tau[X \mapsto \rectype{X}{\tau}] \subtype \rectype{X}{\tau}}
+\end{mathpar}
+
+\begin{itemize}
+\item This works best if you've added \textsc{Sub} as a rule to your type system, rather than making it admissible (though there are ways around that).
+\item Now, you can simply use a recursive type wherever you have its unfolding and vice-versa!
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
