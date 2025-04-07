@@ -74,7 +74,7 @@ We use a call-by-name operational semantics:
     { \CC~[ e_1 ] \rightarrow \CC~[ e_2 ] }
 \end{mathpar}
 
-As well as its typing rules:
+Recall the typing rules:
 
 \begin{mathpar}
   \inferrule* [left = Axiom] 
@@ -104,23 +104,23 @@ Finally, recall how neutral and normal forms are defined in STLC:
 
 It is a well-known fact that STLC is \emph{strongly-normalizing}.
 That is, that all well-typed terms in STLC eventually $\beta$-reduce to a normal form.
+A weaker claim, fittingly called \emph{weak normalization}, says that there exists at least one reduction sequence that leads to a normal form.
+Weak normalization follows as a corollary of strong normalization, and it is defined for STLC as follows.
 
-\begin{thm}[Strong Normalization]
-  \label{thm:strong-norm}
-  $\forall e. \Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
+\begin{thm}[Weak Normalization]
+  $\forall e, \Gamma, \tau.~\Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
 \end{thm}
 
 Note that, while Untyped Lambda Calculus does not terminate, well-typed STLC terms do terminate because they reduce to normal forms.
 Hence, there is something about the types of STLC that limits our programs to ones that terminate.
-Let us now try to prove strong normalization of STLC.
+Let us now try to prove weak normalization of STLC.
 
 \section{Attempt 1: Induction}
 
-As we have seen, our proofs often proceed by induction, so our first attempt at proving strong normalization is via induction.
+As we have seen, our proofs often proceed by induction, so our first attempt at proving weak normalization is via induction.
 
-\begin{thm}[Strong Normalization]
-  \label{thm:strong-norm}
-  $\forall e. \Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
+\begin{thm}[Weak Normalization]
+  $\forall e, \Gamma, \tau.~\Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
 \end{thm}
 \begin{proof-attempt}
   By induction on the evidence for $\Gamma \proves e : \tau$.
@@ -148,7 +148,7 @@ As we have seen, our proofs often proceed by induction, so our first attempt at 
 
     $\app{\tabs{x}{\tau_1}{e}}{n_2} \to e[x \mapsto n_2]$
 
-    However, at this point, we know nothing about $e$, so we are stuck and the proof cannot proceed further.
+    However, at this point, we know nothing about the termination behavior of $e$, so we are stuck and the proof cannot proceed further.
 
   \end{enumerate}
 
@@ -156,7 +156,7 @@ As we have seen, our proofs often proceed by induction, so our first attempt at 
 
 \section{Attempt 2: Logical Relation}
 
-Another approach we could take is to use a \emph{logical relation} to prove strong normalization.
+Another approach we could take is to use a \emph{logical relation} to prove weak normalization.
 
 \subsection{What is a Logical Relation?}
 
@@ -175,7 +175,7 @@ When designing a logical relation, there are three design principles to keep in 
   \item The relation should be preserved by elimination forms.
 \end{enumerate}
 
-If we define a logical relation where our property of interest is strong normalization, the logical relation might look something like this:
+If we define a logical relation where our property of interest is weak normalization, the logical relation would look like this:
 
 \begin{mathpar}
   \lr{A}{e} \triangleq \exists n.~ \nf{n} \land e \to^\ast n \\
@@ -199,10 +199,11 @@ The second theorem is typically quite easy to prove, as is the case for our logi
 So, our goal will be to prove the Fundamental Theorem for our logical relation.
 
 Before we try to prove the Fundamental Theorem, we must first define what it means to be \emph{semantically well-typed}.
-Our logical relation only deals with closed terms---i.e., terms with no free variables---but we can have syntactically well-typed terms that contain free variables.
-To deal with this, we need to somehow close the term of interest.
+The semantic typing judgement is denoted as $\Gamma \vDash e : \tau$ and it says that $e$ is semantically well-behaved according to type $\tau$ under typing context $\Gamma$.
+Since the typing judgement is parameterized on a typing context, $e$ may contain free variables.
+In order to talk about the behavior of $e$ we need to close the term $e$ so that it has no free variables.
 We will leverage parallel substitutions for this---recall that a parallel substitution is simply multiple variable substitutions that occur simultaneously.
-We first define what it means to be a ``good (parallel) substitution''.
+We need to first define what it means to be a ``good'' parallel substitution for a program $e$ under typing context $\Gamma$ so that we can substitute the free variables in a principled way.
 
 If $\Gamma$ is a typing context and $\gamma$ is a parallel substitution, then a ``good substitution'' is defined as: \\
 
@@ -214,23 +215,22 @@ More formally,
 
 $$\gdsubst{\Gamma}{\gamma} \triangleq \forall x : \tau \in \Gamma.~\lr{\tau}{\gamma(x)}$$
 
-Finally, we define semantic well-typedness, first informally: \\
+Finally, we define semantic well-typedness---first informally: \\
 
 \begin{center}
-  $\Gamma \vDash e : \tau \triangleq$ ``No matter hat I give for $\Gamma$, $e$ acts like a $\tau$''
+  $\Gamma \vDash e : \tau \triangleq$ ``No matter what I give for $\Gamma$, $e$ acts like a $\tau$''
 \end{center}
 
 More formally,
 
 $$\Gamma \vDash e : \tau \triangleq \forall \gamma.~\gdsubst{\Gamma}{\gamma} \implies \lr{\tau}{e[\gamma]}$$
 
-\subsection{Strong Normalization}
+\subsection{Weak Normalization}
 
 We are now ready to prove the Fundamental Theorem for our logical relation.
 
-\begin{thm}[Strong Normalization]
-  \label{thm:strong-norm}
-  $\forall e. \Gamma \proves e : \tau \implies \exists n. \nf{n} \land e \to^\ast n$
+\begin{thm}[Fundamental]
+  $\forall e, \Gamma, \tau.~\Gamma \proves e : \tau \implies \Gamma \vDash e : \tau$
 \end{thm}
 \begin{proof}
   By induction on the evidence of $\Gamma \proves e : \tau$.
@@ -242,7 +242,7 @@ We are now ready to prove the Fundamental Theorem for our logical relation.
   Since we know that $x : \tau \in \Gamma$, then $x[\gamma] = \gamma(x)$.
   Apply $\gdsubst{\Gamma}{\gamma}$ to $x : \tau \in \Gamma$ to obtain $\lr{\tau}{\gamma(x)}$, as desired.
 
-  \item Case: \textsc{$\rightarrow$-I} $\infer{\Gamma, x : \tau_1 \proves e : \tau_2}{\Gamma \proves \tabs{x}{\tau_1 \to \tau_2}{e}}$ \\
+  \item Case: \textsc{$\rightarrow$-I} $\infer{\Gamma, x : \tau_1 \proves e : \tau_2}{\Gamma \proves \tabs{x}{\tau_1}{e} : \tau_1 \to \tau_2}$ \\
 
   WTS: (1) $\lr{\tau_2}{x[\gamma]}$, (2) $\forall a.~\lr{\tau_1}{a} \implies \lr{\tau_2}{(\tabs{x}{\tau_1}{e})}$ \\
 
@@ -288,8 +288,8 @@ We are now ready to prove the Fundamental Theorem for our logical relation.
 
 \end{proof}
 
-We can see just by inspecting the logical relation that it all terms in the logical relation are strongly-normalizing.
-Since we have proved the Fundamental Theorem, it follows that all syntactically well-typed terms $e$ must be strongly-normalizing.
+We can see just by inspecting the logical relation that all terms in the logical relation are weakly-normalizing.
+Since we have proved the Fundamental Theorem, it follows that all syntactically well-typed terms $e$ must be weakly-normalizing.
 
 \end{document}
 
