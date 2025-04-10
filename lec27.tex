@@ -1,0 +1,179 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\real}{\ensuremath{\mathbb{R}}\xspace}
+\newcommand{\complex}{\ensuremath{\mathbb{C}}\xspace}
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+% \newcommand{\utype}{\textsf{unit}\xspace}
+% \newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+% \newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+% \newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+% \newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+% \newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+% \newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+% \newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+% \newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+% \newcommand{\vtype}{\textsf{void}\xspace}
+% \newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+% \newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+% \newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+% \newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+% \newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+% \newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+\newcommand{\binval}[4]{\ensuremath{\mathcal{V}(#1 \at #2)(#3 \sim #4)}}
+\newcommand{\binexpr}[4]{\ensuremath{\mathcal{E}(#1 \at #2)(#3 \sim #4)}}
+\newcommand{\bintypectxt}[2]{\ensuremath{\mathcal{T}(#1)(#2)}}
+\newcommand{\binctxt}[4]{\ensuremath{\mathcal{K}(#1 \at #2)(#3 \sim #4)}}
+
+% \newcommand{\FV}{\text{FV}}
+% \newcommand{\BV}{\text{BV}}
+
+% \newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+% \newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+% \newcommand{\neutral}[1]{#1\;\text{ne}}
+% \newcommand{\nf}[1]{#1\;\text{nf}}
+
+% \newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Noninterference}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{27}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item At the beginning of the lecture, we start with the paper \emph{Types, Abstraction and Parametric Polymorphism} by John C. Reynolds.
+\item In this paper, Reynolds introduced the idea of \emph{parametricity} by using an example.
+\item Two mathematics professors, Descartes and Bessel, define the concept of complex numbers \complex in different ways.
+\item Even though they define the same concept differently, these definitions are interchangeable.
+\item This is because both of them define the complex number in bijection function \textsf{f : \prodtype{\real}{\real}\ \rightarrow\ \complex}
+      and operations(converting \real to \complex, addition, multiplication, etc.), so that \complex is now an abstraction of multiple sets.
+\end{itemize}
+
+\section{Parametricity}\label{sec:parametricity}
+
+\begin{itemize}
+\item Recall the identity function in CBV system F:
+    \[
+        \Abs{X}{\tabs{x}{X}{x}}\ :\ \fatype{X}{X \to X}
+    \]
+    Parametricity says that this function must be \emph{uniformed} in its type.
+\item A parametric polymorphic program is not allowed to do different things depending on the type of its argument.
+\item Now, suppose we want to allow two type variables to be related by some relations.
+\item We should be able to express by using binary logical relations:
+    \[
+        \mathcal{V}(\tau \at \rho )(v_1 \sim v_2)
+    \]
+    Here, we map the type to the binary relation on the values. This means that ``$v_1$ and $v_2$ are indistinguishable,
+    where free type variables in $\tau$ are interpreted as $\rho$''. 
+\end{itemize}
+
+\section{The Binary Relation}\label{sec:the-binary-relation}
+\begin{itemize}
+    \item Again, we use $\mathcal{V}(\tau)(v_1 \sim v_2)$ for the value relation, and $\mathcal{E}(\tau)(e_1 \sim e_2)$ for the expression relation.
+    \item Recall $\tau ::= X\ \vert\ \tau_1 \to \tau_2\ \vert\ \fatype{X}{\tau}$.
+\end{itemize}
+
+\[
+\begin{array}{r@{\;\triangleq\;}l}
+    \binval{X}{\rho}{v_1}{v_2} & \rho(X)(v_1, v_2)\\
+    \binval{\tau_1 \to \tau_2}{\rho}{v_1}{v_2} &
+        \exists x, e_1, y, e_2.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}v_1 = \tabs{x}{\tau_1}{e_1}\\{} \land v_2 = \tabs{y}{\tau_2}{e_2}\\{} \land (\forall a_1, a_2.\, \binval{\tau_1}{\rho}{a_1}{a_2}) \Rightarrow \binexpr{\tau_2}{\rho}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]}\end{array}\\
+    \binval{\fatype{X}{\tau}}{\rho}{v_1}{v_2} &
+        \exists e_1, e_2.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}v_1 = \Abs{X}{e_1}\\{} \land v_2 = \Abs{X}{e_2}\\ {} \land \forall R \subseteq \text{Val} \times \text{Val}.\, \binexpr{\tau}{\rho[X \mapsto R]}{e_1}{e_2}\end{array}\\
+
+    \bintypectxt{\Delta}{\rho} & \Delta \subseteq \text{dom}(\rho) \\
+    \binctxt{\Gamma}{\rho}{\gamma_1}{\gamma_2} & \forall x : \tau \in \Gamma.\, \binval{\tau}{\rho}{\gamma_1(x)}{\gamma_2(x)} \\
+    \Delta; \Gamma \vDash e_1 \sim e_2 : \tau & \forall \rho.\, \bintypectxt{\Delta}{\rho} \Rightarrow \forall \gamma_1, \gamma_2.\, \binctxt{\Gamma}{\rho}{\gamma_1}{\gamma_2} \Rightarrow \binexpr{\tau}{\rho}{e_1[\gamma_1]}{e_2[\gamma_2]}    
+\end{array}
+\]
+
+\begin{itemize}
+    \item For relation of expression $\fatype{X}{\tau}$, the type input of both $e_1$ and $e_2$ must be the same as $X$.
+    \item For all relations $R$, $e_1$ equivalent to $e_2$ no matter how we interpret $X$.
+    \item $\mathcal{K}$ is the context rule in parametricity.
+    \item Now we can finally define the Fundamental Theorem of Parametricity and prove it!
+\end{itemize}
+
+\section{Fundamental Theorem of Parametricity}\label{thm:fundamental-theorem-of-parametricity}
+\begin{thm}[Fundamental Theorem of Parametricity]
+    $\Delta; \Gamma \vdash e : \tau \implies \Delta; \Gamma \vDash  e \sim e : \tau$.
+\end{thm}
+\begin{proof}
+    We will only prove $\forall$-I and $\forall$-E cases here:
+
+    \noindent\textbf{Case \forall-I:}\\
+    In this case, $e = \Abs{X}{e'}$ and $\tau = \fatype{X}{\tau'}$.
+    Moreover, we have $\Delta; \Gamma \vdash e' : \tau'$. We pick $\rho$ such that $\bintypectxt{\Delta}{\rho}$
+    and $\gamma_1, \gamma_2$ such that $\binctxt{\Gamma}{\rho}{\gamma_1}{\gamma_2}$. Let $R$ be the relation, we claim a lemma:
+    \begin{lem}
+        $\forall R, \binctxt{\Gamma}{\rho[X \mapsto R]}{e'[\gamma_1]}{e'[\gamma_2]}$.
+    \end{lem}
+    \noindent$\binexpr{\tau'}{\rho[X \mapsto R]}{e'[\gamma_1]}{e'[\gamma_2]}$ holds by induction hypothesis.
+    Since Lemma 1 holds for all $R$, we have $\binval{\fatype{x}{\tau'}}{R}{\Abs{X}{e'[\gamma_1]}}{\Abs{X}{e'[\gamma_2]}}$.\\
+
+    \noindent\textbf{Case \forall-E:}\\
+    In this case, We have $e = e'[\tau_1]$, $\tau = \tau_2[X \mapsto \tau_1]$ and $\Delta; \Gamma \vdash e_1 : \fatype{X}{\tau_2}$.
+    We pick $\rho, \gamma_1, \gamma_2$ be the same as in the previous case. By induction hypothesis, we have
+    $\binexpr{\fatype{X}{\tau_2}}{\rho}{e'[\gamma_1]}{e'[\gamma_2]}$. Thus, $e'[\gamma_1] \to^\ast \Abs{X}{e_1}$, $e'[\gamma_2] \to^\ast \Abs{X}{e_2}$.
+    We choose to interpret $X$ as $\mathcal{V}(\tau_1 \at \rho)$, so $\binexpr{\tau_2}{\rho[X \mapsto \mathcal{V}(\tau_1 \at \rho)]}{e_1}{e_2}$
+    We claim another lemma:
+    \begin{lem}
+        $\binexpr{\tau_2[X \mapsto \mathcal{V}(\tau_1 \at \rho)]}{\rho}{e_1[X \mapsto \gamma_1]}{e_2[X \mapsto \gamma_2]}$.
+    \end{lem}
+    \noindent$\App{(e[\gamma_1])}{\tau_1} \to^\ast \App{(\Abs{X}{e_1})}{\tau_1} \to e_1[X \mapsto \gamma_1]$.
+\end{proof}
+
+\section{Free Theorem}\label{sec:free-theorem}
+\begin{itemize}
+    \item Free theorem is a theorem that states that if a polymorphic function is defined in a certain way, then it must satisfy certain properties.
+    \item We can get the meaning of the behavior of the polymorphic function by just looking at the type
+          without any knowledge of the implementation --- which is ``free''.
+    \item For details of the free theorem, please refer to the paper \emph{Theorems for Free} by Philip Wadler.
+\end{itemize}
+\begin{thm}[Free Theorem]
+    There is no e such that $\cdot; \cdot \vdash e : \fatype{X}{X}$.
+\end{thm}
+\begin{proof}
+    By fundamental theorem, $\binexpr{\fatype{X}{X}}{\rho}{e}{e}$.
+    $e \to^\ast \Abs{X}{e'}$. For any $R$, $\binexpr{X}{\rho[X \mapsto R]}{e'}{e'}$.
+    We pick $R=\emptyset$, then $e' \to^\ast v, \binval{X}{[X \mapsto R]}{v}{v}$.
+    This means $R(v,v)$, but $R=\emptyset$, which is a contradiction.
+    Therefore, there is no such $e$.
+\end{proof}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
