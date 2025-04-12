@@ -213,19 +213,17 @@ If we have two values $v_1$ and $v_2$ that some observer with $n$ amount of gas 
 
 \textbf{Lemma} (Monotonicity): If \inval{\tau}{n}{v_1}{v_2} and $m \leq n$, then \inval{\tau}{m}{v_1}{v_2}
 
-\textbf{Proof} (Monotonicity): We will prove by induction on $\tau$. 
-  The full proof is left for the reader, however we will show the function case here. 
-
 \underline{Case: $\tau_1 \to \tau_2$}. Therefore we know $v_1 = \lambda x.e_1$ and $v_2 = \lambda y.e_2$. 
   Since $v_1$ and $v_2$ are in the value relation find that $\forall a_1, a_2, m' \leq n. \spa \inval{\tau_1}{m'}{a_1}{a_2} \Rightarrow \inexpr{\tau_2}{m'}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]}$.
-
-  We can also declare about our $a$s that for $a_1, a_2, k \leq m$ be such that $\inval{\tau_1}{k}{a_1}{a_2}$ (What does this mean?). 
-
-  Since we know that $k \leq m' \leq n$ we can choose $k$ for $m'$ and because of how we defined the relation between $a_1$ and $a_2$ will give us the information we need to conclude that the values are related at $m$.
-
-  Lets do just that. We choose $m' = k$ in our hypothesis. 
-    Then we know that \inexpr{\tau_2}{k}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]}, which lets us conclude that $v_1$ and $v_2$ are related at m, since both $a_1$ and $a_2$ are related and the expression relation holds at $m$. 
  
+  We also know that for $k \leq m$ tells us $a_1, a_2$ \inval{\tau}{k}{a_1}{a_2}. 
+
+  By choosing our $n$, $m$, and $k$ as we did we know that $k \leq m \leq n$ meaning that we are about to invoke our hypothesis at every level. 
+    If we used just $m$ and no $k$ we find ourselves in a position where we are stuck.
+
+  Lets do just that. We choose $m = k$ in our hypothesis. 
+    Then we know that \inexpr{\tau_2}{k}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]}, which is exactly what we aimed to prove.
+    
 \subsection{Fundamental Theorem}
 
 As before we will define our context 
@@ -253,8 +251,7 @@ So far we discussed why we wanted to include recursive types again, why what we 
   This work and these concepts are widely used today, and an area of exciting active research. 
 
 Step indexing is the key concept behind the \href{https://plv.mpi-sws.org/rustbelt/}{RustBelt} and \href{https://iris-project.org/}{IRIS} projects. 
-  Iris was created for the RustBelt project and focused on investigating the safety of Rust, even when writing unsafe code.
-
+  Both IRIS and RustBelt were instrumental in investigating safety in Rust, even when writing unsafe code.
 \subsection{Drawbacks}
 
 However, there is a cost to using step indexing. 
