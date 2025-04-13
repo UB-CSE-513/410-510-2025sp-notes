@@ -1,0 +1,266 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{enumerate}
+\usepackage{mathtools}
+\usepackage{newunicodechar}
+\usepackage{mathpartir}
+\usepackage{parskip}
+\usepackage{amsfonts}
+
+\newcommand{\spa}{\mkern5mu}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\Tt}[1]{\texttt{#1}}
+
+% Logical relations 
+\newcommand{\inval}[4]{\ensuremath{\mathcal{I}\mathcal{V}(#1 \mkern3mu @ \mkern3mu #2)(#3 \sim #4})}
+\newcommand{\inexpr}[4]{\ensuremath{\mathcal{I}\mathcal{E}(#1 \mkern3mu @ \mkern3mu #2)(#3 \sim #4})}
+\newcommand{\val}[3]{\ensuremath{\mathcal{V}(#1)(#2 \sim #3)}}
+\newcommand{\incntxt}[4]{\ensuremath{\mathcal{I}\mathcal{K}(#1\mkern3mu @ \mkern3mu #2)(#3 \sim #4})}
+
+% Types and expressions 
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+% % % % % % 
+% Document
+% % % % % % 
+
+\title{Step Indexing}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{28}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\raggedright
+\maketitle
+
+\section{Motivation}
+
+Up until now all of the logical relations we have worked in have been for terminating languages. 
+  These languages are great to reason about, but in practice we want to write and reason about recursive programs. 
+  Previously, we added recursion using recursive types. 
+  There are other ways to do add recursion, but we will keep with recursive types.
+  So how can we add recursive types to logical relations? 
+
+\subsection{Naive Approach}
+Let's try a naive approach and just extend our binary relation we saw a few lectures ago. 
+
+  $$\val{\rectype{X}{\tau}}{v_1}{v_2} \triangleq 
+    \exists \spa v_1', v_2'. \spa
+    v_1 = \roll{v_1'} \wedge 
+    v_2 = \roll{v_2'} \wedge
+    \val{\tau[X \mapsto \rectype{X}{\tau}]}{v_1'}{v_2'}$$
+
+  In other words we know that we have two rolls and we will unroll them and check if the values inside are related.  
+
+This is the naive approach so we know that it won't work, but why not. 
+  Let's see an example. 
+
+% \val{\rectype{X}{X}}{v_1}{v_2} = \exists \spa v_1', v_2'. \spa 
+
+$$\begin{array}{r@{=}l} \val{\rectype{X}{X}}{v_1}{v_2} \spa & \spa \exists \spa v_1', v_2'.\,\hspace{-1.5em}
+  \begin{array}[t]{l} \hspace{1.15em} 
+    v_1 = \roll{v_1'} \wedge v_2 = \roll{v_2'}\\
+    {} \land \exists \spa v_1'', v_2''. v_1' = \roll{v_1''} \wedge v_2' = \roll{v_2''} \\
+    {} \land \dots 
+  \end{array}\\
+\end{array}$$
+
+  and this just continues on and on forever. 
+  Those dots we inserted don't even really have a meaning, we haven't even made a formula. 
+  The truth is that the semantics of this type ($\rectype{X}{\tau}$) do not exist in our logical relation, it isn't even the empty relation (where every input is false), the relation is just undefined. 
+
+In other words we are just flailing, we just keep spinning and we can never come to a conclusion. 
+  So what we do to fix it. 
+
+\subsection{Givin' it Gas}
+
+Let's steal an idea from \href{https://en.wikipedia.org/wiki/Total_functional_programming}{total programming} where we tie a resource to recursion. 
+  Imagine you are starting out on a road trip and you are in the mood to explore. 
+  The only way to explore is to drive forward (give it gas). 
+  However, driving forward takes some resources (gas). 
+  In a world where you are not willing to pump any more gas there is only a finite amount you can explore, only so much you can see. 
+  That is the key here, eventually in a car you run out of gas, and your trip terminates. 
+
+So what is fuel for a program, and what is exploring? 
+  For our purposes we with use some natural number $n$ for our gas. 
+  As for exploring, sometimes when we are reasoning with our logical relation, but not always, we will use some of our fuel (decrease our $n$ using our gas). 
+
+  % \val{\tau_1 \tau_2}{v_1}{v_2} & \exists x, e_1, y, e_2.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em} v_1 = x \\ {} \land v_2 = x\\ {} \land (\forall a_1, a_2.\, a x \end{array}\\
+\section{Logical Relation}
+
+Consider STLC extended with, unit, product, sum, and recursive types.  
+  We will write our value relation in the form 
+
+  $$\inval{\tau}{n}{v_1}{v_2}$$
+
+  which should be read ``to an observer who will only look $n$ times $v_1$ is indistinguishable from $v_2$ as a $\tau$.
+
+  Note: We will actually end up showing that this holds for all observers by considering all $\mathbb{N}$, or no observers can tell since we always have an observer who is willing to check one more time and still can't tell them apart. 
+
+\subsection{Value Relation}
+
+$$\begin{array}{r@{\;\triangleq\;}l} 
+  \inval{\utype}{n}{v_1}{v_2} 
+    & v_1 = v_1 = \unit 
+  \\
+  \inval{\prodtype{\tau_1}\tau_2{}}{n}{v_1}{v_2} 
+    & \exists v_{11}, v_{12}, v_{21}, v_{22}.\, \hspace{-1.5em}
+    \begin{array}[t]{l}\hspace{1.15em}
+      v_1 = (v_{11}, v_{12})\\ 
+      {} \land v_2 = (v_{21}, v_{22})\\ 
+      {} \land \inval{\tau_1}{n}{v_{11}}{v_{21}}\\ 
+      {} \land  \inval{\tau_2}{n}{v_{12}}{v_{22}} 
+    \end{array}
+  \\[1em]
+  \inval{\sumtype{\tau_1}{\tau_2}}{n}{v_1}{v_2} 
+    & \hspace{-1.5em}
+    \begin{array}[t]{l}\hspace{1.15em}(\exists v'_1, v'_2.\, v_1 = \injl{v'_1} \land v_2 = \injl{v'_2} \land \inval{\tau_1}{n}{v'_1}{v'_2})\\ 
+    {} \lor (\exists v'_1, v'_2.\,v_1 = \injr{v'_1} \land v_2 = \injr{v'_2} \land \inval{\tau_2}{n}{v'_1}{v'_2})\end{array} 
+  \\[1em]
+  \inval{\tau_1 \to \tau_2}{n}{v_1}{v_2} 
+    & \exists x, e_1, y, e_2.\, \hspace{-1.5em}
+    \begin{array}[t]{l}\hspace{1.15em}
+      v_1 = \tabs{x}{\tau_1}{e_1}\\
+      {} \land v_2 = \tabs{y}{\tau_2}{e_2}\\
+      {} \land (\forall a_1, a_2. \spa m \leq n \\ 
+      {} \hspace{.35em}\inval{\tau_2}{m}{a_1}{a_2}\, \Rightarrow \inval{\tau_2}{m}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]})
+    \end{array}
+  \\[1em]
+  \inval{\rectype{X}{\tau}}{n}{v_1}{v_2} 
+    & \exists v_1', v_2'.\, \hspace{-1.5em}
+    \begin{array}[t]{l}\hspace{1.15em}
+      v_1 = \roll{v_1'}\\
+      {} \land v_2 = \roll{v_2'}\\ 
+      {} \land \forall m < n. \spa \inval{\tau[X \mapsto \rectype{X}{\tau}]}{m}{v_1'}{v_2'}\\
+    \end{array}  
+  \\
+\end{array}$$
+
+Notes about the value relation: 
+\begin{itemize}
+  \item We use a less than or equals relation in the function case. 
+    This is essentially a promise that says if you do not want to do do this calculation now (at $n$) you can try to do it later when you possibly have less fuel (at $m$). 
+    As long as there is fuel we will find you the values needed. 
+  \item We use just $n$ in the first three rules since we are evaluating now (at $n$). 
+  \item We use strictly less than for the recursive type which forces the logical relation to terminate. 
+    It costs fuel to find out if two values are related with a recursive type, and you have to spend that fuel. 
+  \item In the product type, if the observer has to examine both branches they could then be inspecting $2n$ things. 
+  However this is still finite, no worries. 
+\end{itemize}
+
+What do we do when $n= 0$? 
+  When we have reached $0$ the observer is no longer willing to unroll any values. 
+  The observer gives up and decides that these two values are related to each other as a $\tau$.
+  If they had any more gas they would unroll and possibly find a difference, but they are out of gas so they must stop. 
+
+In logical relations the technical name for our fuel is a \textbf{step index}. 
+  The technique we used to build our relation is known as \textbf{step indexing} meaning we built a \textbf{step indexed logical relation}.
+
+\subsection{Expression Relation}
+
+We defined the variable relation, but now we will define the relation for expressions. 
+  Again it is similar to the binary logical relation we have seen before with some small edits. 
+
+$$\begin{array}{r@{\;\triangleq\;}l} 
+  \inexpr{\tau}{n}{e_1}{e_2} 
+    & \forall v_1, v_2.\, \hspace{-1.5em}
+    \begin{array}[t]{l}\hspace{1.15em}
+      e_1 \to^* v_2 \Rightarrow e_2 \to^* v_2 \Rightarrow \\
+      {} \inval{\tau}{n}{v_1}{v_2}\\
+    \end{array}  
+\end{array}$$
+
+The main difference is that instead of there existing values such that the expressions step to the values, we instead say that any two values you have that terminate we can say are in the relation. 
+  However, this also gives us the result that if one of the expression fails to terminate, they are considered related. 
+  We will come back to this later. 
+
+\section{Theorems}
+
+\subsection{Monotonicity}
+
+If we have two values $v_1$ and $v_2$ that some observer with $n$ amount of gas thinks are related, we don't want an observer with less gas to be able to tell them apart. 
+  This property is known as monotonicity and is described below.
+
+\textbf{Lemma} (Monotonicity): If \inval{\tau}{n}{v_1}{v_2} and $m \leq n$, then \inval{\tau}{m}{v_1}{v_2}
+
+\underline{Case: $\tau_1 \to \tau_2$}. Therefore we know $v_1 = \lambda x.e_1$ and $v_2 = \lambda y.e_2$. 
+  Since $v_1$ and $v_2$ are in the value relation find that $\forall a_1, a_2, m' \leq n. \spa \inval{\tau_1}{m'}{a_1}{a_2} \Rightarrow \inexpr{\tau_2}{m'}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]}$.
+ 
+  We also know that for $k \leq m$ tells us $a_1, a_2$ \inval{\tau}{k}{a_1}{a_2}. 
+
+  By choosing our $n$, $m$, and $k$ as we did we know that $k \leq m \leq n$ meaning that we are about to invoke our hypothesis at every level. 
+    If we used just $m$ and no $k$ we find ourselves in a position where we are stuck.
+
+  Lets do just that. We choose $m = k$ in our hypothesis. 
+    Then we know that \inexpr{\tau_2}{k}{e_1[x \mapsto a_1]}{e_2[y \mapsto a_2]}, which is exactly what we aimed to prove.
+    
+\subsection{Fundamental Theorem}
+
+As before we will define our context 
+
+$$\incntxt{\Gamma}{n}{\gamma_1}{\gamma_2} \triangleq \forall \spa x : \tau \in \Gamma. \spa \inval{\tau}{n}{\gamma_1(x)}{\gamma_2(x)}$$
+
+and what it means to be related and semantically well typed 
+
+$$\begin{array}{r@{\;\triangleq\;}l} 
+  \Gamma \vDash e_1 \sim e_2 : \tau 
+    & \forall n, \gamma_1 \gamma_2.\, \hspace{-1.5em}
+    \begin{array}[t]{l}\hspace{1.15em}
+      \inval{\tau}{n}{\gamma_1(x)}{\gamma_2(x)} \\
+      {} \Rightarrow \inexpr{\tau}{n}{e_1[\gamma_1]}{e_2[\gamma_2]}\\
+    \end{array}  
+\end{array}$$
+
+\textbf{Theorem} (Fundamental): If $\Gamma \vdash e : \tau$, then $\Gamma \vDash e \sim e : \tau$. 
+
+For any well typed program an observer cannot tell it apart from itself. 
+
+\section{Conclusion}
+
+So far we discussed why we wanted to include recursive types again, why what we have been doing so far does not work, and how to fix this and reason about recursive types using step indexing. 
+  This work and these concepts are widely used today, and an area of exciting active research. 
+
+Step indexing is the key concept behind the \href{https://plv.mpi-sws.org/rustbelt/}{RustBelt} and \href{https://iris-project.org/}{IRIS} projects. 
+  Both IRIS and RustBelt were instrumental in investigating safety in Rust, even when writing unsafe code.
+\subsection{Drawbacks}
+
+However, there is a cost to using step indexing. 
+  Before our binary logical relations were partial equality relations, meaning they were symmetric and transitive. 
+  This is no longer the case. 
+
+Consider the two relations $\inexpr{\tau}{n}{5}{\textsf{loop}}$ and $\inexpr{\tau}{n}{\textsf{loop}}{42}$ where \textsf{loop} is a program that runs forever. 
+  Since \textsf{loop} never terminates $5 \sim \textsf{loop}$ and $\textsf{loop} \sim 42$, but we know that $5$ does not relate to $42$. 
+  Therefore, we have lost transitivity. 
+
+However, it turns out, giving up transitivity to reason about recursive programs is worth it most of the time, but it is important to keep in mind. 
+\end{document}
