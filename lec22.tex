@@ -1,0 +1,204 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Existential types}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{22}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{Existential Types}
+\label{sec:existential types}
+
+\begin{itemize}
+  \item Previously we saw $\forall$ types, or universal types. Now we look existential types, or $\exists$ types.
+  \item So far, we have learned that parametric polymorphism allowed a program to be given generic types, allowing it to be instantiated with different types in different situations.
+  \item But parametric polymorphism also allows us to essentially conceal the actual type by abstracting over it.
+  \item For example, an OCaml module can be seen as an existential type as it can define a type, but not tell you what it is. You can still use the functions in the module, even if you don’t know the hidden type.
+\end{itemize}
+
+\begin{syntax}
+  \category[Types]{\tau} \alternative{\ldots} \alternative{\extype{X}{\tau}}
+  \category[Expressions]{e} \alternative{\dots} \alternative{\pack{\tau_1}{X}{e}} \alternative{\unpack{e_1}{X}{x}{e_2}}
+  \category[Evaluation Contexts]{\mathcal{C}} \alternative{\ldots} \alternative{\pack{\tau_1}{X}{C}} \alternative{\unpack{\mathcal{C}}{X}{x}{e_2}}
+\end{syntax}
+
+\begin{itemize}
+\item $\extype{X}{\tau}$ means ``a $\tau$ where the definition of the type $X$ is hidden.''
+\item $\pack{\tau}{X}{e}$ is how we create $\extype{X}{\tau}$, and it means to choose $\tau$ as the definition of X, and $e$ as the value. 
+It also means that we know about $\tau$ in $e$, but not outside of $e$.
+\item $\unpack{e_1}{X}{x}{e_2}$ is how we use existential types, and it means we take a hidden type and value from $e_1$, name them $X$ and $x$,
+and use them inside $e_2$ without knowing what $X$ actually is.
+\item Because we don't know what $X$'s type is in \textsf{unpack}, $e_2$ can't use definition of $X$ inside of $e_1$.
+\end{itemize}
+
+\begin{mathpar}
+  \infer*[left=$\exists$-I]{\Delta; \Gamma \vdash e : \tau_2[X \mapsto \tau_1]}{\Delta; \Gamma \vdash \pack{\tau_1}{X}{e} : \extype{X}{\tau_2}} \and
+  \infer*[right=$\exists$-E]{\Delta; \Gamma \vdash e_1 : \extype{X}{\tau_1}\\ \Delta, X; \Gamma, x : \tau_1 \vdash e_2 : \tau_2\\\Delta \vdash \tau_2}{\Delta; \Gamma \vdash \unpack{e_1}{X}{x}{e_2} : \tau_2}
+\end{mathpar}
+
+\begin{itemize}
+\item In \textsc{$\exists$-E}, the premise $\Delta \vdash \tau_2$ is indicating that the only free type variable for $\tau_2$ is in $\Delta$.
+\item Therefore this means that $X$ can't be containing $\tau_2$.
+\item This shows exactly how existential types hide information: the return type of an \textsf{unpack} must not depend on the specific type $X$ from $e_1$, 
+so that the outside world can't see what type $X$ really is. \newline \newline
+\end{itemize}
+
+\begin{itemize}
+  \item Here we see the $\beta$ and $\eta$ rules for existential types.
+\end{itemize}
+\begin{mathpar}
+  \unpack{(\pack{\tau_1}{X}{v})}{X}{x}{e_2} \to e_2[X \mapsto \tau_1, x \mapsto v] \and
+  \unpack{e}{X}{x}{\left(\pack{X}{X}{x}\right)} \equiv_\eta e
+\end{mathpar}
+
+\newpage
+\section{Example: The Counter}
+\label{sec:counter}
+\begin{itemize}
+\item The counter can only tick up or reset. 
+\item Here we see \textsf{counter}, an example of an existential type:
+  $$\textsf{counter} \triangleq \extype{X}{\{\textsf{init} : \utype \to X; \textsf{getCount} : X \to \mathbb{N}; \textsf{tick} : X \to X; \textsf{reset} : X \to X\}}$$
+\item And here we see \textsf{numCounter}, an example of how to use that existential type:
+  $$\textsf{numCounter} \triangleq \pack{\mathbb{N}}{X}{\{\textsf{init} = \abs{x}{0}; \textsf{getCount} = \abs{x}{x}; \textsf{tick} = \abs{x}{x + 1}; \textsf{reset} = \abs{x}{0}\}} : \textsf{counter}$$
+\item \textsf{counter} is an existential type, and it has 4 functions: \textsf{init}, \textsf{getCount}, \textsf{tick}, and \textsf{reset}.
+\item And \textsf{numCounter} is an implementation of the counter as a natural number:
+    \begin{itemize}
+    \item \textsf{init} initialises, and so it returns 0 no matter what its input is
+    \item \textsf{getCount} returns the current number, which is just the identity 
+    \item \textsf{tick} just adds one to the number
+    \item \textsf{reset} just resets and so it also returns 0 no matter what its input is
+    \end{itemize}
+\item Here we see an \emph{almost} correct (but still wrong) example:
+  $$
+  \begin{array}{l}
+    \lambda \textsf{ctr} \mathrel{:} \textsf{counter}.\\
+    \begin{array}{l}
+      \textsf{unpack}\mkern5mu\textsf{ctr} \mathrel{\textsf{as}} X,\, \textsf{impl}\;\textsf{in}\\
+      \begin{array}{l}
+        \textsf{let}\mkern5mux = \app{\textsf{impl}.\textsf{init}}{\unit}\;\textsf{in}\\
+        \begin{array}{l}
+          \textsf{let}\mkern5mux' = \app{\textsf{impl}.\textsf{tick}}{x}\;\textsf{in}\\
+          \begin{array}{l}
+            (\app{\textsf{impl}.\textsf{getCount}}{x'}, \app{\textsf{impl}.\textsf{reset}}{x'})
+          \end{array}
+        \end{array}
+      \end{array}
+    \end{array}
+  \end{array}
+  $$
+\item The type of this function would be \textsf{counter} $\to \mathbb{N} * X$.
+\item The X is where the issue is. It should never be leaking any information about how $X$ is implemented.
+\item As it was leaking information, this example was \emph{almost} correct but is still wrong. \newline
+\item We now see the correct version:
+  $$
+  \begin{array}{l}
+    \lambda \textsf{ctr} \mathrel{:} \textsf{counter}.\\
+    \begin{array}{l}
+      \textsf{unpack}\mkern5mu\textsf{ctr} \mathrel{\textsf{as}} X,\, \textsf{impl}\;\textsf{in}\\
+      \begin{array}{l}
+        \textsf{let}\mkern5mux = \app{\textsf{impl}.\textsf{init}}{\unit}\;\textsf{in}\\
+        \begin{array}{l}
+          \textsf{let}\mkern5mux' = \app{\textsf{impl}.\textsf{tick}}{x}\;\textsf{in}\\
+          \begin{array}{l}
+            (\app{\textsf{impl}.\textsf{getCount}}{x'}, \app{\textsf{impl}.\textsf{getCount}}{(\app{\textsf{impl}.\textsf{reset}}{x'})})
+          \end{array}
+        \end{array}
+      \end{array}
+    \end{array}
+  \end{array}
+  $$  
+\item The type of this function would be \textsf{counter} $\to \mathbb{N} * \mathbb{N}$.
+\item Which means it doesn't leak any information about $X$, as it correctly shouldn't be. 
+\item Since the function doesn’t know what the hidden type $X$ actually is, the only things it can do with values of type $X$ are the operations in the record.
+\item This is an example where existential types are useful, where we can define abstract types with only certain operations that are allowed.
+\end{itemize}
+
+\section{Encoding Existential Types}
+\label{sec:encod-exist-types}
+
+\begin{itemize}
+\item Just like with other types, we can represent existential types using only universal types.
+\item A program using an existential type should work with any possible concrete type that might be hidden inside, as long as it follows the provided operations.
+\item So we can encode existential types into System F like this:
+  $$
+  \begin{array}{rl}
+    \extype{X}{\tau} \triangleq& \fatype{Y}{(\fatype{X}{\tau} \to Y) \to Y}\\
+    \pack{\tau_1}{X}{e} \triangleq& \Abs{Y}{\tabs{f}{\fatype{X}{\tau \to Y}}{\app{\App{f}{\tau_1}}{e}}}\\
+    \unpack{e_1}{X}{x}{e_2} \triangleq& \app{\App{e_1}{\tau_2}}{(\Abs{X}{\tabs{x}{\tau}{e_2}})}
+  \end{array}
+  $$
+\item And we can check with the $\beta$ law:
+  $$
+  \begin{array}{rl}
+    \unpack{(\pack{\tau_1}{X}{v})}{X}{x}{e_2} =& \app{\App{(\Abs{Y}{\tabs{f}{\fatype{X}{\tau \to Y}}{\app{\App{f}{\tau_1}}{v}}})}{\tau_2}}{(\Abs{X}{\tabs{x}{\tau}{e_2}})}\\
+    \to& \app{(\tabs{f}{\fatype{X}{\tau \to \tau_2}}{\app{\App{f}{\tau_1}}{v}})}{(\Abs{X}{\tabs{x}{\tau}{e}})}\\
+    \to& \app{\App{(\Abs{X}{\tabs{x}{\tau_1}{e}})}{\tau}}{v}\\
+    \to& \app{(\tabs{x}{\tau_1[X\mapsto\tau]}{e[X \mapsto \tau}])}{v}\\
+    \to& e[X \mapsto \tau, x \mapsto v]
+  \end{array}
+  $$
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
