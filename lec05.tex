@@ -1,0 +1,80 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+
+
+\title{Equality and Isomorphism}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{5}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+\section{Equality}
+\label{sec:Equality}
+\subsection*{Refl}
+\begin{itemize}
+    \item Refl is a constructor for equality, it proves that two things are equal judgementally
+    (result in the same result).
+    \newline Take for example: ~$2$ and ~$1 + 1$.
+    \begin{itemize}
+        \item refl states that these two things are equal since they would result in the same thing.
+    \end{itemize}
+    \item As refl proves equality, it holds that the terms are
+    \begin{itemize}
+        \item Reflexive: For every $x$, $x$ $R$ $x$
+        \item Symmetrical: For every $x$ and $y$, if $x$ $R$ $y$ then $y$ $R$ $x$
+        \item Transitive: For every $x$, $y$, and $z$, if $x$ $R$ $y$ and $y$ $R$ $z$ then $x$ $R$ $z$
+    \end{itemize}
+  \end{itemize}
+\subsection*{Rewrite}
+\begin{itemize}
+    \item Allows us to rewrite the type of the goal 
+    \begin{itemize}
+        \item It effectively allows us to replace the goal with an already proven equality
+        \item Rewrite also allows us to apply the commutative property to addition
+    \end{itemize}
+\end{itemize}
+\subsection*{Leibniz equality}
+\begin{itemize}
+    \item Also Known as the identity of indiscernibles: two objects are equal if have all properties in common.
+    \item Through the Leibniz equality, we can also disern that if two objects $x$ and $y$ are equal, then any
+    \newline property of $y$ is also the same for $x$
+    \begin{itemize}
+        \item As an example Let's consider the following:
+        \begin{center}
+            $y \equiv x$ where: \newline
+            $y = 3$ and \newline
+            $x = 2 + 1$ \newline
+            $y + 2 = 5$ \newline
+        \end{center}
+        through the Leibniz equality, we know that $x$ must have the same properties when we add $2$ to it, \newline
+        and therefore we can disern that $x + 2 = 5$ 
+    \end{itemize}
+\end{itemize}
+
+\section{Isomorphism}
+\label{sec:Isomorphism}
+\subsection*{Extensionality}
+\begin{itemize}
+    \item We can assert that two functions are identical if when applied to the same arguements, results in the same result.
+\end{itemize}
+\subsection*{Isomorphism}
+\begin{itemize}
+    \item Denoted by $A \cong B$, two sets are Isomorphic if we can satisfy the following:
+    \begin{itemize}
+        \item A function $x$ from set $A$ to set $B$
+        \item A function $y$ from set $B$ to set $A$
+        \item Evidence of identity between functions $x$ and $y$ (functions are inverse of each other)
+    \end{itemize}
+\end{itemize}
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
