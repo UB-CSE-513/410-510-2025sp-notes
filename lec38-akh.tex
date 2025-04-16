@@ -1,0 +1,362 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+\newcommand{\ltype}[1]{\ensuremath{\textsf{list}\mkern3mu#1}}
+\newcommand{\nillist}{\ensuremath{[\,]}}
+\newcommand{\conslist}[2]{\ensuremath{#1 \mathop{::} #2}}
+\newcommand{\lcase}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\nillist\Rightarrow#2; \mkern5mu\conslist{#3}{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\logn}[1]{\ensuremath{\textsf{log}\mkern3mu#1}}
+\renewcommand{\tt}{\textsf{true}\xspace}
+\newcommand{\ff}{\textsf{false}\xspace}
+\newcommand{\ite}[3]{\ensuremath{\textsf{if}~#1 \mathrel{\textsf{then}} #2 \mathrel{\textsf{else}} #3}}
+\newcommand{\send}[2]{\ensuremath{\textsf{send}~#1 \mathrel{\textsf{to}} #2}}
+\newcommand{\recv}[3]{\ensuremath{\textsf{receive}~#1 \mathrel{\textsf{from}} #2} \mathrel{\textsf{in}} #3}
+\newcommand{\Left}{\textsf{left}\xspace}
+\newcommand{\Right}{\textsf{right}\xspace}
+\newcommand{\choosefor}[2]{\ensuremath{\textsf{choose}~#1 \mathrel{\textsf{for}} #2}}
+\newcommand{\letchoose}[3]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2; \Right \Rightarrow #3)}}
+\newcommand{\letchooseL}[2]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2)}}
+\newcommand{\letchooseR}[2]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Right \Rightarrow #2)}}
+\newcommand{\ret}[1]{\ensuremath{\textsf{ret}(#1)}}
+
+
+\newcommand{\capture}[1]{\ensuremath{\lfloor #1 \rfloor}}
+\newcommand{\bind}[1]{\ensuremath{\textsf{bind}(#1)}}
+
+\newcommand{\pureeff}{\textsf{pure}\xspace}
+\newcommand{\logeff}{\textsf{log}\xspace}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\newcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\newcommand{\sendrecv}[4]{\ensuremath{#1.#2 \rightsquigarrow #3.#4}}
+\newcommand{\syncmsg}[3]{\ensuremath{#1.[#2] \rightsquigarrow #3}}
+\newcommand{\chorif}[4]{\ensuremath{\textsf{if}~#1.#2 \mathrel{\textsf{then}} #3 \mathrel{\textsf{else}} #4}}
+
+\newcommand{\sendrecva}[3]{\ensuremath{#1.#2 \rightsquigarrow #3}}
+\newcommand{\syncmsga}[3]{\ensuremath{#1.[#2] \rightsquigarrow #3}}
+\newcommand{\senda}[2]{\ensuremath{#1 \rightsquigarrow #2}}
+\newcommand{\recva}[2]{\ensuremath{#1 \leftsquigarrow #2}}
+\newcommand{\sendsynca}[2]{\ensuremath{[#1] \rightsquigarrow #2}}
+\newcommand{\recvsynca}[2]{\ensuremath{[#1] \leftsquigarrow #2}}
+
+\newcommand{\projection}[2]{\ensuremath{\llbracket #1 \rrbracket_{#2}}}
+
+\newcommand{\tracecollect}[1]{\ensuremath{\mathrel{{\xrightarrow{#1}}^{\raisebox{-5pt}{\scriptsize \ast}}}}}
+\newcommand{\emptytracecollect}{\ensuremath{\mathrel{{\xrightarrow{\cdot}}^{\raisebox{-2pt}{\scriptsize \ast}}}}}
+
+\title{Choreographies, Part II}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{38}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Last time, we introduced the idea of \emph{choreographies}.
+\item Choreographies allow a programmer to write concurrent programs as a single program describing the actions of every thread.
+\item We then defined a \emph{projection} operation that allows us to get a program for each process which can then be  run in parallel.
+\item However, we struggled to figure out what to do with \textsf{if} expressions---we need some way to merge two programs together.
+\item Let's start by thinking about an example:
+  $$
+  \begin{array}{l}
+    \textsf{if}~p.m\\
+    \textsf{then}~\begin{array}[t]{l}
+      \syncmsg{p}{\Left}{q}\\
+      \syncmsg{p}{\Left}{r}\\
+      \syncmsg{p}{\Left}{s}\\
+      \sendrecv{q}{3}{r}{x}\\
+      \sendrecv{r}{x}{p}{y}\\
+      p.y
+    \end{array}\\
+    \textsf{else}~
+    \begin{array}[t]{l}
+      \syncmsg{p}{\Right}{q}\\
+      \syncmsg{p}{\Right}{r}\\
+      \syncmsg{p}{\Right}{s}\\
+      \sendrecv{q}{4}{s}{x}\\
+      \sendrecv{s}{x}{p}{y}
+      p.y
+    \end{array}
+  \end{array}
+  $$
+  \begin{itemize}
+  \item In this program, $p$ decides whether to ask that process~$q$ send it the message~$3$ through intermediary process~$r$, or the message~$4$ through intermediary process~$s$.
+  \item Either way, it informs all of $q$, $r$, and $s$ about that decision.
+  \item Then, $q$, $r$, and $s$ all act appropriately depending on $p$'s choice.
+  \end{itemize}
+\item Intuitively, it is only because $p$ informs $q$, $r$, and $s$ of their choice.
+\item Let's focus on $q$'s behavior for now.
+  Because $q \neq p$, we can't project out an \textsf{if} expression for $q$, since there's nothing for $q$ to branch on.
+\item However, we can (and should) project out a program for each branch of the choreographic~\textsf{if} expression.
+  We then get the following two programs:
+  $$
+  \begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \hspace{1em}\begin{array}[t]{l}
+      \Left \Rightarrow\send{3}{q}
+    \end{array}\\
+    )
+  \end{array}
+  \hspace{4em} \text{and} \hspace{4em}
+  \begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \hspace{1em}\begin{array}[t]{l}
+      \Right \Rightarrow\send{4}{r}
+    \end{array}\\
+    )
+  \end{array}
+  $$
+\item Intuitively, it's obvious what we want the whole behavior to be: we want to merge these two programs into a single program that lets $p$ choose either the \Left branch \emph{or} the \Right branch:
+  $$
+  \begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \hspace{1em}\begin{array}[t]{l}
+      \Left \Rightarrow\send{3}{q};\\
+      \Right \Rightarrow \send{4}{r}
+    \end{array}\\
+    )
+  \end{array}
+  $$
+\item Last time, we named the operator to do this $\sqcup$.
+  We can now define that formally:
+\end{itemize}
+
+\def\arraystretch{1.5}
+$$
+e_1 \mathop{\sqcup} e_2 = \left\{\begin{array}{ll}
+  \unit & e_1 = e_2 = \unit\\
+  \ret{m} & e_1 = e_2 = \ret{m}\\
+  \send{m}{p}; (e_1' \sqcup e_2') & e_1 = \send{m}{p}; e_1' \land e_2 = \send{m}{q}; e_2'\\
+  \recv{x}{p}{(e_1' \sqcup e_2')} & e_1 = \recv{x}{p}{e_1'} \land e_2 = \recv{x}{p}{e_2'}\\
+  \choosefor{d}{p}; (e_1' \sqcup e_2') & e_1 = \choosefor{d}{p}; e_1' \land e_2 = \choosefor{d}{p}; e_2'\\
+  \def\arraystretch{1}
+  \hspace{-0.5em}\begin{array}{l}
+    \textsf{left}~p~\textsf{choose}~(\\
+    \begin{array}[t]{l}
+      \Left \Rightarrow e_{11} \sqcup e_{21};\\
+      \Right \Rightarrow e_{12} \sqcup e_{22}
+    \end{array}\\
+    )
+  \end{array}
+  & \hspace{-0.5em}\begin{array}{c}e_1 = \letchoose{p}{e_{11}}{e_{12}} \land{}\\ e_2 = \letchoose{p}{e_{21}}{e_{22}}\end{array}\def\arraystretch{1.5}\\
+  \def\arraystretch{1}\hspace{-0.5em}\begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \begin{array}[t]{l}
+      \Left \Rightarrow e_{11} \sqcup e_{21};\\
+      \Right \Rightarrow e_{12}
+    \end{array}\\
+    )
+  \end{array} & \hspace{-0.5em}\begin{array}{c}e_1 = \letchoose{p}{e_{11}}{e_{12}} \land {}\\ e_2 = \letchooseL{p}{e_{21}}\end{array}\def\arraystretch{1.5}\\
+  \def\arraystretch{1}
+  \hspace{-0.5em}\begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \begin{array}[t]{l}
+      \Left \Rightarrow e_{11};\\
+      \Right \Rightarrow e_{12}  \sqcup e_{22}
+    \end{array}\\
+    )
+  \end{array}
+  & \begin{array}{c}e_1 = \letchoose{p}{e_{11}}{e_{12}} \land{}\\ e_2 = \letchooseR{p}{e_{22}}\end{array}
+    \def\arraystretch{1.5}\\
+  \def\arraystretch{1}
+  \hspace{-0.5em}\begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \begin{array}[t]{l}
+      \Left \Rightarrow e_{11} \sqcup e_{21};\\
+      \Right \Rightarrow e_{22}
+    \end{array}\\
+    )
+  \end{array}
+  & \begin{array}{c}e_1 = \letchooseL{p}{e_{11}} \land{}\\ e_2 = \letchoose{p}{e_{21}}{e_{22}}\end{array}
+    \def\arraystretch{1.5}\\
+  \def\arraystretch{1}
+  \hspace{-0.5em}\begin{array}{l}
+    \textsf{let}~p~\textsf{choose}~(\\
+    \begin{array}[t]{l}
+      \Left \Rightarrow e_{11};\\
+      \Right \Rightarrow e_{12} \sqcup e_{22}
+    \end{array}\\
+    )
+  \end{array}
+  & \begin{array}{c}e_1 = \letchooseR{p}{e_{12}} \land{}\\ e_2 = \letchoose{p}{e_{21}}{e_{22}}\end{array}
+    \def\arraystretch{1.5}\\
+  \letchoose{p}{e_1'}{e_2'} & \def\arraystretch{1}\begin{array}{c}e_1 = \letchooseL{p}{e_1'} \land{}\\ e_2 = \letchooseR{p}{e_2'}\end{array}\def\arraystretch{1.5}\\[1em]
+  \letchoose{p}{e_2'}{e_1'} & \def\arraystretch{1}\begin{array}{c}e_1 = \letchooseR{p}{e_1'} \land{}\\ e_2 = \letchooseL{p}{e_2'}\end{array}\def\arraystretch{1.5}\\[1em]
+  \letchooseL{p}{e_1' \sqcup e_2'} & \def\arraystretch{1}\begin{array}{c}e_1 = \letchooseL{p}{e_1'} \land{}\\ e_2 = \letchooseL{p}{e_2'}\end{array}\def\arraystretch{1.5}\\[1em]
+  \letchooseR{p}{e_1' \sqcup e_2'} & \def\arraystretch{1}\begin{array}{c}e_1 = \letchooseR{p}{e_1'} \land{}\\ e_2 = \letchooseR{p}{e_2'}\end{array}\def\arraystretch{1.5}\\[1em]
+  \text{undefined} & \text{otherwise}
+\end{array}\right.
+$$
+
+\begin{itemize}
+\item This definition looks hard to parse, but the idea is simple: traverse the two terms as long as they have the same structure.
+  If you hit a \textsf{allow choice} branch where one side only has a \Left or \Right branch, add together the branches as appropriate.
+  Most of the length of the definition comes from the fact that there are $3^2 = 9$ cases for \textsf{allow choice} terms.
+\item This definition is very well behaved!
+\end{itemize}
+
+\begin{thm}[Properties of $\sqcup$]
+  We have the following for all $e_1$, $e_2$, and $e_3$:
+  \begin{itemize}
+  \item $e_1 \sqcup e_1 = e_1$ 
+  \item $e_1 \sqcup e_2 = e_2 \sqcup e_1$
+  \item $(e_1 \sqcup e_2) \sqcup e_3 = e_1 \sqcup (e_2 \sqcup e_3)$
+  \end{itemize}
+\end{thm}
+
+\begin{itemize}
+\item We can also define a relation on local expressions called the \emph{pruning} relation, which we write~$\sqsubseteq$.
+  The idea is that this relation describes when two programs behave the same, except one program may allow more choices.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{ }{\unit \sqsubseteq \unit}\and
+  \infer{ }{\ret{m} \sqsubseteq \ret{m}} \and
+  \infer{e_1 \sqsubseteq e_2}{\send{m}{p}; e_1 \sqsubseteq \send{m}{p}; e_2} \and
+  \infer{e_1 \sqsubseteq e_2}{\recv{x}{p}{e_1} \sqsubseteq \recv{x}{p}{e_2}} \and
+  \infer{e_1 \sqsubseteq e_2}{\choosefor{d}{p}; e_1 \sqsubseteq \choosefor{d}{p}; e_2}\\
+  \infer{e_1 \sqsubseteq e_{21}}{\letchooseL{p}{e_1} \sqsubseteq \letchoose{p}{e_{21}}{e_{22}}} \and
+  \infer{e_1 \sqsubseteq e_{22}}{\letchooseR{p}{e_1} \sqsubseteq \letchoose{p}{e_{21}}{e_{22}}} \and
+  \infer{e_{11} \sqsubseteq e_{21}\\  e_{12} \sqsubseteq e_{22}}{\letchoose{p}{e_1}{e_{22}} \sqsubseteq \letchoose{p}{e_{21}}{e_{22}}} 
+\end{mathpar}
+
+\begin{thm}
+  The relation $\sqsubseteq$ is a partial order.
+  Moreover, $\sqcup$ is a join (least-upper-bound operator) for that order.
+  In other words, we get, for all $e_1$, $e_2$, and $e_3$:
+  \begin{itemize}
+  \item $e_1 \sqsubseteq e_1 \sqcup e_2$
+  \item $e_2 \sqsubseteq e_1 \sqcup e_2$
+  \item if $e_1 \sqsubseteq e_3$ and $e_2 \sqsubseteq e_3$, then $e_1 \sqcup e_2 \sqsubseteq e_3$.
+  \end{itemize}
+\end{thm}
+
+\begin{itemize}
+\item We define this relation for a simple reason: when we take a step in a choreography, we may find out which branch we're in before that gets communicated to every process.
+  \begin{itemize}
+  \item For instance, in the example above, after one step we know that we are either in the \Left or the \Right branch, even though that has not yet been sent to $q$.
+  \item Thus, if we take a step in the example above before projecting, we get a pruned version of $q$'s program.
+  \end{itemize}
+\item Now we want to make the connection between the semantics of choreographies and networks formal.
+\item Previously, network steps were given in a standard small-step operational semantics, but now we give them in an LTS:
+\end{itemize}
+
+\begin{mathpar}
+  \infer{\mathcal{N}(p) \xrightarrow{\varepsilon} e}{\mathcal{N} \xrightarrow{\varepsilon} \mathcal{N}[p \mapsto e]}\\
+  \infer{\mathcal{N}(p) \xrightarrow{\senda{m}{q}} e_p\\ \mathcal{N}(q) \xrightarrow{\recva{m}{p}} e_q}{\mathcal{N} \xrightarrow{\sendrecva{p}{m}{q}} \mathcal{N}[p \mapsto e_p, q \mapsto e_q]} \and
+  \infer{\mathcal{N}(p) \xrightarrow{\recva{m}{q}} e_p\\ \mathcal{N}(q) \xrightarrow{\senda{m}{p}} e_q}{\mathcal{N} \xrightarrow{\sendrecva{q}{m}{p}} \mathcal{N}[p \mapsto e_p, q \mapsto e_q]} \\
+  \infer{\mathcal{N}(p) \xrightarrow{\sendsynca{d}{q}} e_p\\ \mathcal{N}(q) \xrightarrow{\recvsynca{d}{p}} e_q}{\mathcal{N} \xrightarrow{\syncmsga{p}{d}{q}} \mathcal{N}[p \mapsto e_p, q \mapsto e_q]} \and
+  \infer{\mathcal{N}(p) \xrightarrow{\recvsynca{d}{q}} e_p\\ \mathcal{N}(q) \xrightarrow{\sendsynca{d}{p}} e_q}{\mathcal{N} \xrightarrow{\syncmsga{q}{d}{p}} \mathcal{N}[p \mapsto e_p, q \mapsto e_q]}
+\end{mathpar}
+
+\begin{itemize}
+\item Now let $\projection{\mathcal{C}}{\mathfrak{P}}$ be the network that results from running every projection of $\mathcal{C}$ in parallel.
+\item We want to show that reasoning about the choreography is exactly like reasoning about this program.
+\item We do so with the following two theorems.
+\end{itemize}
+
+\begin{thm}[Completeness]
+  If $\mathcal{C}_1 \xrightarrow{\alpha} \mathcal{C}_2$, then there is an $e$ such that $\projection{\mathcal{C}_2}{\mathfrak{P}} \sqsubseteq e$ and $\projection{\mathcal{C}_1}{\mathfrak{P}} \xrightarrow{\alpha} e$.
+\end{thm}
+
+\begin{thm}[Soundness]
+  If $\projection{\mathcal{C}_1}{\mathfrak{P}} \xrightarrow{\alpha} e$ then there is a $\mathcal{C}_2$ such that $\mathcal{C}_1 \xrightarrow{\alpha} \mathcal{C}_2$ and $\projection{\mathcal{C}_2}{\mathfrak{P}} \sqsubseteq e$.
+\end{thm}
+
+\begin{itemize}
+\item These are very powerful theorems!
+\item They say that we can reason about the choreography without ever thinking about the projection, and we get to reason about the resulting network.
+\item This gives deadlock freedom as a very easy corollary:
+\end{itemize}
+
+\begin{lem}
+  For every $\mathcal{C}$, there is a process~$p$, message~$m$, and trace $t$ such that $\mathcal{C} \tracecollect{t} {p.m}$.
+\end{lem}
+
+\begin{cor}[Deadlock Freedom]
+  For every $\mathcal{C}$, there is a network $\mathcal{N}$ such that for one process~$p$ $\mathcal{N}(p) = \ret{m}$ and for every other process $q$, $\mathcal{N}(q) = \unit$ and a trace~$t$ such that $$\projection{\mathcal{C}}{\mathfrak{P}} \tracecollect{t} \mathcal{N}$$
+\end{cor}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
