@@ -60,7 +60,7 @@
 
 \newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
 
-\title{Noninterference}
+\title{Parametricity}
 \coursenumber{CSE 410/510}
 \coursename{Programming Language Theory}
 \lecturenumber{27}
@@ -86,10 +86,10 @@
     \[
         \Abs{X}{\tabs{x}{X}{x}}\ :\ \fatype{X}{X \to X}
     \]
-    Parametricity says that this function must be \emph{uniformed} in its type.
+    Parametricity means that this function must \emph{treat its type parameters uniformly}.
 \item A parametric polymorphic program is not allowed to do different things depending on the type of its argument.
-\item Now, suppose we want to allow two type variables to be related by some relations.
-\item We should be able to express by using binary logical relations:
+\item Now, suppose we want to allow two variables or programs of polymorphic type to be related.
+\item We should be able to express this by using binary logical relations:
     \[
         \mathcal{V}(\tau \at \rho )(v_1 \sim v_2)
     \]
@@ -120,11 +120,11 @@
 \begin{itemize}
     \item For relation of expression $\fatype{X}{\tau}$, the type input of both $e_1$ and $e_2$ must be the same as $X$.
     \item For all relations $R$, $e_1$ equivalent to $e_2$ no matter how we interpret $X$.
-    \item $\mathcal{K}$ is the context rule in parametricity.
-    \item Now we can finally define the Fundamental Theorem of Parametricity and prove it!
+    \item The context rule $\mathcal{K}$ is quite similar to the context rule we have seen before.
+    \item Now we can finally define the parametricity theorem and prove it!
 \end{itemize}
 
-\section{Fundamental Theorem of Parametricity}\label{thm:fundamental-theorem-of-parametricity}
+\section{Parametricity Theorem}\label{thm:parametricity-theorem}
 \begin{thm}[Fundamental Theorem of Parametricity]
     $\Delta; \Gamma \vdash e : \tau \implies \Delta; \Gamma \vDash  e \sim e : \tau$.
 \end{thm}
@@ -155,7 +155,7 @@
 
 \section{Free Theorem}\label{sec:free-theorem}
 \begin{itemize}
-    \item Free theorem is a theorem that states that if a polymorphic function is defined in a certain way, then it must satisfy certain properties.
+    \item A free theorem is a theorem that states that if a polymorphic function is defined in a certain way, then it must satisfy certain properties.
     \item We can get the meaning of the behavior of the polymorphic function by just looking at the type
           without any knowledge of the implementation --- which is ``free''.
     \item For details of the free theorem, please refer to the paper \emph{Theorems for Free} by Philip Wadler.
