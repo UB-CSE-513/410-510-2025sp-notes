@@ -80,7 +80,7 @@
 
 \begin{itemize}
 \item $\extype{X}{\tau}$ means ``a $\tau$ where the definition of the type $X$ is hidden.''
-\item $\pack{\tau}{X}{e}$ is how we create $\extype{X}{\tau}$, and it means to choose $\tau$ as the definition of X, and $e$ as the value. 
+\item $\pack{\tau_1}{X}{e}$ is how we create $\extype{X}{\tau}$, and it means to choose $\tau_1$ as the definition of X, and $e$ as the value. 
 It also means that we know about $\tau$ in $e$, but not outside of $e$.
 \item $\unpack{e_1}{X}{x}{e_2}$ is how we use existential types, and it means we take a hidden type and value from $e_1$, name them $X$ and $x$,
 and use them inside $e_2$ without knowing what $X$ actually is.
@@ -93,7 +93,7 @@ and use them inside $e_2$ without knowing what $X$ actually is.
 \end{mathpar}
 
 \begin{itemize}
-\item In \textsc{$\exists$-E}, the premise $\Delta \vdash \tau_2$ is indicating that the only free type variable for $\tau_2$ is in $\Delta$.
+\item In \textsc{$\exists$-E}, the premise $\Delta \vdash \tau_2$ is indicating that all of the free type variables for $\tau_2$ are in $\Delta$.
 \item Therefore this means that $X$ can't be containing $\tau_2$.
 \item This shows exactly how existential types hide information: the return type of an \textsf{unpack} must not depend on the specific type $X$ from $e_1$, 
 so that the outside world can't see what type $X$ really is. \newline \newline
