@@ -158,6 +158,8 @@
 \item On choreographies, we get a definition of substitution for each process.
   Intuitively, each process has its own namespace which must be respected: $p.x \neq q.x$.
 \item We can define this as follows:
+{  \def\oldarraystretch{\arraystretch}
+  \def\arraystretch{1.5}
   $$
   \mathcal{C}[p \mid x \mapsto m] = \left\{
     \begin{array}{ll}
@@ -167,12 +169,25 @@
       \sendrecv{p}{(m'[x \mapsto m])}{p}{x}; \mathcal{C}' & \mathcal{C} = \sendrecv{p}{m'}{p}{x}; \mathcal{C}'\\
       \sendrecv{p}{(m'[x \mapsto m])}{q}{y}; (\mathcal{C}' [p \mid x \mapsto m]) & \mathcal{C} = \sendrecv{p}{m'}{q}{y}; \mathcal{C}' \land (p \neq q \lor x \neq y)\\
       \sendrecv{q}{(m'[x \mapsto m])}{r}{y}; (\mathcal{C}' [p \mid x \mapsto m]) & \mathcal{C} = \sendrecv{q}{m'}{r}{y}; \mathcal{C}' \land p \neq q \land (p \neq r \lor x \neq y)\\
-      \syncmsg{q}{d}{r}; (\mathcal{C}'[p \mid x \mapsto m]) & \mathcal{C} = \syncmsg{q}{d}{r}; \mathcal{C}'\\
-      \chorif{p}{(m' [x \mapsto m])}{(\mathcal{C}_1[p \mid x \mapsto m])}{(\mathcal{C}[p \mid x \mapsto m])} & \mathcal{C} = \chorif{p}{m'}{\mathcal{C}_1}{\mathcal{C}_2}\\
-      \chorif{q}{(m')}{(\mathcal{C}_1[p \mid x \mapsto m])}{(\mathcal{C}[p \mid x \mapsto m])} & \mathcal{C} = \chorif{q}{m'}{\mathcal{C}_1}{\mathcal{C}_2} \land q \neq p\\
+      \syncmsg{q}{d}{r}; (\mathcal{C}'[p \mid x \mapsto m]) & \mathcal{C} = \syncmsg{q}{d}{r}; \mathcal{C}'\\[1em]
+      {\def\arraystretch{1}
+      \hspace{-0.7em}\begin{array}[t]{l}\textsf{if}~p.(m' [x \mapsto m])\\
+        \textsf{then}~\mathcal{C}_1[p \mid x \mapsto m]\\
+        \textsf{else}~\mathcal{C}_2[p \mid x \mapsto m]
+      \end{array}}
+      & \mathcal{C} = \chorif{p}{m'}{\mathcal{C}_1}{\mathcal{C}_2}\\
+      {\def\arraystretch{1}
+      \hspace{-0.7em}\begin{array}[t]{l}
+        \textsf{if}~q.m'\\
+        \textsf{then}~\mathcal{C}_1[p \mid x \mapsto m]\\
+        \textsf{else}~\mathcal{C}_2[p \mid x \mapsto m]
+      \end{array}
+      }
+      & \mathcal{C} = \chorif{q}{m'}{\mathcal{C}_1}{\mathcal{C}_2} \land q \neq p\\
     \end{array}
-    \right.
+  \right.
   $$
+}
 \item As before, we define the semantics of our language with an LTS (i.e., a labeled transition system).
 \item However, we also allow \emph{out-of-order execution}.
   That is, we allow parts of the program to execute whenever it would be allowed when each process is running concurrently.
