@@ -1,0 +1,185 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\title{Cartesian Closed Categories}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{31}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Now we have basic type constructions in categories, but we don't have any equivalent of the function type.
+\item The goal today is to see that equivalent: an \emph{exponential object}.
+\item Categories where you can always find an exponential object are called \emph{Cartesian-closed categories (CCCs)}.
+\end{itemize}
+
+\begin{defn}[Exponential Object]
+  Let $X$ and $Y$ be objects of $\mathcal{C}$.
+  Then $Z$ is called an \emph{exponential} of $X$ and $Y$ if there is a morphism $\epsilon : Z \times X \to Y$.
+  Moreover, for every morphism $f : A \times X \to Y$, there is a unique morphism $\tilde{f} : A \to Z$ such that $$(\tilde{f} \times \id[X]); \epsilon = f$$
+  Here, $f \times g$, where $f : A \to B$ and $g : C \to D$ is the morphism $A \times C \to B \times D$ defined by $f \times g = \prodmor{\pi_1; f}{\pi_2; g}$.
+  Intuitively, it ``does $f$ on the left and $g$ on the right.''
+\end{defn}
+
+\begin{itemize}
+\item We call $\epsilon$ \emph{evaluation} and $\tilde{f}$ \emph{the exponential transpose of $f$}.
+\item We write $Y^X$ for \emph{the} exponential of $X$ and $Y$.
+  We justify the word ``the'' with the following theorem.
+\end{itemize}
+
+\begin{thm}[Uniqueness of Exponentials]
+  Exponentials are unique up to isomorphism.
+\end{thm}
+\begin{proof}
+  Let $A$ and $B$ be two exponentials for $X$ and $Y$.
+  Write the exponential transposes as such:
+  \begin{mathpar}
+    \infer{f : C \times X \to Y}{\tilde{f} : C \to A} \and \infer{f : C \times X \to Y}{\bar{f} : C \to B}
+  \end{mathpar}
+  Note that we're abusing the inference-rule notation here---this is just defining the syntax, we are \emph{not} defining inference rules.
+  We write $\epsilon : A \times X \to Y$ and $\epsilon' : B \times X \to Y$.
+
+  Note that there is a unique morphism $\tilde{\epsilon} : A \to A$ such that $(\tilde{\epsilon} \times \id[X]); \epsilon = \epsilon$.
+  But certainly $\id[A]$ fits that role, so $\tilde{\epsilon} = \id[A]$.
+  Similarly, $\bar{\epsilon'} = \id[B]$.
+
+  We also have $\bar{\epsilon} : A \to B$ and $\tilde{\epsilon'} : B \to A$, which are unique such that $(\bar{\epsilon} \times \id[X]); \epsilon' = \epsilon$ and $(\tilde{\epsilon'} \times \id[X]); \epsilon = \epsilon'$.
+  Note that $$((\bar{\epsilon}; \tilde{\epsilon'}) \times \id[X]); \epsilon = (\bar{\epsilon} \times \id[X]); (\tilde{\epsilon'} \times \id[X]); \epsilon = (\bar{\epsilon} \times \id[X]); \epsilon' = \epsilon$$ and $$((\tilde{\epsilon'}; \bar{\epsilon}) \times \id[X]); \epsilon' = (\tilde{\epsilon'} \times \id[X]); (\bar{\epsilon} \times \id[X]); \epsilon' = (\tilde{\epsilon'} \times \id[X]); \epsilon = \epsilon'$$
+  But by uniqueness, these must be $\id[A]$ and $\id[B]$, respectively.
+  Thus, $A$ and $B$ are isomorphic, as desired.
+\end{proof}
+
+\begin{defn}[Cartesian-Closed Category (CCC)]
+  A category~$\mathcal{C}$ is Cartesian closed if $\mathcal{C}$ has all objects and all exponentials.
+  In other words, for every pair of objects $X, Y \in \obj{\mathcal{C}}$, we have objects $X \times Y$ and $Y^X$ obeying the laws of products and exponentials, respectively.
+\end{defn}
+
+\Set is Cartesian closed: for sets $X$ and $Y$, we always have the Cartesian product $X \times Y$ as the product, and the set $Y^X = \{f \mid f : X \to Y\}$ as an exponential.
+The evaluation is given by $\epsilon(f, x) = f(x)$, while for $f : A \times X \to Y$, we get $\tilde{f}(a) = \{(x, f(a, x)) \mid x \in X\}$ as a transpose.
+
+Moreover, for STLC + (unit and products), \Type is Cartesian closed, with exponentials given by arrow types.
+We get $\epsilon = x : (\tau_1 \to \tau_2) \times \tau_1 \vdash \app{(\projl{x})}{(\projr{x})} : \tau_2$, and for $f$ such that $x : A \times X \vdash f : Y$, we get $$\tilde{f} = a : A \vdash \tabs{x}{X}{f[x \mapsto (a, x)]} : X \to Y$$
+
+Note that in STLC, $f \times g = w : A \times B \vdash \pair{f [x \mapsto \projl{w}]}{g[y \mapsto \projr{w}]} : C \times D$ where $x : A \vdash f : C$ and $y : B \vdash g : D$.
+Then we get
+$$
+\begin{array}{ll}
+  (\tilde{f} \times \id[A \to B]); \epsilon &= \epsilon [ x \mapsto \tilde{f} \times \id[A \times B]]\\
+                              &= \epsilon [x \mapsto \pair{\tilde{f} [x \mapsto \projl{x}]}{\projr{x}}]\\
+                              &=\app{(\projl{\pair{\tilde{f} [x \mapsto \projl{x}]}{\projr{x}}})}{(\projr{\pair{\tilde{f} [x \mapsto \projl{x}]}{\projr{x}}})}\\
+                              &=\app{(\tilde{f} [x \mapsto \projl{x}])}{(\projr{x})}\\
+                              &=\app{(\tabs{x}{X}{f[x \mapsto \pair{\projl{x}}{x}]})}{\projr{x}}\\
+                              &\to_\beta f[x \mapsto \pair{\projl{x}}{\projr{x}}]\\
+                              &\cong_\eta f[x \mapsto x]\\
+                              &= f
+\end{array}
+$$
+
+Moreover, let $\mathcal{C}$ be a CCC with a final object~$1$.
+Then we can translate STLC + unit and products into $\mathcal{C}$.
+When we do so, we translate a typing derivation $x_1 : \tau_1, \dots, x_n : \tau_n \vdash e : \tau$ to a morphism $$ \llbracket \tau_1 \rrbracket \times \dots \times \llbracket \tau_n \rrbracket \to \llbracket \tau \rrbracket$$
+\begin{mathpar}
+  \llbracket \utype \rrbracket = 1 \and
+  \llbracket \tau_1 \times \tau_2 \rrbracket = \llbracket \tau_1 \rrbracket \times \llbracket \tau_2 \rrbracket \and
+  \llbracket \tau_1 \to \tau_2 \rrbracket = {\llbracket \tau_2 \rrbracket}^{\llbracket \tau_1 \rrbracket}\\
+  \left\llbracket \infer{ }{x_1 : \tau_1, \dots, x_n : \tau_n \vdash x _i : \tau_i} \right\rrbracket = \pi_i \and
+  \left\llbracket \infer{ }{\Gamma \vdash \unit : \utype} \right\rrbracket = \mathord{?}_{\llbracket \Gamma \rrbracket} \\
+  \left\llbracket \infer{\infer{\text{pf}}{{\Gamma, x : \tau_1 \vdash e : \tau_2}}}{\Gamma \vdash \tabs{x}{\tau_1}{e} : \tau_1 \to \tau_2}\right\rrbracket = \widetilde{\llbracket \text{pf} \rrbracket} \and
+  \left\llbracket\infer{\infer{\text{pf}_1}{\Gamma \vdash f : \tau_1 \to \tau_2}\\ \infer{\text{pf}_2}{\Gamma \vdash a : \tau_1}}{\Gamma \vdash \app{f}{a} : \tau_2} \right\rrbracket = \langle\llbracket \text{pf}_1 \rrbracket, \llbracket \text{pf}_2 \rrbracket\rangle; \epsilon\\
+  \left\llbracket\infer{\infer{\text{pf}_1}{\Gamma \vdash e_1 : \tau_1}\\ \infer{\text{pf}_2}{\Gamma \vdash e_2 : \tau_2}}{\Gamma \vdash \pair{e_1}{e_2} : \prodtype{\tau_1}{\tau_2}} \right\rrbracket = \prodmor{\llbracket \text{pf}_1\rrbracket}{\llbracket\text{pf}_2\rrbracket} \and
+  \left\llbracket\infer{\infer{\text{pf}}{\Gamma \vdash e : \tau_1 \times \tau_2}}{\Gamma \vdash \projl{e} : \tau_1}\right\rrbracket = \llbracket\text{pf}\rrbracket; \pi_1 \and
+  \left\llbracket\infer{\infer{\text{pf}}{\Gamma \vdash e : \tau_1 \times \tau_2}}{\Gamma \vdash \projr{e} : \tau_1}\right\rrbracket = \llbracket\text{pf}\rrbracket; \pi_2
+\end{mathpar}
+
+Moreover, by adding base types, we can make it so that we can build a model of any CCC in STLC + products.
+Thus, we can reason about CCCs by reasoning about STLC.
+One fact that we will not use today, but which is very useful for doing category theory, is that both anything that can be proven $\alpha, \beta, \eta$ equivalent in STLC + products is equal in CCCs, and that anything that can be proven equal in all CCCs can be proven equal in STLC + products.
+Thus, we say that STLC + products is the \emph{internal language of CCCs}.
+This is a super useful fact about categories, as it turns large algebraic proofs into simple $\lambda$~calculus calculations.
+
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

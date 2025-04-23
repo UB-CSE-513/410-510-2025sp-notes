@@ -1,0 +1,224 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+\newcommand{\ltype}[1]{\ensuremath{\textsf{list}\mkern3mu#1}}
+\newcommand{\nillist}{\ensuremath{[\,]}}
+\newcommand{\conslist}[2]{\ensuremath{#1 \mathop{::} #2}}
+\newcommand{\lcase}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\nillist\Rightarrow#2; \mkern5mu\conslist{#3}{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\logn}[1]{\ensuremath{\textsf{log}\mkern3mu#1}}
+\renewcommand{\tt}{\textsf{true}\xspace}
+\newcommand{\ff}{\textsf{false}\xspace}
+\newcommand{\ite}[3]{\ensuremath{\textsf{if}~#1 \mathrel{\textsf{then}} #2 \mathrel{\textsf{else}} #3}}
+\newcommand{\send}[2]{\ensuremath{\textsf{send}~#1 \mathrel{\textsf{to}} #2}}
+\newcommand{\recv}[3]{\ensuremath{\textsf{receive}~#1 \mathrel{\textsf{from}} #2 \mathrel{\textsf{in}} #3}}
+\newcommand{\Left}{\textsf{left}\xspace}
+\newcommand{\Right}{\textsf{right}\xspace}
+\newcommand{\choosefor}[2]{\ensuremath{\textsf{choose}~#1 \mathrel{\textsf{for}} #2}}
+\newcommand{\letchoose}[3]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2; \Right \Rightarrow #3)}}
+
+\newcommand{\capture}[1]{\ensuremath{\lfloor #1 \rfloor}}
+\newcommand{\bind}[1]{\ensuremath{\textsf{bind}(#1)}}
+
+\newcommand{\pureeff}{\textsf{pure}\xspace}
+\newcommand{\logeff}{\textsf{log}\xspace}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\newcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\newcommand{\senda}[2]{#1 \rightsquigarrow #2}
+\newcommand{\recva}[2]{#1 \leftsquigarrow #2}
+\newcommand{\choosea}[2]{[#1] \rightsquigarrow #2}
+\newcommand{\letchoosea}[2]{[#1] \leftsquigarrow #2}
+
+\newcommand{\tracecollect}[2]{\ensuremath{\mathrel{{\xrightarrow{#1}}^{\raisebox{-5pt}{\scriptsize \ast}}}}}
+\newcommand{\emptytracecollect}{\ensuremath{\mathrel{{\xrightarrow{\cdot}}^{\raisebox{-2pt}{\scriptsize \ast}}}}}
+
+\title{Asynchrony}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{35}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Last lecture, we looked at our first concurrent programming language---a simple concurrent $\lambda$~calculus.
+\item In this language, communication was totally synchronous---when sending and receiving a message, neither party could move ahead until the entire process of sending and receiving was complete.
+\item Intuitively, every message send involved a handshake.
+\item Thus, programs like $$p \triangleright \send{3}{q}; \recv{x}{q}{x} \parallel q \triangleright \send{4}{p}; \recv{x}{p}{x}$$ get stuck, even though both programs seem to send and receive.
+  \begin{itemize}
+  \item Note that I'm using a shorthand here: $e_1; e_2 \triangleq \app{(\abs{\_}{e_2})}{e_1}$.
+  \item Thus, we evaluate $e_1$ completely, throw away its value, and then evaluate $e_2$.
+  \item This is very useful when we care about some \emph{action} $e_1$ takes (like a side effect), but not about its return value (for instance, if it returns \utype).
+  \end{itemize}
+\item Note that this program is \emph{not} stuck on a type error.
+  Instead, it's stuck because two processes are each waiting on the other to continue.
+  We refer to this way of getting stuck as \emph{deadlock}.
+  \begin{itemize}
+  \item You can't prevent deadlock using a data type system like we've seen so far!
+  \item You \emph{can} use a \emph{behavioral} type system, where types describe how a program can behave.
+    \emph{Session types} are a form of behavioral types where types describe concurrent protocols across a network.
+    Most modern session types do prevent deadlock, but they can be very complicated to describe.
+  \end{itemize}
+\item By making communication \emph{asynchronous}, we can prevent some deadlocks.
+  For instance, the program above would no longer deadlock because each program could receive its number after sending.
+\item A word of warning: many terms in the concurrency and parallelism world are used in different ways by different people.
+  I am using words as follows:
+  \begin{itemize}
+  \item \textbf{Concurrency}: The ability for a program to be taking two actions at the same logical time.
+    These actions may or may not take place at the same physical time.
+  \item \textbf{Parallelism:} The ability for a program implementation to take two actions at the same physical time.
+    These actions may or may not take place at the same logical time (though usually they do).
+  \item \textbf{Synchrony:} A property of communications in which the entire communication must be complete before any process involved in the communication may move on.
+  \item \textbf{Asynchrony:} A property of communications in which some processes involved in the communication may move on before the entire communcation is complete.
+  \end{itemize}
+  Note that this use of synchrony and asynchrony is different (though not entirely orthogonal to) synchronous and asynchronous networks in distributed systems.
+\item Last time, we were able to tell what message a process should receive based on what message its partner was sending.
+  However, now that won't work: by the time the first process is receiving, the partner may no longer be sending at all!
+\item Instead, we need to reason about what messages are being sent from who to whom.
+\item We do this by adding to our description of networks.
+  Now, as well as describing the program each process is running, they also need to describe which messages are ``in flight'' from one process to another.
+\item We describe the messages in flight from $p$ to $q$ using a queue.
+  We can think of a queue as a list of possible messages:
+  \begin{syntax}
+    \category[Messages]{m} \alternative{v} \alternative{[d]}
+    \category[Queues]{Q} \alternative{m_1 m_2\dots m_n}
+  \end{syntax}
+\item We can then define networks as follows:
+  \begin{syntax}
+    \category[Networks]{\mathcal{N}} \alternative{p_1 \triangleright e_1 \parallel \dots \parallel p_n \triangleright e_n; p_1 p_2 \triangleright Q_{12}; p_1 p_3 \triangleright Q_{13}; \dots; p_{n-1} p_n \triangleright Q_{(n-1)n}}
+  \end{syntax}
+  In other words, a network contains a program for every process, as before.
+  However, now it additionally contains a queue for each ordered pair of distinct processes $p_i p_j$ where $i \neq j$.
+  This queue represents the messages that $p_i$ sent to $p_j$, but which $p_j$ has not yet received.
+\item We will write $m Q$ when $m$ is at the front of a queue, the rest of which is defined as $Q$, and $Q m$ when $m$ is at the back of the queue.
+\item As with programs, we can view a network~$\mathcal{N}$ as assigning a queue to each ordered pair of processes, which can then be updated.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{\mathcal{N}(p) \xrightarrow{\varepsilon} e}{\mathcal{N} \to\mathcal{N}[p \mapsto e]} \\
+  \infer{\mathcal{N}(p) \xrightarrow{\senda{v}{q}} e\\ \mathcal{N}(pq) = Q}{\mathcal{N} \to \mathcal{N}[p \mapsto e, pq \mapsto Qv]} \and
+  \infer{\mathcal{N}(p) \xrightarrow{\choosea{d}{q}} e\\ \mathcal{N}(pq) = Q}{\mathcal{N} \to \mathcal{N}[p \mapsto e, pq \mapsto Q[d]]} \\
+  \infer{\mathcal{N}(p) \xrightarrow{\recva{v}{q}} e\\ \mathcal{N}(qp) = vQ}{\mathcal{N} \to \mathcal{N}[p \mapsto e, qp \mapsto Q]}\and
+  \infer{\mathcal{N}(p) \xrightarrow{\letchoosea{d}{q}} e\\ \mathcal{N}(qp) = [d]Q}{\mathcal{N} \to \mathcal{N}[p \mapsto e, qp \mapsto Q]}
+\end{mathpar}
+
+\begin{itemize}
+\item Note that we don't need to ask when two labels are compatible anymore.
+  After all, we have a step above for every label, and no step for a pair of labels.
+\item Lets say that an asynchronous network (as defined above) \emph{refines} a synchronous network (as defined last time) whenever it assigns the same program to every process.
+\item Note that every asynchronous network refines a single synchronous network (which you can find by just throwing away the queues), but a synchronous network is refined by \emph{many} asynchronous networks.
+\end{itemize}
+
+\begin{thm}
+  Let $\mathcal{N}_1$ be a synchronous network, and let $\mathcal{N}_1'$ be an asynchronous network which refines it with empty queues
+  If $\mathcal{N}_1 \to \mathcal{N}_2$, then there is an asynchronous network $\mathcal{N}_2'$ that refines $\mathcal{N}_2$ with empty queues  such that $\mathcal{N}_1' \to^\ast \mathcal{N}_2'$.
+\end{thm}
+\begin{proof}
+  There's only two possible ways for $\mathcal{N}_1$ to take a step.
+
+  First, a process~$p$ may take an internal step, so $\mathcal{N}_1 \to \mathcal{N}_1[p \mapsto e]$ where $\mathcal{N}_1(p) \xrightarrow{\varepsilon} e$.
+  But in this case, $\mathcal{N}_1' \to \mathcal{N}_1'[p \mapsto e]$, and $\mathcal{N}_1'[p \mapsto e]$ clearly refines $\mathcal{N}_1[p \mapsto e]$ with empty queues.
+
+  Second, two processes~$p$ and~$q$ may take compatible steps.
+  These may be a value message send or a choice message send.
+  WLOG, assume that $p$ is sending a value message to $q$.
+  Then $\mathcal{N}_1(p) \xrightarrow{\senda{v}{q}} e_p$ and $\mathcal{N}_1(q) \xrightarrow{\recva{v}{q}} e_q$, while $\mathcal{N}_2 = \mathcal{N}_1[p \mapsto e_p, q \mapsto e_q]$.
+  Let $\mathcal{N}_1'(pq) = Q$.
+  Then $$\mathcal{N}_1' \to \mathcal{N}_1'[p \mapsto e_p, p q \mapsto Q] \to \mathcal{N}_1'[p \mapsto e_p, q \mapsto e_q, Q \mapsto Q = \mathcal{N}_1'[p \mapsto e_p, q \mapsto e_q]$$
+  The case for choice messages is analogous.
+\end{proof}
+
+\begin{itemize}
+\item Thus, if we start in a network with empty queues, every synchronous evaluation is allowed in the asynchronous semantics.
+\item However, the same is not true the other way around: if $$\mathcal{N} = p \triangleright \send{q}{3}; \recv{x}{q}{x} \parallel \send{p}{4}; \recv{x}{p}{x}; pq \triangleright \cdot; qp \triangleright \cdot$$ then we get
+  $$\begin{array}{ll}\mathcal{N} &\to \mathcal{N}[p \mapsto \recv{x}{q}{x}, pq \mapsto 3]\\& \to \mathcal{N}[p \mapsto \recv{x}{q}{x}, q \mapsto \recv{x}{p}{x}, pq \mapsto 3, qp \mapsto 4]\\& \to \mathcal{N}[p \mapsto 4, q \mapsto \recv{x}{p}{x}, qp \mapsto 4]\\& \to \mathcal{N}[p \mapsto 4, q \mapsto 3]\end{array}$$
+  Where the synchronous version of $\mathcal{N}$ is stuck!
+\item Thus, asynchronous programming allows for more nondeadlocking programs than synchrounous programming.
+\item However, that does not mean there are no deadlocks:
+  $$\mathcal{N} = p \triangleright \recv{x}{q}{x} \parallel q \triangleright \recv{x}{p}{x}; pq \triangleright \cdot; qp \triangleright \cdot$$
+  still deadlocks.
+  After all, $p$ is waiting on $q$, but $q$ is waiting on $p$.
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

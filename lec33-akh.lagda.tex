@@ -1,0 +1,282 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+\newcommand{\ltype}[1]{\ensuremath{\textsf{list}\mkern3mu#1}}
+\newcommand{\nillist}{\ensuremath{[\,]}}
+\newcommand{\conslist}[2]{\ensuremath{#1 \mathop{::} #2}}
+\newcommand{\lcase}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\nillist\Rightarrow#2; \mkern5mu\conslist{#3}{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\logn}[1]{\ensuremath{\textsf{log}\mkern3mu#1}}
+
+\newcommand{\capture}[1]{\ensuremath{\lfloor #1 \rfloor}}
+\newcommand{\bind}[1]{\ensuremath{\textsf{bind}(#1)}}
+
+\newcommand{\pureeff}{\textsf{pure}\xspace}
+\newcommand{\logeff}{\textsf{log}\xspace}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\newcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\title{Monads and Effects}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{33}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Now that we have the basics of category theory under our belt, let's begin to look at something category theory can teach us about programming languages.
+\item We will consider how to organize the semantics of \emph{type-and-effect} systems, that track both the type of a program and what effects it can perform.
+\item Up until now, we have mostly focused on \emph{pure} programs: they only receive inputs and compute outputs without having any side effects like printing to the screen or launching the missiles.
+\item We can easily add an effect; for instance, let's focus on a $\lambda$~calculus that can append information to a log of numbers.
+\end{itemize}
+
+\section*{An Effectful Calculus}
+
+\begin{syntax}
+  \category[Effects]{\varepsilon} \alternative{\pureeff} \alternative{\logeff}
+  \category[Types]{\tau} \alternative{\utype} \alternative{\mathbb{N}}  \alternative{\ltype{\tau}} \alternative{\prodtype{\tau_1}{\tau_2}} \alternative{\sumtype{\tau_1}{\tau_2}} \alternative{\tau_1 \xrightarrow{\varepsilon} \tau_2}
+  \category[Expressions]{e} \alternative{x} \alternative{\unit} \alternative{\tilde{n}} \alternative{\logn{e}}\\
+  \alternative{\nillist} \alternative{\conslist{e_1}{e_2}} \alternative{\lcase{e}{e_1}{x}{y}{e_2}}\\
+  \alternative{\pair{e_1}{e_2}} \alternative{\projl{e}} \alternative{\projr{e}}\\
+  \alternative{\injl{e}} \alternative{\injr{e}} \alternative{\case{e}{x}{e_1}{y}{e_2}}\\
+  \alternative{\tabs{x}{\tau}{e}} \alternative{\app{e_1}{e_2}}
+  \category[Values]{v} \alternative{\unit} \alternative{\tilde{n}} \alternative{\nillist} \alternative{\conslist{v_1}{v_2}} \alternative{\pair{v_1}{v_2}} \alternative{\injl{v}} \alternative{\injr{v}} \alternative{\tabs{x}{\tau}{e}}
+  \category[Evaluation Contexts]{\mathcal{C}} \alternative{[\cdot]} \alternative{\logn{\mathcal{C}}}\\
+  \alternative{\conslist{\mathcal{C}}{e}} \alternative{\conslist{v}{\mathcal{C}}} \alternative{\lcase{\mathcal{C}}{e_1}{x}{y}{e_2}}\\
+  \alternative{\pair{\mathcal{C}}{e}} \alternative{\pair{v}{\mathcal{C}}} \alternative{\projl{\mathcal{C}}} \alternative{\projr{\mathcal{C}}}\\
+  \alternative{\injl{\mathcal{C}}} \alternative{\injr{\mathcal{C}}} \alternative{\case{\mathcal{C}}{x}{e_1}{y}{e_2}}\\
+  \alternative{\app{\mathcal{C}}{e}} \alternative{\app{v}{\mathcal{C}}}
+\end{syntax}
+
+\begin{itemize}
+\item Note that we're keeping track of \emph{effects} as well at types.
+\item The effect \logeff means that this program \textbf{might} log some data, while \pureeff means that it \textbf{will definitely not} log any data.
+\item Function values are pure, even when their bodies are not.
+  Intuitively, a function does not log anything, but when its is applied it may log anything.
+  As such, we need to track the potential effect of a function in the type; we write $\tau_1 \xrightarrow{\varepsilon} \tau_2$ for the type of a function which takes an argument of type~$\tau_1$ and produces a result of type~$\tau_2$, potentially preforming the effect~$\varepsilon$.
+\item In the operational semantics, we need to keep track not only of data, but also of the current log.
+  Since we log numbers, we keep track of a list of numbers as we go, appending to that list when we log something.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{e_1, \ell \to e_2, \ell'}{\mathcal{C}[e_1], \ell \to \mathcal{C}[e_2], \ell'} \and
+  \infer{}{\logn{\tilde{n}}, \ell \to \unit, n\ell}\\
+  \infer{}{\lcase{\nillist}{e_1}{x}{y}{e_2}, \ell \to e_1, \ell}\and
+  \infer{}{\lcase{(\conslist{v_1}{v_2})}{e_1}{x}{y}{e_2}, \ell \to e_2[x \mapsto v_1, y \mapsto v_2], \ell} \\
+  \infer{}{\projl{\pair{v_1}{v_2}}, \ell \to v_1, \ell} \and
+  \infer{}{\projr{\pair{v_1}{v_2}}, \ell \to v_2, \ell} \\
+  \infer{}{\case{(\injl{v})}{x}{e_1}{y}{e_2}, \ell \to e_1[x \mapsto v], \ell} \and
+  \infer{}{\case{(\injr{v})}{x}{e_1}{y}{e_2}, \ell \to e_2[y \mapsto v], \ell} \\
+  \infer{}{\app{(\tabs{x}{\tau}{e})}{v}, \ell \to e[x \mapsto v], \ell}
+\end{mathpar}
+
+\begin{itemize}
+\item We write $\Gamma \vdash e : \tau \mid \varepsilon$ to mean ``in context~$\Gamma$, the program~$e$ will eventually compute a~$\tau$, potentially performing effect~$\varepsilon$.''
+\item This is called a \emph{type-and-effect system}, since it tracks both the types of programs and the effects that they may have.
+\item Note that nothing \emph{forces} a program to be pure: a pure program can be considered to be a program that potentially logs data.
+\item We can also combine two effects: $\varepsilon_1 \cdot \varepsilon_2$ is the effect that results from running both effect~$\varepsilon_1$ and the effect~$\varepsilon_2$.
+  We can define this as follows:
+  $$
+  \varepsilon_1 \cdot \varepsilon_2 \triangleq \left\{\begin{array}{ll} \pureeff & \text{if}~\varepsilon_1 = \varepsilon_2 = \pureeff\\ \logeff & \text{otherwise}\end{array}\right.
+  $$
+\end{itemize}
+
+\begin{mathparpagebreakable}
+  \infer*[left=Axiom]{x : \tau \in \Gamma}{\Gamma \vdash x : \tau \mid \varepsilon}\\
+  \infer*[left=UnitI]{ }{\Gamma \vdash \unit : \utype \mid \varepsilon}\\
+  \infer*[left=Lit]{ }{\Gamma \vdash \tilde{n} : \mathbb{N} \mid \varepsilon}\and
+  \infer*[right=Log]{\Gamma \vdash e : \mathbb{N} \mid\varepsilon}{\Gamma \vdash \logn{e} : \utype \mid \logeff}\\
+  \infer*[left=ListI$_1$]{ }{\Gamma \vdash \nillist : \ltype{\tau} \mid \varepsilon}\and
+  \infer*[left=ListI$_2$]{\Gamma \vdash e_1 : \tau \mid \varepsilon_1\\ \Gamma \vdash e_2 : \ltype{\tau} \mid \varepsilon_2}{\Gamma \vdash \conslist{e_1}{e_2} : \ltype{\tau} \mid \varepsilon_1 \cdot \varepsilon_2}\and
+  \infer*[right=ListE]{\Gamma \vdash e : \ltype{\tau} \mid \varepsilon_1\\ \Gamma \vdash e_1 : \sigma \mid \varepsilon_2\\ \Gamma, x : \tau, y : \ltype{\tau} \vdash e_2 : \sigma \mid \varepsilon_3}{\Gamma \vdash \lcase{e}{e_1}{x}{y}{e_2} \mid \varepsilon_1 \cdot \varepsilon_2 \cdot \varepsilon_3}\\
+  \infer*[left=$\times$-I]{\Gamma \vdash e_1 : \tau_1 \mid \varepsilon_1 \\ \Gamma \vdash e_2 : \tau_2 \mid \varepsilon_2}{\Gamma \vdash \pair{e_1}{e_2} : \prodtype{\tau_1}{\tau_2} \mid \varepsilon_1 \cdot \varepsilon_2}\and
+  \infer*[right=$\times$-E$_1$]{\Gamma \vdash e : \prodtype{\tau_1}{\tau_2} \mid \varepsilon}{\Gamma \vdash \projl{e} : \tau_1 \mid \varepsilon} \and
+  \infer*[right=$\times$-E$_2$]{\Gamma \vdash e : \prodtype{\tau_1}{\tau_2} \mid \varepsilon}{\Gamma \vdash \projr{e} : \tau_2 \mid \varepsilon} \\
+  \infer*[left=$+$-I$_1$]{\Gamma \vdash e : \tau_1 \mid \varepsilon}{\Gamma \vdash \injl{e} : \sumtype{\tau_1}{\tau_2} \mid \varepsilon} \and
+  \infer*[left=$+$-I$_2$]{\Gamma \vdash e : \tau_2 \mid \varepsilon}{\Gamma \vdash \injr{e} : \sumtype{\tau_1}{\tau_2} \mid \varepsilon} \and
+  \infer*[right=$+$-E]{\Gamma \vdash e : \sumtype{\tau_1}{\tau_2} \mid \varepsilon_1\\ \Gamma, x : \tau_1 \vdash e_1 : \sigma \mid \varepsilon_2\\ \Gamma, y : \tau_2 \vdash e_2 : \sigma \mid \varepsilon_3}{\Gamma \vdash \case{e}{x}{e_1}{y}{e_2} : \sigma \mid \varepsilon_1 \cdot \varepsilon_2 \cdot \varepsilon_3}\\
+  \infer*[left=$\to$-I]{\Gamma, x : \tau_1 \vdash e : \tau_2 \mid \varepsilon}{\Gamma \vdash \tabs{x}{\tau_1}{e} : \tau_1 \xrightarrow{\varepsilon} \tau_2 \mid \varepsilon}\and
+  \infer*[right=$\to$-E]{\Gamma \vdash f : \tau_1 \xrightarrow{\varepsilon_f} \tau_2 \mid \varepsilon_1\\ \Gamma \vdash a : \tau_1 \mid \varepsilon_2}{\Gamma \vdash \app{f}{a} : \tau_2 \mid \varepsilon_1 \cdot \varepsilon_2 \cdot \varepsilon_f}
+\end{mathparpagebreakable}
+
+\begin{thm}[Progress]
+  If $\vdash e : \tau \mid \varepsilon$, then either $e$ is a value or for any log $\ell$ there is an expression~$e'$ and log~$\ell'$ such that $e, \ell \to e', \ell'$.
+\end{thm}
+
+\begin{thm}[Preservation]
+  If $\Gamma \vdash e : \tau \mid \varepsilon$, then for any $e'$ such that $e, \ell \to e', \ell'$, then $\Gamma \vdash e' : \tau \mid \varepsilon$.
+\end{thm}
+
+\noindent\textbf{N.B.} Here we're using the fact that we don't ever force purity.
+After all, $\logn{\tilde{n}}$ steps to $\unit$, which is pure.
+But we can always consider $\unit$ to be a program which may log data, but doesn't.
+
+\begin{thm}[Effect Soundness]
+  If $\Gamma \vdash e : \tau \mid \pureeff$ and $e, \ell \to^\ast e', \ell'$, then $\ell' = \ell$.
+\end{thm}
+
+\begin{thm}[Values are Pure]
+  If $\Gamma \vdash v : \tau \mid \varepsilon$, then $\Gamma \vdash v : \tau \mid \pureeff$.
+\end{thm}
+
+\begin{itemize}
+\item All of the theorems above are proven using techniques we've studied repeatedly this semester.
+\end{itemize}
+
+\section*{Categorical Semantics}
+\label{sec:categ-semant}
+
+\begin{itemize}
+\item What are the categorical semantics for such a language?
+\item Intuitively, it's kind of two languages in one: a pure language and an effectful language.
+\item This is reflected in the categorical semantics: we have two categories, $\mathcal{P}$ for pure programs and $\mathcal{E}$ for effectful programs.
+\item Each of these is cartesian closed: the product for both is the product type:
+  \begin{itemize}
+  \item The exponential for pure programs is $\tau_1 \xrightarrow{\pureeff} \tau_2$.
+  \item The exponential for effectful programs is $\tau_1 \xrightarrow{\logeff} \tau_2$.
+  \end{itemize}
+\item However, there's more structure here: the fact that every pure program can be considered effectful is captured in the following lemma:
+  \begin{lem}
+    The following rule is admissible:
+    $$\infer*[left=LiftEff]{\Gamma \vdash e : \tau \mid \pureeff}{\Gamma \vdash e : \tau \mid \logeff}$$
+  \end{lem}
+  This becomes a functor $F : \mathcal{P}  \to \mathcal{E}$.
+\item We can also transform types and programs into the completely-pure world: an effectful program can be represented as a program which tracks the log as a list.
+  We write $M\,\tau$ for the result of transforming a type as follows:
+  $$
+  M\,\tau = \left\{\begin{array}{ll}
+      \utype \times \ltype{\mathbb{N}} & \tau = \utype\\
+      \mathbb{N} \times \ltype{\mathbb{N}} & \tau = \mathbb{N}\\
+      \ltype{\tau'} \times \ltype{\mathbb{N}} & \tau = \ltype{\tau'}\\
+      (\tau_1 \times \tau_2) \times \ltype{\mathbb{N}} & \tau = \tau_1 \times \tau_2\\
+      (\tau_1 + \tau_2) \times \ltype{\mathbb{N}} & \tau = \tau_1 + \tau_2\\
+      (\tau_1 \xrightarrow{\pureeff} \tau_2) \times \ltype{\mathbb{N}} & \tau = \tau_1 \xrightarrow{\pureeff} \tau_2\\
+      (\tau_1 \xrightarrow{\pureeff} (\tau_1 \times \ltype{\mathbb{N}})) \times \ltype{\mathbb{N}} & \tau = \tau_1 \xrightarrow{\logeff} \tau_2
+    \end{array}\right.
+  $$
+\item Every effectful program $x : \tau \vdash e : \sigma \mid \logeff$ can be transformed into a program $\capture{e}$ such that $x : \tau \vdash e : M\,\sigma \mid \pureeff$.
+  \begin{itemize}
+  \item The resulting program collects all of its logged data in its output.
+  \item Thus, $\hom[\mathcal{E}](X, Y) = \hom[\mathcal{P}](X, M\,Y)$
+  \end{itemize}
+\item Moreover, a program $x : \tau \vdash e : M\,\sigma \mid \varepsilon$ can be transformed into a program $x : M\,\tau \vdash \bind{e} : M\,\sigma \mid \varepsilon$.
+  \begin{itemize}
+  \item If $f : X \to Y$ and $g : Y \to Z$ in $\mathcal{E}$, then $\capture{f; g} = \capture{f}; \bind{\capture{g}}$
+  \end{itemize}
+\item Finally, there is an easy program $x : \tau \vdash (x, \nillist) : M\,\tau$ that plays well with bind.
+\item Together, these make $M$ a monad
+\end{itemize}
+
+\begin{defn}[Monad]
+  A \emph{monad} on a category $\mathcal{C}$ is an endofunctor $M : \mathcal{C} \to \mathcal{C}$ along with a natural transformation $\eta : \id[\mathcal{C}] \Rightarrow M$ and $\mu : M; M \Rightarrow M$ such that the following diagrams always commute:
+  \begin{center}
+    \begin{tikzcd}
+      M\, X \ar[r, "\eta_X"] \ar[d,"M\,\eta_X"'] \ar[dr,dash,"{\id[X]}"] & M\, M\, X \ar[d, "\mu_X"] \\
+      M\,M\,X \ar[r, "\mu_X"'] & M \, X
+    \end{tikzcd}
+  \end{center}
+  \begin{center}
+    \begin{tikzcd}
+      M\,M\,M\,X \ar[r, "{\mu_{M\, X}}"] \ar[d, "{M\,\mu_X}"'] & M\, M\, X \ar[d, "\mu_X"] \\
+      M\,M\,X \ar[r, "\mu_X"'] & M\, X
+    \end{tikzcd}
+  \end{center}
+\end{defn}
+
+\begin{defn}[Kleisli Category]
+  For a category $\mathcal{C}$ and a monad $M : \mathcal{C} \to \mathcal{C}$, the \emph{Kleisli category}~$\mathcal{K}_M$ for $M$ has:
+  \begin{itemize}
+  \item \textbf{Objects}: Same as the objects of $\mathcal{C}$
+  \item \textbf{Morphisms}: $\hom[\mathcal{K}_M]{X}{Y} = \hom[\mathcal{C}]{X}{M\,Y}$
+  \item \textbf{Identities}: $\id[X] \in \hom[\mathcal{K}_M]{X}{X} = \eta_X \in \hom[\mathcal{C}]{X}{M\,X}$
+  \item \textbf{Composition}: $f; g \in \hom[\mathcal{K}_M]{X}{Z}$ = $f; M\,g; \mu_Z \in \hom[\mathcal{C}]{X}{Z}$
+  \end{itemize}
+\end{defn}
+
+\begin{itemize}
+\item The fact that the Kleisli category is a lawful category is a homework problem.
+\item Then, $\mathcal{E} = \mathcal{K}_M$ is the Kleisli category for the logging monad.
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

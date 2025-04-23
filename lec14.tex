@@ -3,67 +3,20 @@
 \usepackage[colorlinks,urlcolor=blue]{hyperref}
 \usepackage{doi}
 \usepackage{xspace}
-% % \usepackage{agda}
-% \usepackage{fontspec}
+\usepackage{agda}
+\usepackage{fontspec}
 \usepackage{enumerate}
-\usepackage{mathtools}
-% \setsansfont{Fira Code}
+\usepackage{forest}
+\setsansfont{Fira Code}
 \usepackage{newunicodechar}
-\usepackage{mathpartir}
-\usepackage[dvipsnames]{xcolor}
-\usepackage[many]{tcolorbox}
-
-\usepackage{parskip}
-
-\usepackage{amsfonts}
-\usepackage{pl-syntax/pl-syntax}
-
-% % % % %
-\newtcolorbox{alert}[3]{
-  colback=white,
-  colframe={#3},
-  fonttitle=\bfseries, 
-  title={#1}, 
-  width={#2}
-}
-
 \newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{σ}{\ensuremath{\sigma}}
+\newunicodechar{ξ}{\ensuremath{\xi}}
+\newunicodechar{⇒}{\ensuremath{\Rightarrow}}
 
 \newcommand{\agdanats}{\textsf{ℕ}\xspace}
-\newcommand{\funcdef}[4]{#1 \colon #2 #3 #4}
-\newcommand{\totfunc}[3]{\funcdef{#1}{#2}{\rightarrow}{#3}}
-\newcommand{\parfunc}[3]{\funcdef{#1}{#2}{\rightharpoonup}{#3}}
-\newcommand{\sem}[1]{\llbracket #1 \rrbracket}
-\newcommand{\lift}[1]{#1_\bot}
-\newcommand{\semapp}[2]{\sem{#1}(#2)}
-\newcommand{\semappsig}[1]{\semapp{#1}{\sigma}}
-\newcommand{\imp}[1]{\textsf{#1}}
 
-\newcommand{\bl}[1]{\textcolor{blue}{#1}}
-\newcommand{\g}[1]{\textcolor{Green}{#1}}
-\newcommand{\re}[1]{\textcolor{BrickRed}{#1}}
-\newcommand{\aq}[1]{\textcolor{Aquamarine}{#1}}
-\newcommand{\CC}{\mathbb{C}}
-\newcommand{\Tt}[1]{\texttt{#1}}
-
-% % % % % 
-\newenvironment{theorem}[2][Theorem]{\begin{trivlist}
-\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
-\newenvironment{lemma}[2][Lemma]{\begin{trivlist}
-\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
-\newenvironment{exercise}[2][Exercise]{\begin{trivlist}
-\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
-\newenvironment{problem}[2][Problem]{\begin{trivlist}
-\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
-\newenvironment{question}[2][Question]{\begin{trivlist}
-\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
-\newenvironment{corollary}[2][Corollary]{\begin{trivlist}
-\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
-
-\renewcommand{\qedsymbol}{$\blacksquare$}
-% % % % %
-
-\title{Simply Typed Lambda Calculus}
+\title{De Bruijn Indices}
 \coursenumber{CSE 410/510}
 \coursename{Programming Language Theory}
 \lecturenumber{14}
@@ -73,295 +26,341 @@
 \begin{document}
 \maketitle
 
-\raggedright
- 
-\section{Motivation of Type Systems}
-
-Previously we have worked with untyped lambda calculus, as well as Imp. 
-  Neither had types so why do we need a type system? 
-
-\textbf{Goal of a type system}: Types constrain the ``shapes'' of data. 
-  Thus types ensure the programmer has not erred by assuming differently ``shaped'' data than they provide. 
-
-In other words types
-\begin{itemize}
-  \item Ensure functions are given the expected ``shape'' of data. 
-  \item Can warn of mistakes before running or even compiling. 
-\end{itemize}
-
-\noindent Note: In this definition we referred to the ``shape'' of data. 
-  This is purposefully ambiguous we will get a better sense of how we are using ``shape'' as we continue. 
-
-\section{Types in Lambda Calculus}
-
-So what are the ``shapes'' in lambda calc? 
-  Remember $\lambda$ calc is defined just as 
-
-\begin{center}
-\begin{alert}{Untyped Lambda Calculus}{0.5\textwidth}{black}
-  \begin{syntax}   
-    \category[Expressions]{e}
-      \alternative{x}
-      \alternative{\lambda x:\tau.e}
-      \alternative{e_1 e_2}
-  \end{syntax}
-\end{alert}
-\end{center}
-
-All we have to work with are functions, so our ``shape'' must be functions. 
-  Therefore we need a type that captures functions. 
-  
-Let us propose our extension to be:
-
-\begin{center}
-\begin{alert}{Simply Typed Lambda Calculus v.1}{0.5\textwidth}{black}
-  \begin{syntax}   
-    \category[Expressions]{e}
-      \alternative{x}
-      \alternative{\lambda x:\tau.e}
-      \alternative{e_1 e_2}
-    \category[Types]{\tau}
-      \alternative{A}
-      \alternative{\tau_1 \rightarrow \tau_2}
-  \end{syntax}
-\end{alert}
-\end{center}
-
-\textbf{Importance of A}: Imagine a system where the only type is $\tau_1 \rightarrow \tau_2$. 
-  This works great to describe a function that takes in a $\tau_1$ and returns a $\tau_2$. 
-  But what type does $\tau_1$ have? 
-  We can expand $\tau_1$, such that $\tau_1 = \tau_3 \rightarrow \tau_4$. 
-  Now we are met with the same problem regarding $\tau_3$. 
-
-$A$ is the key to combat this and allows us to write any types down. 
-  $A$ is the nothing type and in fact there are no closed terms that have type $A$. 
-
-Now that we have types let us consider how we utilize them. 
-
-\subsection{Scope}
-
-Recall in a language like OCaml that we attempt to use a variable that has not been declared. 
-  The type system raises a flag since the variable is \textbf{not in scope}.
-
-In STLC we will use \textbf{typing contexts} (different from evaluation contexts) as our scopes.
-
-\begin{itemize}
-  \item We will refer to them using Gamma ($\Gamma$) or Delta ($\Delta$).
-  \item Represents variables that are in scope, with their types.
-  \item List of (variable, type) pairs. 
-    (Not really lists, since order does not matter. 
-    For now think of them as lists or some magic bucket where we can store our pairs.
-    Proof that order does not matter is prooved as part of the HW ).
-\end{itemize}
-
-Adding the typing contexts to our definition gives us 
-
-\begin{center}
-\begin{alert}{Simply Typed Lambda Calculus v.1}{0.5\textwidth}{black}
-  \begin{syntax}   
-    \category[Expressions]{e}
-      \alternative{x}
-      \alternative{\lambda x:\tau.e}
-      \alternative{e_1 e_2}
-    \category[Types]{\tau}
-      \alternative{A}
-      \alternative{\tau_1 \rightarrow \tau_2}
-    \category[Typing Contexts]{\CC}
-      \alternative{\cdot}
-      \alternative{\Gamma, x : \tau}
-  \end{syntax}
-\end{alert}
-\end{center}
-
-The $\cdot$ is the empty context, where no variable is in scope. 
-  Alternatively, $\Gamma, (x : \tau)$ has all of the variables in Gamma in scope, as well as $x$ in scope with type $\tau$. 
+\begin{code}%
+\>[0]\AgdaKeyword{module}\AgdaSpace{}%
+\AgdaModule{lec14}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Data.Nat}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaDatatype{ℕ}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\AgdaSymbol{;}\AgdaSpace{}%
+\AgdaInductiveConstructor{suc}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaKeyword{open}\AgdaSpace{}%
+\AgdaKeyword{import}\AgdaSpace{}%
+\AgdaModule{Function}\AgdaSpace{}%
+\AgdaKeyword{using}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}∘\AgdaUnderscore{}}}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaKeyword{data}\AgdaSpace{}%
+\AgdaDatatype{Expr}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\AgdaSpace{}%
+\AgdaKeyword{where}\<%
+\\
+\>[0][@{}l@{\AgdaIndent{0}}]%
+\>[2]\AgdaOperator{\AgdaInductiveConstructor{`\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\<%
+\\
+%
+\>[2]\AgdaOperator{\AgdaInductiveConstructor{λ⇒\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Expr}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\<%
+\\
+%
+\>[2]\AgdaOperator{\AgdaInductiveConstructor{\AgdaUnderscore{}∙\AgdaUnderscore{}}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Expr}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\<%
+\end{code}
+
+\section{The Barendregt convention}
+The Barendregt Convention in lambda calculus states that bound variables in lambda terms are always chosen to be distinct from free variables. 
+
+\noindent In other words, it is a practice of picking a representative term where all bound variables are \emph{unique} (so, no other $\lambda$ uses those variables) and are \emph{fresh} (not bound by other $\lambda$'s).
+
+\section{De Bruijn Indices}
+De Bruijn indices are a variable-free notation for lambda calculus where variables are replaced by numbers representing their depth in the nested scope. 
+
+\noindent To convert variables into De Bruijn Indices, turn them into numbers that represent the amount of $\lambda$'s between the bound variable and its binding $\lambda$.
+
+\noindent As an AST, $\lambda x. \lambda y. (xy) x$ then converted into an AST with De Bruijn indices would look like this:
+
+\[
+\begin{array}{llcrr}
+\begin{forest}
+    [$\lambda x$
+    [$\lambda y$
+      [@
+        [@
+            [$x$]
+            [$y$]
+        ]
+        [$x$]
+      ]
+    ]
+  ]
+\end{forest}
+&
+\rightarrow
+&
+\begin{forest}
+    [$\lambda$
+    [$\lambda$
+      [@
+        [@
+            [$1$]
+            [$0$]
+        ]
+        [$1$]
+      ]
+    ]
+  ]
+\end{forest}
+\end{array}
+\]
+
+\noindent Another example would be with a function  $\lambda x. \lambda y. ((\lambda x.x) x)y$:
+
+\[
+\begin{array}{lcr}
+    \begin{forest}
+        [$\lambda x$
+        [$\lambda y$
+          [@
+            [@
+                [$\lambda x$
+                    [$x$]
+                ]
+                [$x$]
+            ]
+            [$y$]
+          ]
+        ]
+      ]
+    \end{forest}
+    &
+    \rightarrow
+    &
+    \begin{forest}
+        [$\lambda$
+        [$\lambda$
+          [@
+            [@
+                [$\lambda$
+                    [$0$]
+                ]
+                [$1$]
+            ]
+            [$0$]
+          ]
+        ]
+      ]
+    \end{forest}
+\end{array}
+\]
+
+
+
+\noindent Note: Every \alpha -equivalent tree will have a shape similar to this.
+
+
+
+\section{Renaming}
+Renaming refers to the process of changing a bound variable's name while keeping the meaning of the expression intact. 
+
+\noindent The primary goal in renaming is to avoid capture (where a variable accidentally gets bound to a different lambda due to name clashes).
+
+\noindent Renaming is defined as follows:
+
+\begin{code}%
+\>[0]\AgdaFunction{Renaming}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\<%
+\\
+\>[0]\AgdaFunction{Renaming}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{↑r}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Renaming}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Renaming}\<%
+\\
+\>[0]\AgdaFunction{↑r}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\<%
+\\
+\>[0]\AgdaFunction{↑r}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{suc}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaInductiveConstructor{suc}\AgdaSymbol{(}\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}⟨\AgdaUnderscore{}⟩}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Expr}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Renaming}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\<%
+\\
+\>[0]\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{`}}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟨}}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟩}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{`}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{λ⇒}}\AgdaSpace{}%
+\AgdaBound{e}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟨}}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟩}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{λ⇒}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{e}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟨}}\AgdaSpace{}%
+\AgdaFunction{↑r}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟩}}\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaSymbol{(}\AgdaBound{e₁}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∙}}\AgdaSpace{}%
+\AgdaBound{e₂}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟨}}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟩}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{e₁}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟨}}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟩}}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∙}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{e₂}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟨}}\AgdaSpace{}%
+\AgdaBound{ξ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{⟩}}\AgdaSymbol{)}\<%
+\\
+\>[0]\<%
+\end{code}
+
+
+\section{Substitution}
+
+The substitution of a variable refers to the process of replacing a variable in a term with another term.
+
+\begin{code}%
+\>[0]\<%
+\\
+\>[0]\AgdaFunction{Substitution}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaPrimitive{Set}\<%
+\\
+\>[0]\AgdaFunction{Substitution}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaDatatype{ℕ}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaFunction{↑}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaFunction{Substitution}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Substitution}\<%
+\\
+\>[0]\AgdaFunction{↑}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{`}}\AgdaSpace{}%
+\AgdaInductiveConstructor{zero}\<%
+\\
+\>[0]\AgdaFunction{↑}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaInductiveConstructor{suc}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{σ}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\<%
+\\
+%
+\\[\AgdaEmptyExtraSkip]%
+\>[0]\AgdaOperator{\AgdaFunction{\AgdaUnderscore{}[\AgdaUnderscore{}]}}\AgdaSpace{}%
+\AgdaSymbol{:}\AgdaSpace{}%
+\AgdaDatatype{Expr}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaFunction{Substitution}\AgdaSpace{}%
+\AgdaSymbol{→}\AgdaSpace{}%
+\AgdaDatatype{Expr}\<%
+\\
+\>[0]\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{`}}\AgdaSpace{}%
+\AgdaBound{x}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{[}}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{]}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaBound{x}\<%
+\\
+\>[0]\AgdaSymbol{(}\AgdaOperator{\AgdaInductiveConstructor{λ⇒}}\AgdaSpace{}%
+\AgdaBound{e}\AgdaSymbol{)}\AgdaOperator{\AgdaFunction{[}}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{]}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{λ⇒}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{e}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{[}}\AgdaSpace{}%
+\AgdaFunction{↑}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{]}}\AgdaSpace{}%
+\AgdaSymbol{)}\<%
+\\
+\>[0]\AgdaSymbol{(}\AgdaBound{e₁}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∙}}\AgdaSpace{}%
+\AgdaBound{e₂}\AgdaSymbol{)}\AgdaOperator{\AgdaFunction{[}}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{]}}\AgdaSpace{}%
+\AgdaSymbol{=}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{e₁}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{[}}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{]}}\AgdaSymbol{)}\AgdaSpace{}%
+\AgdaOperator{\AgdaInductiveConstructor{∙}}\AgdaSpace{}%
+\AgdaSymbol{(}\AgdaBound{e₂}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{[}}\AgdaSpace{}%
+\AgdaBound{σ}\AgdaSpace{}%
+\AgdaOperator{\AgdaFunction{]}}\AgdaSymbol{)}\<%
+\\
+\>[0]\<%
+\end{code}
 
-\textbf{Note}: From here on out we might use ``context'' without specifying whether it is a type or evaluation context. 
-  It should be clear from the context of the use of ``context'' (I am sorry this is hard to word). 
 
-\section{Type Systems}
-
-Finally, with types and contexts we can start implementing our type systems. 
-
-We talk about types using \textbf{judgments}, which we will write $\Gamma \vdash x : \tau$. 
-  These judgments should be read ``In the context of $\Gamma$, $e$ has type $\tau$''. 
-  Most importantly, the judgment needs all three components, the context ($\Gamma$), turnstile ($\vdash$), and pair of the term and its type ($e: \tau$). 
-  Without any part of these the judgment is meaningless.
-
-We define type systems using inference rules. 
-  For STLC we have three rules. 
-
-Typing Rules 
-  \begin{mathpar}
-    \inferrule* [left = T-Var] 
-      { x : \tau \in \Gamma}
-      { \Gamma \vdash x : \tau}
-
-    \inferrule* [left = T-Abs]
-      { \Gamma, x : \tau_1 \vdash e : \tau_2}
-      { \Gamma \vdash \lambda x:\tau_1 .e : \tau_1 \rightarrow \tau_2}
-
-    \inferrule* [left = T-App]
-      { 
-      \Gamma \vdash e_1 : \tau_1 \rightarrow \tau_2 \\ 
-      \Gamma \vdash e_2 : \tau_1
-      }
-      { \Gamma \vdash e_1 e_2 : \tau_2}
-  \end{mathpar}
-  
-\begin{itemize}
-    \item[\textsc{T-Var}] This rule types variables. If a variable $x$ has type $\tau$ in the context $\Gamma$, then $x$ has that type $\tau$.  
-    
-    \item[\textsc{T-Abs}] The abstraction rule allows us to type functions. 
-    
-    \item[\textsc{T-App}] The application rule allows us to type function application. 
-      This restricts what $e_1$ can be. 
-      Now if $\Gamma \vdash e_1 : A$ then we cannot use the application rule.  
-\end{itemize}
-
-\textbf{Type System and $A$}. $A$ is not used in any of the typing rules. 
-  If it did that would mean we could have a closed term of type $A$ or that we could get $\Gamma \vdash x : A$ without using the \textsc{T-Var} rules which would be strange. 
-
-\subsection{Closed Terms}
-
-\textbf{Defn}: As discussed in previous lectures, a term $e$ is closed if and only if $FV(e) = \{\}$. 
-  If a term $\cdot \vdash t : \tau$, or term $t$ has type $\tau$ in the empty context, then $t$ is a closed term. (An empty context does not allow for the use of the \textsc{T-Var} rule.)
-
-\begin{theorem}{FV Domain}
-  If $\Gamma \vdash e : \tau$ then $FV(e) \subseteq D(\Gamma)$, where $D(\Gamma)$ is the domain of gamma.  $D(\Gamma) = \{x \mid x : \tau \in\Gamma\}$
-\end{theorem}
-
-\begin{proof}
-  We will prove by induction over the evidence of $\Gamma \vdash e : \tau$   
-  
-  Proof is left to the reader since each case is simple (Maybe the note writer will be ambitious, but for now nope).
-\end{proof}
-
-
-\begin{corollary}{FV of emtpy context}
-  The empty context implies that there are no free variables or $FV(e) = \emptyset$ and thus $e$ is a closed term.     
-\end{corollary}
-
-
-\section{Type Safety}
-
-We have restrained our data ``shapes'', but how can we ensure that we have done so correctly? 
-  Type safety says that when we have expect an input of type $x$ and we are given an input of type $y$ (where $ x \neq y$), then we get stuck. 
-  So, we want to always be able to take a step or complete our computation. 
-  If we can prove this our system has type safety.
-
-\begin{center}
-\begin{alert}{Type Safety Proof Plan}{0.6\textwidth}{black}
-  Preservation: A well type term steps to a well type term.
-
-  Progress: A term is either a value or can take a step. 
-
-  Type Safety: Progress + Preservation.   
-\end{alert}
-\end{center}
-
-\begin{lemma}{Preservation of Substitution}
-  If $\Gamma \vdash e_1 : \tau_1$ and $\Gamma, x : \tau_1 \vdash e_2 : \tau_2$ then $\Gamma \vdash e_2 [x \mapsto e_1]$. 
-\end{lemma}
-
-In other words substitution preserves types. 
-  Proof is part of HW 3. 
-
-\subsection{Preservation}
-
-\begin{theorem}{Preservation}
-   If $\Gamma \vdash e : \tau$ and $e \rightarrow e'$ then $\Gamma \vdash e' : \tau$. 
-\end{theorem}
-
-\begin{proof}
-  
- We will prove by induction over the evidence of $\Gamma \vdash e : \tau$.
-
-  There are three rules for how we can type $e$. 
-  
-  \underline{Case \textsc{T-Var} or \textsc{T-Abs}}: In both cases since the rule cannot take a step preservation is vacuously true. 
-
-  \underline{Case \textsc{{T-App}}}: $e = e_1 e_2$ 
-  
-    Inductive Hypothesis: If $\Gamma \vdash e : \tau$ and $e \rightarrow e'$ then $\Gamma \vdash e' : \tau$. For $e=e_1$ and $e_2$.
-
-    We must examine three cases for the evidence of $e \rightarrow e'$.
-
-    \begin{enumerate}
-      \item $e_1 \rightarrow e_1'$ and $e' = e_1' e_2$
-
-        We know from the IH that $\Gamma \vdash e_1 : \tau_1 \rightarrow \tau_2$, thus we can use the \textsc{T-App} rule to determine that $e_1' e_2: \tau_2$
-        \begin{mathpar}
-          \inferrule* [left = T-App]
-            { 
-            \Gamma \vdash e_1' : \tau_1 \rightarrow \tau_2 \\ 
-            \Gamma \vdash e_2 : \tau_1
-            }
-            { \Gamma \vdash e_1' e_2 : \tau_2}
-        \end{mathpar} 
-
-    \item $e_2 \rightarrow e_2'$ and $e' = e_1 e_2'$. 
-
-      The same methods for the first case are uses again here. 
-
-    \item $e_1 = (\lambda x.e_1')$ and $e_2$ is a value. 
-
-      Thus we are left with $e' = e_1'[x \mapsto e_2]$, which by the substitutin lemma we know retains its type $\tau_2$. 
-    
-    \end{enumerate}
-   
-  Therefore all cases hold and preservation is proven.
-\end{proof}
-
-\begin{corollary}{Multi-step Preservation}
-  Preservation works across multiple steps. 
-\end{corollary}
-
-\subsection{Progress}
-
-\begin{theorem}{Progress}
-  If $\cdot \vdash e : \tau$ then either $e$ is a value or there exists $e'$ such that $e \rightarrow e'$. 
-\end{theorem}
-
-\begin{proof}
-  We will prove by induction over the evidence for typing $\cdot \vdash e : \tau$
-
-  \underline{Case \textsc{T-Var}}: Impossible since the context is empty.
-
-  \underline{Case \textsc{T-Abs}}: $e = \lambda x.e'$ which is a value. 
-
-  \underline{Case \textsc{T-App}}: $e = e_1e_2$ thus we know $\cdot \vdash e_1 : \tau_1 \rightarrow \tau_2$ and $\cdot \vdash e_2 : \tau_1$.
-
-    Inductive Hypothesis: Either $e_1$ is a value or there exists $e_1'$ such that $e_1 \rightarrow e_1'$, similarly for $e_2$. 
-
-    We know by the IH that $e_1$ is a value or can take a step. 
-  
-    If $e_1$ takes a step then we know $e \rightarrow e_1'e_2$. 
-
-    Now we will assume that $e_1$ is a value. 
-
-    By the IH we know the same is true for $e_2$. 
-
-    When $e_2$ can step we know that $e \rightarrow e_1e_2'$.
-
-    So no we will assume that both $e_1$ and $e_2$ are values. 
-
-    If $e_1$ is a value then it must be that $e_1 = \lambda x. e_1'$ and becuase $e_2$ is a value we can take the step  $(\lambda x. e_1')e_2 \rightarrow e_1' [x \mapsto e_2]$. 
-
-    All cases have been considered and thus progress holds.
-\end{proof}
-
-\subsection{Type Safety}
-
-Now we have proved preservation and progress can prove type safety. 
-
-
-\begin{theorem}{Type System}
-  \textbf{Theorem} (Type Safety): If $\cdot \vdash e : \tau $ and $e \rightarrow^* e'$ then $e' \rightarrow e''$ or $e'$ is a value.
-\end{theorem} 
-
-\begin{proof}
-  Apply multi-step preservation and then progress.   
-\end{proof}
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

@@ -1,0 +1,268 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+\usepackage{agda}
+
+\usepackage{newunicodechar}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\renewcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\title{Functors and Transformations}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{32}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item We've now explored categories and some of the structure they can have.
+\item Importantly, we can think of categories as little programming languages, and structure in those categories as the existence of certain types and programs.
+\item One lesson of category theory is that the relationships between objects of study is just as important (perhaps more so!) than the object itself.
+  \begin{itemize}
+  \item After all, the objects of a category are just black boxes.
+  \item All of the structure is in the morphisms.
+  \end{itemize}
+\item This shows up in programming languages as well: often, the best way to understand a language is by translating it into another language.
+\item Today, we'll see how to frame these translations in categories.
+\end{itemize}
+
+\section{Functors}
+\label{sec:functors}
+
+A transformation of categories is called a \emph{functor}.
+
+\begin{defn}[Functor]
+  A \emph{functor}~$F$ from a category~$\mathcal{C}$ to another category~$\mathcal{D}$ (written $F : \mathcal{C} \to \mathcal{D}$) consists of:
+  \begin{itemize}
+  \item A mapping from objects of $\mathcal{C}$ to objects of $\mathcal{D}$.
+    For $X \in \obj{\mathcal{C}}$, we write $F\,X \in \obj{\mathcal{D}}$.
+  \item For every pair of objects $X, Y \in \obj{\mathcal{C}}$, a mapping from $\hom[\mathcal{C}]{X}{Y}$ to $\hom[\mathcal{D}]{F\,X}{F\,Y}$.
+    If $f : X \to Y$, we write $F\,f : F\,X \to F\,Y$.
+  \end{itemize}
+  obeying the following laws:
+  \begin{itemize}
+  \item $F$ preserves the identity: $F\,\id[X] = \id[F\,X]$
+  \item $F$ preserves composition: $F\,(f; g) = (F\,f); (F\,g)$
+  \end{itemize}
+\end{defn}
+
+\begin{itemize}
+\item If we think about categories as programming languages (where the objects are types and the morphisms are programs), then we can think of this as a translation from one typed programming language to another.
+\item Imagine that we have two such categories, $\mathcal{A}$ and $\mathcal{B}$.
+\item Then a functor $F : \mathcal{A} \to \mathcal{B}$ consists of:
+  \begin{itemize}
+  \item A translation of types: every type in $\mathcal{A}$ is translated to some type in $\mathcal{B}$ that ``can represent the same thing''
+  \item A translation of programs: every well-typed program in $\mathcal{A}$ is translated to a well-typed program in $\mathcal{B}$.
+  \end{itemize}
+\item A functor $F : \mathcal{C} \to \mathcal{C}$ is often called an \emph{endofunctor} on $\mathcal{C}$.
+\item Some examples:
+  \begin{itemize}
+  \item For every category $\mathcal{C}$, there is a functor $\id[\mathcal{C}] : \mathcal{C} \to \mathcal{C}$ that takes every object $X \in \obj{\mathcal{C}}$ to itself and every morphism $f : X \to Y$ to itself.
+    This is called the \emph{identity functor} on $\mathcal{C}$.
+  \item As an example: there is a functor $U : \Set \to \Rel$ which takes a set $X$ to itself, and which takes a function $f : X \to Y$ to itself (now viewed as a relation $f \subseteq X \times Y$ that just happens to be functional).
+    \begin{itemize}
+    \item Such a functor, which acts like the identity functor but is between two different categories, is called an \emph{identity-carried} functor.
+    \end{itemize}
+    \newpage
+  \item There is another functor $U : \Rel \to \Set$ which takes a set $X$ to its powerset $\mathcal{P}(X)$ and a relation $R \subseteq X \times Y$ to $f(A) = \bigcup_{x \in A} \{y \in Y \mid x \mathrel{R} y\}$.
+  \item There is an endofunctor $\textsf{list} : \Type \to \Type$ that takes a type $\tau$ to the type $\textsf{list}\,\tau$ and a program $p : \tau \to \sigma$ to the program $\textsf{map}\,p : \textsf{list}\,\tau \to \textsf{list}\,\sigma$.
+    A similar endofunctor exists for any data structure that can define a (well-behaved) \textsf{map} function, including:
+    \begin{itemize}
+    \item \textsf{tree}, the endofunctor of binary trees
+    \item \textsf{set}, the endofunctor of (abstract) sets
+    \item $\textsf{map}\,k$, the endofunctor of $k$-keyed maps
+    \end{itemize}
+  \end{itemize}
+\item Imagine that we have categories~$\mathcal{C}$, $\mathcal{D}$, and~$\mathcal{E}$, with functors~$F : \mathcal{C} \to \mathcal{D}$ and~$G : \mathcal{D} \to \mathcal{E}$.
+  Then we can define $F; G : \mathcal{C} \to \mathcal{E}$ as the functor that takes an object $X \in \obj{\mathcal{C}}$ to $G \, (F\, X)$ and a morphism $f : X \to Y$ to $G\,(F\,f)$.
+  Note that since $F \, f : F\,X \to F\,Y$, we get $G\, (F\,f) : G\,(F\,X) \to G\,(F\,Y)$ as required.
+\item This means that there is a category \Cat, where objects are categories and morphisms are functors!
+\end{itemize}
+
+\section{Natural Transformation}
+\label{sec:natur-transf}
+
+\begin{itemize}
+\item In the same way that functors allow us to study categories by looking at how they transform, we sometimes want to study functors by understanding how they transform.
+\item We can do that by studying \emph{natural transformations} between functors.
+\end{itemize}
+
+\begin{defn}[Natural Transformation]
+  If $F : \mathcal{C} \to \mathcal{D}$ and $G : \mathcal{C} \to \mathcal{D}$ are both functors, then a \emph{natural transformation} from $F$ to $G$ (written $\alpha : F \Rightarrow G$) consists of a morphism $\alpha_X \in \hom[\mathcal{D}]{F\,X}{G\,X}$ for every object $X \in \obj{\mathcal{C}}$ such that the following diagram commutes for every $f : X \to Y$ in $\mathcal{C}$:
+  \begin{center}
+    \begin{tikzcd}
+      F\,X \ar[r, "F\,f"] \ar[d, "\alpha_X"'] & F\,Y \ar[d, "\alpha_Y"]\\
+      G\,X \ar[r,"G\,f"'] & G\,Y
+    \end{tikzcd}
+  \end{center}
+\end{defn}
+
+\begin{itemize}
+\item If we think of $F$ and $G$ as data structures represented by endofunctors, then we can think of $\alpha : F \Rightarrow G$ as a polymorphic function.
+  \begin{itemize}
+  \item For instance, there is a natural transformation $\textsf{flatten} : \textsf{tree} \Rightarrow \textsf{list}$ defined by the function
+    \begin{code}[hide]
+      import Relation.Binary.PropositionalEquality as Eq
+      open Eq using (_≡_; _≢_; refl; cong; sym)
+      open Eq.≡-Reasoning
+
+      data list (X : Set) : Set where
+        [] : list X
+        _∷_ : X → list X → list X
+
+      data tree (X : Set) : Set where
+        leaf : tree X
+        node : tree X → X → tree X → tree X
+
+      _++_ : {X : Set}  → list X → list X → list X
+      [] ++ ys = ys
+      (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+      map : {X Y : Set} → (f : X → Y) → list X → list Y
+      map f [] = []
+      map f (x ∷ xs) = f x ∷ map f xs
+
+      treemap : {X Y : Set} → (f : X → Y) → tree X → tree Y
+      treemap f leaf = leaf
+      treemap f (node t₁ x t₂) = node (treemap f t₁) (f x) (treemap f t₂)
+
+      map-append : {X Y : Set} → (f : X → Y) → (xs ys : list X) → map f (xs ++ ys) ≡ map f xs ++ map f ys
+      map-append f [] ys = refl
+      map-append f (x ∷ xs) ys = cong (f x ∷_) (map-append f xs ys)
+    \end{code}
+    \begin{code}
+      flatten : {X : Set} → tree X → list X
+      flatten leaf = []
+      flatten (node t₁ x t₂) = (flatten t₁)  ++ (x ∷ flatten t₂)
+    \end{code}
+    \newpage
+  \item The naturality condition says that \textsf{treemap} and \textsf{map} play nicely with \textsf{flatten}, which we can easily prove:
+    \begin{code}
+      flatten-map : {X Y : Set} → (f : X → Y) → (t : tree X) →
+                              map f (flatten t) ≡ flatten (treemap f t)
+      flatten-map f leaf = refl
+      flatten-map f (node t₁ x t₂) =
+        begin
+          map f (flatten t₁ ++ (x ∷ flatten t₂))
+        ≡⟨ map-append f (flatten t₁) (x ∷ flatten t₂) ⟩
+          map f (flatten t₁) ++ (f x ∷ map f (flatten t₂))
+        ≡⟨ cong (_++ (f x ∷ map f (flatten t₂))) (flatten-map f t₁) ⟩
+          flatten (treemap f t₁) ++ (f x ∷ map f (flatten t₂))
+        ≡⟨ cong (flatten (treemap f t₁) ++_) (cong (f x ∷_) (flatten-map f t₂)) ⟩
+          flatten (treemap f t₁) ++ (f x ∷ flatten (treemap f t₂))
+        ≡⟨⟩
+          flatten (node (treemap f t₁) (f x) (treemap f t₂))
+        ≡⟨⟩
+          flatten (treemap f (node t₁ x t₂))
+        ∎
+    \end{code}
+  \item In fact, this can be proven as a free theorem of any program of type $\fatype{X}{\textsf{tree}\,X \to \textsf{list}\,X}$!
+  \end{itemize}
+\item For any functor $F : \mathcal{C} \to \mathcal{D}$, there is a natural transformation $\id[F] : F \Rightarrow F$ with components $(\id[F])_X = \id[F\,X]$.
+\item Moreover, for any pair of natural transformations $\alpha : F \Rightarrow G$ and $\beta : G \Rightarrow H$, there is a natural transformation $\alpha; \beta : F \Rightarrow H$ with components $(\alpha; \beta)_X = \alpha_X; \beta_X$.
+  The naturality condition can be seen via a pasting argument:
+  \begin{center}
+    \begin{tikzcd}
+      F\,X \ar[d,"F\,f"'] \ar[r,"\alpha_X"] & G\,X\ar[d,"G\,f"] \ar[r,"\beta_X"] & H\,X\ar[d,"H\,f"]\\
+      F\,Y \ar[r,"\alpha_Y"'] & G\,Y\ar[r,"\beta_Y"'] & H\,Y
+    \end{tikzcd}
+  \end{center}
+  Since the two rectangles each commute, the outer rectangle must commute.
+  This style of proof is sometimes called a ``pasting argument'' (especially when things are this simple, and sometimes called a ``diagram chase'' (especially in complex cases).
+\item Together, this means that for any pair of categories~$\mathcal{C}$ and~$\mathcal{D}$, there is a \emph{functor category}~$[\mathcal{C}, \mathcal{D}]$ where objects are functors $\mathcal{C} \to \mathcal{D}$ and morphisms are natural transformations.
+  \begin{itemize}
+  \item For those interested, this makes \Cat a \emph{2-category}, which is just a category where the morphisms between any two objects form a category.
+  \item There is a notion of $n$-category for any $n$ including $\infty$.
+    This notion is really important for the study of homotopy type theory, among others.
+  \item There is another related notion of a \emph{enriched} category.
+    An enriched category~$\mathcal{C}$ over another category~$\mathcal{D}$ has $\hom[\mathcal{C}]{X}{Y} \in \obj{\mathcal{D}}$.
+    Then, a $2$-category is just a category enriched over \Cat.
+  \end{itemize}
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:

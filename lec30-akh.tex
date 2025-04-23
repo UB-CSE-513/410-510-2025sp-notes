@@ -1,0 +1,279 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\title{Categorical Constructions}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{30}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Now that we have categories on our side, let's look at constructions and definitions within categories that correspond to important ideas in mathematics and programming languages.
+\end{itemize}
+
+\section{Monomorphisms, Epimorphisms, and Isomorphisms}
+\label{sec:monom-epim-isom}
+
+\subsection{Monomorphisms}
+\label{sec:monomorphisms}
+
+\begin{defn}[Monomorphism]
+  A morphism $f : X \to Y$ is a \emph{monomorphism} (written $f : X \hookrightarrow Y$) if for every pair of morphisms $g_1, g_2 : W \to X$, $$g_1; f = g_2; f \Rightarrow g_1 = g_2$$
+  We sometimes say that \emph{$f$ is monomorphic} or \emph{$f$ is mono}.
+\end{defn}
+
+\begin{thm}[Monomorphisms in \Set]
+  A morphism $f : X \to Y$ in \Set is a monomorphism if and only if it is injective.
+\end{thm}
+\begin{proof}
+  Let $f : X \hookrightarrow Y$ be a monomorphism, and let $x_1 \neq x_2 \in X$.
+  Now, define $g_i : \{\ast\} \to X$ be the function from the one-element set $\{\ast\}$ to $X$ that picks out the element $x_i$.
+  Since $g_1 \neq g_2$, we know that $g_1; f \neq g_2; f$.
+  Thus, $f(x_1) \neq f(x_2)$.
+  Since this is true for every $x_1 \neq x_2$, then $f$ is injective.
+
+  Alternatively, let $f : X \to Y$ be injective and let $g_1, g_2 : W \to X$ be such that $g_1 \neq g_2$.
+  Then there is some $w \in W$ such that $g_1(w) \neq g_2(w)$.
+  Thus, $f(g_1(w)) \neq f(g_2(w))$, and so $g_1;f \neq g_2; f$.
+  Since this is true for all such $g_1$ and $g_2$, $f$ is monomorphic.
+\end{proof}
+
+\subsection{Epimorphisms}
+\label{sec:epimorphisms}
+
+\begin{defn}[Epimorphism]
+  A morphism $f : X \to Y$ is an \emph{epimorphism} (written $f : X \twoheadrightarrow Y$) if for every pair of morphisms $g_1, g_2 : Y \to Z$, $$f; g_1 = f;g_2 \Rightarrow g_1 = g_2$$
+  We sometimes say that \emph{$f$ is epimorphic} or \emph{$f$ is epi}.
+\end{defn}
+
+\begin{thm}[Epimorphisms in \Set]
+  A morphism in $f : X \to Y$ in \Set is an epimorphism if and only if it is surjective.
+\end{thm}
+\begin{proof}
+  Let $f : X \twoheadrightarrow Y$ be an epimorphism in \Set, and let $y \in Y \setminus \text{im}(f)$ be a element of $y$ that $f$ does not send anything to.
+  Then define $g_1 : Y \to \{\text{true}, \text{false}\}$ as $g_1(x) = \text{true}$, and define $$g_2(x) = \left\{\begin{array}{ll} \text{false} & x = y\\\text{true} & \text{otherwise}\end{array}\right.$$
+  Then $g_1 \neq g_2$, but $f; g_1 = f; g_2$, since $g_1$ and $g_2$ agree on everything that $f$ hits.
+  Thus there must not be any such~$y$, and so $f$ is surjective.
+
+  Alternatively, let $f : X \to Y$ be surjective, and let $g_1, g_2 : Y \to Z$ be such that $g_1 \neq g_2$.
+  Then there is some $y \in Y$ such that $g_1(y) \neq g_2(y)$.
+  Since $f$ is surjective, there is an $x \in X$ such that $f(x) = y$.
+  Then $$(f; g_1)(x) = g_1(f(x)) = g_1(y) \neq g_2(y) = g_2(f(x)) = (f; g_2)(x)$$ so $f;g_1 \neq f; g_2$ as required.
+\end{proof}
+
+\subsection{Isomorphisms}
+\label{sec:isomorphisms}
+
+\begin{defn}[Isomorphism]
+  A morphism $f : X \to Y$ is an \emph{isomorphism} if there is a morphism $f^{-1} : Y \to X$ such that $f; f^{-1} = \id[X]$ and $f^{-1}; f = \id[Y]$.
+  We sometimes say that \emph{$f$ is iso}.
+  We say that $f^{-1}$ is the \emph{inverse} of $f$.
+\end{defn}
+
+\begin{thm}[Connecting the Three]
+  An isomorphism $f : X \to Y$ is both epi and mono.
+\end{thm}
+\begin{proof}
+  Let $f : X \to Y$ be iso, and let $f^{-1}$ be its inverse.
+  If $f; g_1 = f; g_2$, then $$g_1 = \id[Y]; g_1 = (f^{-1}; f); g_1 = f^{-1}; (f; g_1) = f^{-1}; (f; g_2) = (f^{-1}; f); g_2 = \id[Y]; g_2 = g_2$$
+  Similarly, if $g_1; f = g_2; f$, then $$g_1 = g_1; \id[X] = g_1; (f; f^{-1}) = (g_1; f); f^{-1} = (g_2; f); f^{-1} = g_2; (f; f^{-1}) = g_2; \id[X] = g_2$$
+  Thus, $f$ is both epi and mono.
+\end{proof}
+
+\begin{thm}[Isomorphisms in \Set]
+  A function $f : X \to Y$ in set is an isomorphism if and only if it is bijective.
+\end{thm}
+\begin{proof}
+  Homework.
+\end{proof}
+
+\begin{itemize}
+\item If $f : X \to Y$ is an isomorphism, we say that the objects $X$ and $Y$ are isomorphic.
+\item In category theory, we treat isomorphic objects as equal as much as possible.
+\item Definitions that do not treat isomorphic objects as equal are sometimes called \emph{evil}.
+\end{itemize}
+
+\section{Initial and Terminal Objects}
+
+\begin{defn}[Initial Object]
+  An object $X \in \obj{\mathcal{C}}$ is \emph{initial} if it has a \textbf{unique} morphism $!_Y : X \to Y$ for every object $Y$ in $\mathcal{C}$.
+\end{defn}
+
+\begin{defn}[Final Object]
+  An object $X \in \obj{\mathcal{C}}$ is \emph{final} if there is a \textbf{unique} morphism $?_Y : Y \to X$ for every object $Y$ in $\mathcal{C}$.
+\end{defn}
+
+\begin{itemize}
+\item In \Set, the empty set $\emptyset$ is the initial object.
+  For any set $X$, the empty set is also a function from $\emptyset$ to $X$.
+\item In \Set, the one-element set $\{\ast\}$ is final: for any function $x$, there is a unique function $\{(x, \ast) \mid x \in X\}$.
+\item In \Type, \vtype is the initial object.
+  For any type~$\tau$ we get a unique morphism $x : \vtype \vdash \vcase{x} : \tau$.
+\item In \Type, \utype is the final object.
+  For any type~$\tau$ we get a unique morphism $x : \tau \vdash \unit : \utype$.
+\end{itemize}
+
+\begin{thm}[Uniqueness of Initial and Final Objects]
+  Initial and Final objects are unique up to isomorphism. 
+\end{thm}
+\begin{proof}
+  Let $\varnothing_1$ and $\varnothing_2$ both be initial objects.
+  Then there are four unique morphisms: $!_{12} : \varnothing_1 \to \varnothing_2$, $!_{21} : \varnothing_2 \to \varnothing_1$, $!_{11} : \varnothing_1 \to \varnothing_2$, and $!_{22} : \varnothing_2 \to \varnothing_2$.
+  But note that $\id[\varnothing_1] : \varnothing_1 \to \varnothing_1$, so $!_{11} = \id[\varnothing_1]$, and similarly $!_{22} = \id[\varnothing_2]$ (since these are the unique morphisms of that type.
+  But note that $!_{12}; !_{21} : \varnothing_1 \to \varnothing_1$, so $!_{12}; !_{21} = \id[\varnothing_1]$ by the same reasoning.
+  Similarly, $!_{21}; !_{12} = \id[\varnothing_2]$.
+  Thus,$ !_{12}$ is an isomorphism, and $!_{12}^{-1} = !_{21}$, thus $\varnothing_1$ is isomorphic to $\varnothing_2$.
+
+  Now let $\ast_1$ and  $\ast_2$ be final objects.
+  Again, we have unique functions $?_{12} : \ast_1 \to \ast_2$ and $?_{21} : \ast_2 \to \ast_1$.
+  But $?_{12}; ?_{21} : \ast_1 \to \ast_1$, and there is only one function $\ast_1 \to \ast_1$, so this must be the same as $\id[\ast_1]$, and similarly $?_{21} ; ?_{12} = \id[\ast_2]$.
+  Thus, $\ast_1$ and $\ast_2$ are isomorphic.  
+\end{proof}
+
+\section{Products and Coproducts}
+\label{sec:products-coproducts}
+
+\begin{defn}[Product of Two Objects]
+  If $X$ and $Y$ are objects of $\mathcal{C}$, then an object $Z$ is the \emph{product of $X$ and $Y$} if there are two morphisms $\pi_1 : Z \to X$ and $\pi_2 : Z \to Y$.
+  Furthermore, if an object $W$ has two morphisms $f : W \to X$ and $g : W \to Y$, there is a \textbf{unique} morphism $\langle f, g \rangle : W \to Z$ such that the following diagram commutes:
+  \begin{center}
+    \begin{tikzcd}
+      & W\ar[ddl, "f"'] \ar[ddr, "g"] \ar[dd,dashed,"\prodmor{f}{g}"] & \\
+      & &\\
+      X & Z\ar[l, "\pi_1"] \ar[r, "\pi_2"'] & Y\\
+    \end{tikzcd}
+  \end{center}
+  By ``the diagram commutes'' we mean that all ways of getting from the same source to the same sink are equal.
+\end{defn}
+
+We can justify the word ``the'' above with the following theorem:
+\begin{thm}[Uniqueness of Products]
+  If $A$ and $B$ are both products for $X$ and $Y$, we get $\pi_1 : A \to X$, $\pi_1' : B \to X$, $\pi_2 : A \to Y$ and $\pi_2' : B \to Y$.
+\end{thm}
+\begin{proof}
+  Let $A$ and $B$ be as in the theorem.
+  Then $\prodmor{\pi_1}{\pi_2} : A \to B$ has the property that it is the unique morphism such that $\prodmor{\pi_1}{\pi_2}; \pi_1' = \pi_1$ and $\prodmor{\pi_1}{\pi_2}; \pi_2' = \pi_2$.
+  Furthermore, $\prodmor{\pi_1'}{\pi_2'} : B \to A$ is the unique morphism such that $\prodmor{\pi_1'}{\pi_2'}; \pi_1 = \pi_1'$ and $\prodmor{\pi_1'}{\pi_2'};\pi_2 = \pi_2'$.
+  But then $\prodmor{\pi_1'}{\pi_2'}; \prodmor{\pi_1}{\pi_2} : B \to B$ as the property that $$\prodmor{\pi_1'}{\pi_2'}; \prodmor{\pi_1}{\pi_2}; \pi_1' = \prodmor{\pi_1'}{\pi_2'}; \pi_1 = \pi_1'$$ and similarly $$\prodmor{\pi_1'}{\pi_2'}; \prodmor{\pi_1}{\pi_2}; \pi_2' = \pi_2'$$
+  Since $\id[B]$ also has this property, it is the unique such.
+  Thus, $\prodmor{\pi_1'}{\pi_2'}; \prodmor{\pi_1}{\pi_2} = \id[B]$.
+  By a similar proof, $\prodmor{\pi_1}{\pi_2}; \prodmor{\pi_1'}{\pi_2'} = \id[A]$.
+  Thus, $A$ and $B$ are isomorphic.
+\end{proof}
+
+We write $X \times Y$ for the (unique up to isomorphism) product of $X$ and $Y$.
+
+In \Set, products are given by cartesian products $A \times B = \{(a, b) \mid a \in A, b \in B\}$.
+In \Type, products are given by product types.
+If $y : \tau \vdash f : X$ and $z : \tau \vdash g : Y$, then the unique morphism $\prodmor{f}{g}$ is given by $$x : \tau \vdash(f[y \mapsto x], g[z \mapsto x]) : X \times Y$$
+The fact that the diagram above commutes comes from the $\beta$ laws, and uniqueness of $\prodmor{f}{g}$ comes from the $\eta$ law.
+
+\begin{defn}[Coproduct]
+  If $X$ and $Y$ are objects of $\mathcal{C}$, then an object $Z$ is the \emph{coproduct of $X$ and $Y$} if there are two morphisms $\inl : X \to Z$ and $\inr : Y \to Z$.
+  Furthermore, for any $W$ with two morphisms $f : X \to W$ and $g : Y \to W$ there is a unique morphism~$\coprodmor{f}{g} : Z
+  \to W$ such that the following diagram commutes:
+  \begin{center}
+    \begin{tikzcd}
+      & W & \\
+      & &\\
+      X\ar[r,"\inl"'] \ar[uur,"f"] & Z \ar[uu,dashed,"\coprodmor{f}{g}"] & Y\ar[l,"\inr"] \ar[uul,"g"']\\
+    \end{tikzcd}
+  \end{center}
+\end{defn}
+
+There is only one coproduct (up to isomorphism), which we write $X + Y$.
+\begin{thm}[Uniqueness of Coproducts]
+  Coproducts are unique up to isomorphism.
+\end{thm}
+\begin{proof}
+  Homework.
+\end{proof}
+
+In \Set, coproducts are given by disjoint unions: $A \uplus B = \{(0, a) \mid a \in A\} \cup \{(1, b) \mid b \in B\}$.
+In extended STLC, coproducts are given by sum types.
+If $y : X \vdash f : \tau$ and $z : Y \vdash g : \tau$, then the unique morphism $\coprodmor{f}{g}$ is given by $$x : X + Y \vdash \case{x}{y}{f}{z}{g} : \tau$$
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

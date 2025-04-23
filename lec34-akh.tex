@@ -1,0 +1,232 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+\newcommand{\ltype}[1]{\ensuremath{\textsf{list}\mkern3mu#1}}
+\newcommand{\nillist}{\ensuremath{[\,]}}
+\newcommand{\conslist}[2]{\ensuremath{#1 \mathop{::} #2}}
+\newcommand{\lcase}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\nillist\Rightarrow#2; \mkern5mu\conslist{#3}{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\logn}[1]{\ensuremath{\textsf{log}\mkern3mu#1}}
+\renewcommand{\tt}{\textsf{true}\xspace}
+\newcommand{\ff}{\textsf{false}\xspace}
+\newcommand{\ite}[3]{\ensuremath{\textsf{if}~#1 \mathrel{\textsf{then}} #2 \mathrel{\textsf{else}} #3}}
+\newcommand{\send}[2]{\ensuremath{\textsf{send}~#1 \mathrel{\textsf{to}} #2}}
+\newcommand{\recv}[3]{\ensuremath{\textsf{receive}~#1 \mathrel{\textsf{from}} #2 \mathrel{\textsf{in}} #3}}
+\newcommand{\Left}{\textsf{left}\xspace}
+\newcommand{\Right}{\textsf{right}\xspace}
+\newcommand{\choosefor}[2]{\ensuremath{\textsf{choose}~#1 \mathrel{\textsf{for}} #2}}
+\newcommand{\letchoose}[3]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2; \Right \Rightarrow #3)}}
+
+\newcommand{\capture}[1]{\ensuremath{\lfloor #1 \rfloor}}
+\newcommand{\bind}[1]{\ensuremath{\textsf{bind}(#1)}}
+
+\newcommand{\pureeff}{\textsf{pure}\xspace}
+\newcommand{\logeff}{\textsf{log}\xspace}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\newcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\newcommand{\senda}[2]{#1 \rightsquigarrow #2}
+\newcommand{\recva}[2]{#1 \leftsquigarrow #2}
+\newcommand{\choosea}[2]{[#1] \rightsquigarrow #2}
+\newcommand{\letchoosea}[2]{[#1] \leftsquigarrow #2}
+
+\newcommand{\tracecollect}[2]{\ensuremath{\mathrel{{\xrightarrow{#1}}^{\raisebox{-5pt}{\scriptsize \ast}}}}}
+\newcommand{\emptytracecollect}{\ensuremath{\mathrel{{\xrightarrow{\cdot}}^{\raisebox{-2pt}{\scriptsize \ast}}}}}
+
+\title{Concurrent $\lambda$~Calculus 1}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{34}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item We now move from studying denotational semantics back to the operational world.
+\item However, whereas up to now we have focused exclusively on single-threaded programs, we now turn towards \emph{concurrency}, which will be the focus of our last module.
+\item Concurrency is a significant area of research here at UB, so this will be of great interest to many of you.
+\item We start by considering two versions of \emph{concurrent $\lambda$~calculus}.
+  This is obtained simply by adding concurrency constructs to $\lambda$ calculus.
+\item Today, we start with a simple notion of concurrency: there is a set number of processes, and each process has a name.
+  A process may send a message to another process by name.
+\item Sending a message is completely synchronous: when process~$p$ sends a message to process~$q$, both $p$ and $q$ wait until the message send is completed.
+\item Let's take a look at the syntax of our language:
+\end{itemize}
+
+\begin{syntax}
+  \abstractCategory[Process Names]{p,q,r,\dots}
+  \category[Directions]{d} \alternative{\Left} \alternative{\Right}
+  \category[Actions]{\alpha} \alternative{\varepsilon} \alternative{\senda{n}{p}} \alternative{\recva{n}{p}} \alternative{\choosea{d}{p}} \alternative{\letchoosea{d}{p}}
+  \category[Expressions]{e} \alternative{x} \alternative{\tilde{n}} \alternative{\unit}\\
+  \alternative{\abs{x}{e}} \alternative{\app{e_1}{e_2}} \\
+  \alternative{\send{e}{p}} \alternative{\recv{x}{p}{e}}\\
+  \alternative{\tt} \alternative{\ff} \alternative{\ite{e_1}{e_2}{e_3}}\\
+  \alternative{\choosefor{d}{p}} \alternative{\letchoose{p}{e_1}{e_2}}
+  \category[Evaluation Contexts]{\mathcal{C}} \alternative{[\cdot]} \alternative{\app{\mathcal{C}}{e}} \alternative{\app{v}{\mathcal{C}}} \alternative{\send{\mathcal{C}}{p}} \alternative{\ite{\mathcal{C}}{e_2}{e_3}}
+  \category[Networks]{\mathcal{N}}{p_1 \triangleright e_1 \parallel \cdots \parallel p_n \triangleright e_n}
+\end{syntax}
+
+\begin{itemize}
+\item Processes are named $p$, $q$, et cetra.
+\item A single process runs an expression, which looks like a normal $\lambda$~calculus program.
+\item That program can contain numbers~$\tilde{n}$, the unit~$\unit$, functions, and booleans.
+\item It also allows values to be sent to another process~$p$, or received from another process~$p$.
+\item There are two forms of control flow in this language.
+  \begin{itemize}
+  \item As we've seen before, we have booleans and \textsf{if}~expressions.
+    These are a local form of control flow.
+  \item We also have the ability to choose the control flow of another process.
+    The current process can allow $p$ to choose which of two programs we run using $$\letchoose{p}{e_1}{e_2}$$
+    This causes the current process (say~$q$) to wait for a message from $p$.
+    If that message says to go $\Left$, then $q$ runs $e_1$.
+    Otherwise, is must say to go $\Right$; in this case, $q$ runs $e_2$.
+    The process~$p$ can make its choice using $\choose{d}{q}$, where $d$ is either $\Left$ or $\Right$.
+  \end{itemize}
+\item In order to give semantics to local expressions, we use a \emph{labeled-transition system}.
+  This is a style of small-step operational semantics where each step contains a label describing \emph{how} that step occurs.
+\item In this case, the label explains what actions the outside world can see from this step.
+  For instance, sending a message results in the outside world seeing that message.
+\item The special label~$\varepsilon$ represents that the outside world sees nothing.
+  Traditionally it is written ``$\tau$.''
+  We call a step labeled $\varepsilon$ a \emph{silent step}.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{e \xrightarrow{\alpha} e'}{\mathcal{C}[e] \xrightarrow{\alpha} \mathcal{C}[e']}\and
+  \infer{}{\app{(\abs{x}{e})}{v} \xrightarrow{\varepsilon} e[x \mapsto v]} \and
+  \infer{}{\ite{\tt}{e_2}{e_3} \xrightarrow{\varepsilon} e_2}\and
+  \infer{}{\ite{\ff}{e_2}{e_3} \xrightarrow{\varepsilon} e_3}\\ 
+  \infer{}{\send{\tilde{n}}{p} \xrightarrow{\senda{n}{p}} \unit} \and
+  \infer{}{\recv{x}{p}{e} \xrightarrow{\recva{n}{p}} e[x \mapsto \tilde{n}]}\\
+  \infer{}{\choosefor{d}{p} \xrightarrow{\choosea{d}{p}} \unit} \\
+  \infer{}{\letchoose{p}{e_1}{e_2} \xrightarrow{\letchoosea{\Left}{p}} e_1}\and
+  \infer{}{\letchoose{p}{e_1}{e_2} \xrightarrow{\letchoosea{\Right}{p}} e_2}
+\end{mathpar}
+
+\begin{itemize}
+\item As you can see, normal $\lambda$~calculus reduction steps are usually silent, while steps that involve communication with other processes are not silent.
+\item Note that message receive steps are somewhat nondeterministic: we can receive \emph{any} value!
+ Intuitively, we receive whatever value is coming across the network; the local program does not have control over which value that is.
+ When we put together the semantics of entire networks, we will ensure that we always choose the right value.
+\item The multistep semantics then collects a \emph{trace} of a program.
+  A trace is just a list of all of the interactions that a program has with the world.
+  Thus, silent steps don't count as part of the trace.
+  We can find the trace-collecting semantics below:
+\end{itemize}
+
+\begin{mathpar}
+  \infer{ }{e \emptytracecollect e}\and
+  \infer{e_1 {\xrightarrow{\varepsilon}} e_2\\ e_2 \tracecollect{t} e_3}{e_1 \tracecollect{t} e_3} \and
+  \infer{e_1 \xrightarrow{\alpha} e_2\\ e_2 \tracecollect{t} e_3\\ \alpha \neq \varepsilon}{e_1 \tracecollect{\alpha t} e_3}
+\end{mathpar}
+
+\begin{itemize}
+\item In order to define the semantics of networks, we need to define when two steps correspond to sending and receiving the same message.
+\item We write $\alpha \bowtie \alpha'$ to mean that the actions~$\alpha$ and~$\alpha'$ represent sending a message to the outside world and receiving that same message from the outside world.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{ }{\senda{n}{p} \bowtie \recva{n}{p}}\and
+  \infer{ }{\recva{n}{p} \bowtie \senda{n}{p}}\\
+  \infer{ }{\choosea{d}{p} \bowtie \letchoosea{d}{p}}\and
+  \infer{ }{\letchoosea{d}{p} \bowtie \choosea{d}{p}}\\
+\end{mathpar}
+
+\begin{itemize}
+\item Now we can define the semantics of an entire network.
+\item Since a network assigns a local program to each process, we can view a network as a function from processes to programs.
+  We write $\mathcal{N}(p)$ for $p$'s program in the network $\mathcal{N}$.
+\item Similarly, we can update a network with a new program for $p$.
+  We write $\mathcal{N}[p \mapsto e]$ for the network such that $(\mathcal{N}[p \mapsto e])(q) = \mathcal{N}(q)$ if $q \neq p$, and $(\mathcal{N}[p \mapsto e])(p) = e$.
+\item With that, we write the semantics for a network below.
+  Note that because these are a semantics for an entire network, there is no more communication with the outside world possible.
+  Thus, we can write a standard small-step operational semantics.
+\end{itemize}
+
+\begin{mathpar}
+  \infer{\mathcal{N}(p_1) \xrightarrow{\alpha_1} e_1\\ \mathcal{N}(p_2) \xrightarrow{\alpha_2} e_2\\ \alpha_1 \bowtie \alpha_2}{\mathcal{N} \to \mathcal{N}[p_1 \mapsto e_1, p_2 \mapsto e_2]}\and
+  \infer{\mathcal{N}(p) \xrightarrow{\tau} e}{\mathcal{N} \to \mathcal{N}[p \mapsto e]}
+\end{mathpar}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

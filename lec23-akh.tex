@@ -1,0 +1,254 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Logical Relations and Normalization}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{23}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Recall that when we talked about the Propositions as Types Principle, we proved that propositional intuitionistic logic is sound \emph{if STLC + products, sums, unit, and void is normalizing}.
+\item However, we didn't have the technology at that time to prove that.
+\item Today, we'll start to develop that technology.
+\item For all of this week and next, we'll be building up from that technology to do more and more cool things.
+\item We're going to start with plain STLC.
+\end{itemize}
+
+\section{Why Not Induction?}
+\label{sec:why-not-induction}
+
+\begin{itemize}
+\item By now you've probably started internalizing a fact about programming languages: most things are proven by induction.
+\item So you're probably wondering what goes wrong if you try to prove normalization by induction?
+\item Let's imagine such a proof:
+\end{itemize}
+
+\begin{thm}[Normalization]
+  For every $e$, if $\Gamma \vdash e : \tau$ then there is some $n$ such that $e \to^\ast n$ where $\nf{n}$.
+\end{thm}
+\noindent\textit{Proof Attempt 1.}\hspace{0.5em}
+By induction on the evidence of $\Gamma \vdash e : \tau$.
+Most of the cases are easy, except for the following case:
+
+\noindent\textbf{Case $\to$-E:}
+We have $e = \app{e_1}{e_2}$ and $\Gamma \vdash e_1 : \tau_1 \to \tau$ and $\Gamma \vdash e_2 : \tau_1$.
+$$
+\begin{array}{r@{\,\triangleq\,}l}
+  \text{IH}_1 & \exists n_1.\; e_1 \to n_1 \mathrel{\text{where}} \nf{n_1}\\
+  \text{IH}_2 & \exists n_2.\; e_2 \to n_2 \mathrel{\text{where}} \nf{n_2}
+\end{array}
+$$
+Since $\Gamma \vdash n_1 : \tau_1$, we know that either $n_1$ is neutral, or $n_1 = \tabs{x}{\tau_1}{n'_1}$ for some $x$ and $n'_1$, where $n'_1$ is also in normal form.
+Further, we know that
+$$e = \app{e_1}{e_2} \to^\ast_\beta \app{n_1}{n_2}$$
+If $n_1$ is neutral, then $\app{n_1}{n_2}$ is neutral and therefore normal, so we are done.
+Otherwise, we get
+$$\app{n_1}{n_2} = \app{(\tabs{x}{\tau_1}{n'_1})}{n_2} \to n'_1[x \mapsto n_2]$$
+However, now we have a problem: our IH doesn't apply.
+In fact, there's not really a way to get an IH that applies using the ``normal'' inductive methods.
+So we abort this proof.
+\begin{flushright}
+  $\lightning$
+\end{flushright}
+
+\section{A Logical Relation}
+\label{sec:logical-relation}
+
+\begin{itemize}
+\item So how do we fix this?
+\item Intuitively, the idea here is that a type $\tau$ \emph{means} something: it tells us something about how a program with that type behaves.
+\item Every type $\tau$ means that a program with that type terminates.
+\item But more importantly, the type $\tau_1 \to \tau_2$ tells us that any term $f$ with this type can take a term $e$ with the type $\tau_1$ and produce something of type $\tau_2$.
+\item So, what if instead of defining typing \emph{syntactically} as an inductive relation on terms, we define the meaning of a type as a constraint on behavior?
+  Then, any term that behaves according to that constraint can be said to be \emph{semantically} in that type (even if it's not well typed by the syntactic type system).
+\item Clearly, we want our syntactic type system to enforce this semantic behavior, but it may be overly conservative.
+\item Why didn't we just do this to begin with?
+  Well, the idea of ``a program behaves according to some constraint'' is super undecidable.
+  But we want typing to be decidable.
+  The syntactic relation we gave earlier is easy to decide!
+\item Now, however, we want to \emph{prove} something about typing.
+  What we care about is that constraint, and we don't have to figure out whether any particular program has it.
+  Therefore, doing this more-semantic thing is worthwhile.
+\item So, our job is to build a predicate $\mathcal{P} \colon \textsf{type} \to \textsf{term} \to \textsf{Set}$.
+  The idea is to do so by recursion on the first argument.
+\item  We write $\mathcal{P}(\tau)(e)$ to mean ``$e$ semantically behaves according to the constraints of type $\tau$.''
+\item We define $\mathcal{P}$ as follows:
+\end{itemize}
+
+$$
+\begin{array}{r@{\;\triangleq\;}l}
+  \mathcal{P}(A)(e) & \exists n.\; \nf{n} \land e \to^\ast n\\
+  \mathcal{P}(\tau_1 \to \tau_2)(e) & \exists n.\;\nf{n} \land e \to^\ast n \land (\forall e'.\; \mathcal{P}(\tau_1)(e') \to \mathcal{P}(\tau_2)(\app{e}{e'}))
+\end{array}
+$$
+
+\begin{itemize}
+\item Notice two things about this:
+  \begin{enumerate}
+  \item Clearly, if $\mathcal{P}(\tau)(e)$, then $e$ steps to a normal form $n$.
+  \item If $\mathcal{P}(\tau_1 \to \tau_2)(e)$, then we can apply it to $\tau_1$~terms to get a $\tau_2$~term.
+  \end{enumerate}
+\item This tells us that we satisfied three principles of building logical relations:
+  \begin{enumerate}
+  \item The relation should only contain terms of interest.
+    (For us, all terms are of interest and so this is trivial, but sometimes you're only interested in particular terms.)
+  \item The property of interest should be baked into the relation.
+    This is point (1) above.
+  \item The property of interest should be preserved by all elimination forms.
+    This is point (2) above.
+  \end{enumerate}
+\item It may seem like this won't obviously fix the problem we had before: how do we say anything about substitution here?
+\item Well, we will generalize our theorem to include substitutions, allowing ourselves to have a strong induction hypothesis.
+\item In order to do this, we define another relation, this time of type $\mathcal{C} : \textsf{Context} \to \textsf{Substitution} \to \textsf{Set}$:
+  $$
+  \mathcal{C}(\Gamma)(\gamma) \triangleq \forall x : \tau \in \Gamma.\; \mathcal{P}(\tau)(\gamma(x))
+  $$
+  Intuitively, this means that $\gamma$ will replace everything in $\Gamma$ with something that behaves like the appropriate type.
+  It is traditional to use $\gamma$ (lower-case gamma) for substitutions in this setting.
+\item We can then say the following:
+  $$\Gamma \vDash e : \tau \triangleq \forall \gamma.\; \mathcal{C}(\Gamma)(\gamma) \to \mathcal{P}(\tau)(e[\gamma])$$
+  In other words, for any way to fill in the free variables with terms that behave correctly, $e$ behaves correctly according to $\tau$.
+  We say ``$e$ is semantically well typed at $\tau$ in the context $\Gamma$.''
+\item Note that for any $\tau$, $\mathcal{P}(\tau)(x)$ holds.
+\item We can then prove the following theorem:
+\end{itemize}
+
+
+\begin{thm}[Fundamental Theorem]
+  If $\Gamma \vdash e : \tau$, then $\Gamma \vDash e : \tau$.
+\end{thm}
+\begin{proof}
+  By induction on the evidence that $\Gamma \vdash e : \tau$.
+
+  \noindent\textbf{Case \textsc{var}:}
+  In this case, $e = x$.
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$; then $\gamma(x)$ is defined and $\mathcal{P}(\tau)(\gamma(x))$, since $x : \tau \in \Gamma$.
+  But $e[\gamma] = \gamma(x)$, so we're done.
+
+  \noindent\textbf{Case \textsc{$\to$-I}:}
+  In this case, $e = \tabs{x}{\tau_1}{e'}$, $\tau = \tau_1 \to \tau_2$, and $\Gamma, x : \tau_1 \vdash e' : \tau_2$.
+  We need to show that there is an $n$ such that $e[\gamma] \to^\ast n$, and that for any $e''$ such that $\mathcal{P}(\tau_1)(e'')$, we have $\mathcal{P}(\tau_2)(\app{e}{e''})$.
+  By IH, we know that $\Gamma, x : \tau_1 \vDash e' : \tau_2$.
+
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $\mathcal{C}(\Gamma, x : \tau_1)(\gamma[x \mapsto x])$, and so by IH $\mathcal{P}(\tau_2)(e'[\gamma[x \mapsto x]]) = \mathcal{P}(\tau_2)(e'[\gamma])$.
+  Thus, there is a normal-form~$n'$ such that $e' \to^\ast n'$.
+  Thus, $e = \tabs{x}{\tau_1}{e'} \to^\ast \tabs{x}{\tau_1}{n'}$.
+
+  Finally, let $e''$ be such that $\mathcal{P}(\tau_1)(e'')$.
+  Then $\mathcal{C}(\Gamma, x : \tau)(\gamma[x \mapsto e''])$, and so $\mathcal{P}(\tau_2)(e'[\gamma[x \mapsto e'']])$.
+  But we have $$\app{(e[\gamma])}{e''} = \app{(\tabs{x}{\tau_1}{e'[\gamma]})}{e''} \to e'[\gamma][x \mapsto e] = e'[\gamma[x \mapsto e]]$$
+  and so we're done.
+
+  \noindent\textbf{Case \textsc{$\to$-E}:}
+  In this case, we have $e = \app{e_1}{e_2}$ where $\Gamma \vdash e_1 : \tau_1 \to \tau$ and $\Gamma \vdash e_2 : \tau_1$.
+  Moreover, by IH we have $\Gamma \vDash e_1 : \tau_1 \to \tau$ and $\Gamma \vDash e_2 : \tau_1$.
+
+  Let $\gamma$ be such that $\mathcal{C}(\Gamma)(\gamma)$.
+  Then $e[\gamma] = (\app{e_1}{e_2})[\gamma] = \app{(e_1[\gamma])}{(e_2[\gamma])}$.
+  But by IH, we know that $\mathcal{P}(\tau_1 \to \tau)(e_1[\gamma])$ and $\mathcal{P}(\tau_1)(e_2[\gamma])$.
+  The result now comes directly from the definition of $\mathcal{P}(\tau_1 \to \tau)$.  
+\end{proof}
+
+\begin{cor}[Normalization]
+  If $\Gamma \vdash e : \tau$, then there is a normal-form~$n$ such that $e \to^\ast n$.
+\end{cor}
+\begin{proof}
+  Since $\Gamma \vdash e : \tau$, we know that $\Gamma \vDash e : \tau$ by the fundamental theorem.
+  Note that the identity substitution ($\text{id}_\Gamma \triangleq [x \mapsto x \mid x \in \text{dom}(\Gamma)]$) is a good substitution: $\mathcal{C}(\Gamma)(\text{id}_\Gamma)$.
+  Moreover, $e[\text{id}_\Gamma] = e$.
+  Thus, $\mathcal{P}(\tau)(e[\text{id}_\Gamma]) = \mathcal{P}(\tau)(e)$.
+  The result immediately follows.
+\end{proof}
+
+\begin{itemize}
+\item In order to get our desired result, we need to extend our logical relation to cover our entire type system.
+\item We can do that as follows:
+\end{itemize}
+
+$$
+\begin{array}{r@{\;\triangleq\;}l}
+  \mathcal{P}(\utype)(e) & \exists n.\,\nf{n} \land e \to^\ast n \land (\neutral{n} \lor n = \unit)\\
+  \mathcal{P}(\vtype)(e) & \exists n.\,\neutral{n} \land e \to^\ast n\\
+  \mathcal{P}(\prodtype{\tau_1}{\tau_2})(e) & (\exists n.\, \nf{n} \land e \to^\ast n) \land \mathcal{P}(\tau_1)(\projl{e}) \land \mathcal{P}(\tau_2)(\projr{e})\\
+  \mathcal{P}(\sumtype{\tau_1}{\tau_2})(e) & (\exists n.\,\nf{n} \land e \to^\ast n) \land \forall \tau, e_1, e_2.\,\begin{array}[t]{l}(\forall v.\, \mathcal{P}(\tau_1)(v) \to \mathcal{P}(\tau)(e_1[x \mapsto v])) \to\\
+    (\forall v.\, \mathcal{P}(\tau_2)(v) \to \mathcal{P}(\tau)(e_2[y \mapsto v])) \to\\
+    \mathcal{P}(\tau)(\case{e}{x}{e_1}{y}{e_2})
+    \end{array}
+\end{array}
+$$
+
+\begin{cor}[Consistency]
+  $\not\vdash \bot$
+\end{cor}
+\begin{proof}
+  Recall that any proof of $\vdash \bot$ corresponds to a typing derivation of $\vdash e : \vtype$ for some $e$.
+  But then, by normalization, we know that $e$ normalizes, so there is some normal-form~$n$ such that $e \to^\ast n$.
+  By preservation, $\vdash n : \vtype$.
+  But there is no such thing as a normal-form term of type $\vtype$!
+  Thus, there must not be any such proof of $\vdash \bot$.
+\end{proof}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

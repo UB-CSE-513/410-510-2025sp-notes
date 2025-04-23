@@ -1,0 +1,223 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\title{Noninterference}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{26}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Last time, we talked about two programs as semantically equivalent when an observer cannot tell the difference between the two.
+\item Our notion of an observer was any other program in the language.
+\item We then came up with \emph{contextual equivalence}, which formalized this idea but was hard to work with.
+\item By moving to a binary logical relation, we got something much easier to work with that was equivalent in power.
+\item But what about other notions of observer?
+\item Today, we'll be changing the observer in order to discuss \emph{information security}, specifically \emph{noninterference}.
+\end{itemize}
+
+\section{Information-Flow Security and Noninterference}
+\label{sec:inform-flow-secur}
+
+\begin{itemize}
+\item Information-flow security (at least as we will see it today) is all about keeping confidential information from leaking into information shared with the public.
+\item In particular, we want to mark some of our data as secret and the rest of our data as public.
+  We won't share the secret data, but the public data could be shared with anyone.
+\item For example, your social security number should probably be secret, but you probably don't mind the fact that you live in the state of New York being shared.
+\item Then, a program that takes in your social security number and the state you live in and then tells \emph{you} how your income compares to the average income in the state while publicly displaying the average income of your state would be secure
+\item However, if it displayed how your income compares to the average, it would not be---after all, I can figure out how much you make with that information.
+\item In general, we're interest in a property called \emph{noninterference}: private inputs should not affect public outputs.
+\item We state this by adding \emph{labels} to types.
+  Today, we only consider two labels:  \pub{} and \priv{}. 
+\item We write $\ell_1 \sqsubseteq \ell_2$ to mean ``data labeled with $\ell_1$ can be securely used to compute data labeled with $\ell_2$.''
+  We read this ``$\ell_1$ flows to $\ell_2$.''
+  With the two labels we have, this relation is defined as follows:
+  \begin{mathpar}
+    \infer{ }{\ell \sqsubseteq \ell} \and
+    \infer{ }{\pub \sqsubseteq \priv}
+  \end{mathpar}
+  \begin{itemize}
+  \item We can prove that this is a preoder.
+  \item In this case, we can prove more: it's a total order!
+  \end{itemize}
+\item We write $\ell_1 \sqcup \ell_2$ for the least label that both $\ell_1$ and $\ell_2$ can be securely used to compute.
+  In our simple setting, it's defined as:
+  $$
+  \ell_1 \sqcup \ell_2 = \left\{
+    \begin{array}{ll}
+      \pub & \ell_1 = \ell_2 = \pub\\
+      \priv & \text{otherwise}
+    \end{array}\right.
+  $$
+\end{itemize}
+
+\section{A $\lambda$ Calculus for Noninterference}
+\label{sec:lambda-calc-nonint}
+
+\begin{syntax}
+  \category[Label]{\ell} \alternative{\pub} \alternative{\priv}
+  \category[Raw Types]{A} \alternative{\utype} \alternative{\prodtype{\tau_1}{\tau_2}} \alternative{\sumtype{\tau_1}{\tau_2}} \alternative{\tau_1 \to \tau_2}
+  \category[Types]{\tau} \alternative{\tau^\ell}
+  \category[Expression]{e} \alternative{\unit}\\
+  \alternative{\pair{e_1}{e_2}} \alternative{\projl{e}} \alternative{\projr{e}}\\
+  \alternative{\injl{e}} \alternative{\injr{e}} \alternative{\case{e}{x}{e_1}{y}{e_2}}\\
+  \alternative{\tabs{x}{\tau}{e}} \alternative{\app{e_1}{e_2}}
+\end{syntax}
+
+\begin{mathpar}
+  \infer*[left=Axiom]{x : \tau \in \Gamma}{\Gamma \vdash x : \tau}\and
+  \infer*[left=UnitI]{ }{\Gamma \vdash \unit : \utype^\ell}\\
+  \infer*[left=$\times$-I]{\Gamma \vdash e : \tau_1\\ \Gamma \vdash e : \tau_2}{\Gamma \vdash (e_1, e_2) : (\prodtype{\tau_1}{\tau_2})^\ell} \and
+  \infer*[right=$\times\textsc{-E}_1$]{\Gamma \vdash e : (\prodtype{A^{\ell_1}}{\tau})^{\ell_2}}{\Gamma \vdash \projl{e} : A^{\ell_1 \sqcup \ell_2}} \and
+  \infer*[right=$\times\textsc{-E}_2$]{\Gamma \vdash e : (\prodtype{\tau}{A^{\ell_1}})^{\ell_2}}{\Gamma \vdash \projr{e} : A^{\ell_1 \sqcup \ell_2}} \\
+  \infer*[left=$+\textsc{-I}_1$]{\Gamma \vdash e : \tau_1}{\Gamma \vdash \injl{e} : (\sumtype{\tau_1}{\tau_2})^\ell}\and
+  \infer*[left=$+\textsc{-I}_2$]{\Gamma \vdash e : \tau_2}{\Gamma \vdash \injr{e} : (\sumtype{\tau_1}{\tau_2})^\ell}\and
+  \infer*[right=$+\textsc{-E}$]{\Gamma \vdash e : (\sumtype{\tau_1}{\tau_2})^{\ell_1} \\ \Gamma, x : \tau_1 \vdash e_1 : A^{\ell_2}\\ \Gamma, y : \tau_2 \vdash e_2 : A^{\ell_2}\\ \ell_1 \sqsubseteq \ell_2}{\Gamma \vdash \case{e}{x}{e_1}{y}{e_2} : A^{\ell_2}}\\
+  \infer*[left=$\to\textsc{-I}$]{\Gamma, x : \tau_1 \vdash e : \tau_2}{\Gamma \vdash \tabs{x}{\tau_1}{e} : (\tau_1 \to \tau_2)^\ell}\and
+  \infer*[right=$\to\textsc{-E}$]{\Gamma \vdash f : (A^{\ell_1} \to B^{\ell_2})^{\ell_3}\\ \Gamma \vdash a : A^{\ell_4}\\ \ell_4 \sqsubseteq \ell_1}{\Gamma \vdash \app{f}{a} : B^{\ell_2 \sqcup \ell_3}}
+\end{mathpar}
+
+\begin{itemize}
+\item The syntax and type system of a $\lambda$ calculus with information-flow labels is above.
+\item The operational semantics is exactly the same as what you're used to; the only difference is in the type system.
+\item For the most part, we don't change anything.
+  However, there are a few notes:
+  \begin{itemize}
+  \item First, every introduction rule creates an arbitrary label on the outside of the type.
+    Intuitively, you as the programmer get to decide how secret the data you create is.
+  \item Second, every elimination rule has to ensure that all of the relevant inputs are no-more-secret than the outputs.
+    For instance, the $+\textsc{-E}$ rule requires that the choice of the left or right is no more secret than the output.
+  \item To see why this is required, consider the following program:
+    $$
+    \case{\injl{\unit}}{\_}{3}{\_}{5}
+    $$
+    Note that the choice of left or right is the only relevant information here, and it determines the output.
+    If that choice is secret, then labeling the output public would leak that secret to the public!
+    This is an \emph{indirect flow}.
+  \end{itemize}
+\item Our goal today is to prove noninterference:\\ if $x : \tau^\priv \vdash e : \mathbb{B}^\pub$ and $\vdash v_1, v_2 : \tau^\priv$, then $e[x \mapsto v_1] \cong_{\beta} e[x \mapsto v_2]$.
+\end{itemize}
+
+\section{A Binary Logical Relation}
+\label{sec:binary-logic-relat}
+
+\begin{itemize}
+\item The idea is to build a binary logical relation representing what an adversary can see.
+\item However, there's more than one possible adversary.
+  For any label, we can imagine an adversary who can see at most that label.
+\item Thus, we write $\mathcal{V}(\tau)(v_1 \sim^\ell v_2)$ to mean ``an adversary who can see at most $\ell$-labeled data cannot tell $v_1$ and $v_2$ apart.''
+\item Note that the recursion on types will look at both $\tau$s and $A$s.
+\end{itemize}
+
+$$
+\begin{array}{r@{\;\triangleq\;}l}
+  \mathcal{V}(\utype)(v_1 \sim_\ell v_2) & v_1 = v_2 = \unit\\
+  \mathcal{V}(\prodtype{\tau_1}{\tau_2})(v_1 \sim_\ell v_2) & \exists v_{11}, v_{12}, v_{21}, v_{22}.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}v_1 = (v_{11}, v_{12})\\ {} \land v_2 = (v_{21}, v_{22})\\ {} \land \mathcal{V}(\tau_1)(v_{11} \sim_\ell v_{21})\\ {} \land \mathcal{V}(\tau_2)(v_{12} \sim_\ell v_{22})\end{array}\\[1em]
+  \mathcal{V}(\sumtype{\tau_1}{\tau_2})(v_1 \sim_\ell v_2) & \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}(\exists v'_1, v'_2.\, v_1 = \injl{v'_1} \land v_2 = \injl{v'_2} \land \mathcal{V}(\tau_1)(v'_1 \sim_\ell v'_2))\\ {} \lor (\exists v'_1, v'_2.\,v_1 = \injr{v'_1} \land v_2 = \injr{v'_2} \land \mathcal{V}(\tau_2)(v'_1 \sim_\ell v'_2)\end{array}\\
+  \mathcal{V}(\tau_1 \to \tau_2)(v_1 \sim_\ell v_2) & \exists x, e_1, y, e_2.\, \hspace{-1.5em}\begin{array}[t]{l}\hspace{1.15em}v_1 = \tabs{x}{\tau_1}{e_1}\\{} \land v_2 = \tabs{y}{\tau_2}{e_2}\\{} \land (\forall a_1, a_2.\, \mathcal{V}(\tau_1)(a_1 \sim_\ell a_2) \to \mathcal{E}(\tau_2)(e_1[x \mapsto a_1] \sim_\ell e_2[y \mapsto a_2])\end{array}\\
+  \mathcal{V}(A^{\ell_1})(v_1 \sim_{\ell_2} v_2) & \ell_1 \not\sqsubseteq \ell_2 \lor \mathcal{V}(A)(v_1 \sim_{\ell_2} v_2)\\
+  \mathcal{E}(\tau)(e_1 \sim_\ell e_2) & \exists v_1, v_2.\, e_1 \to^\ast v_1 \land e_2 \to^\ast v_2 \land \mathcal{V}(\tau)(v_1 \sim_\ell v_2)
+\end{array}
+$$
+
+\begin{itemize}
+\item Note that this looks almost exactly the binary logical relation from last time.
+\item However, when we encounter a label in a type, we first check whether the adversary can see information with that label.
+  If not, we just give up, and stop checking any further.
+  Intuitively, the adversary cannot tell anything with that type apart.
+\item Note that the adversary who can see \priv{}-labeled data can see everything!
+\item We then can prove the fundamental lemma as normal.
+  Note that the definition of semantic typing is exactly the one we saw last time.
+\end{itemize}
+
+\begin{thm}[Fundamental Theorem]
+  If $\Gamma \vdash e : \tau$, then $\Gamma \vDash e \sim_\ell e : \tau$ for every label~$\ell$.
+\end{thm}
+
+\section{Noninterference, Proven}
+\label{sec:nonint-prov}
+
+\begin{itemize}
+\item We can now prove our noninterference theorem as a corollary of the fundamental theorem!
+\end{itemize}
+
+\begin{cor}[Noninterference]
+  If $x : A^\priv \vdash e : \mathbb{B}^\pub$ and $\vdash v_1, v_2 : A^\priv$, then $e[x \mapsto v_1] \cong_{\beta} e[x \mapsto v_2]$.
+\end{cor}
+\begin{proof}
+  Note that no matter what $v_1$ and $v_2$ are, $\mathcal{V}(A^\priv)(v_1 \sim_\pub v_2)$.
+  Thus, $$\mathcal{K}(x : A^\priv)([x \mapsto v_1] \sim_\pub [x \mapsto v_2])$$ and so by the fundamental theorem $$\mathcal{E}(\mathbb{B}^\pub)(e[x \mapsto v_1] \sim_\pub e[x \mapsto v_2])$$
+  This means that there are a $v'_1, v'_2$ such that all three of the following hold:
+  \begin{mathpar}
+    e[x \mapsto v_1] \to^\ast v'_1 \and e[x \mapsto v_2] \to^\ast v'_2 \and \mathcal{V}(\mathbb{B}^\pub)(v'_1 \sim_\pub v'_2)
+  \end{mathpar}
+  Since $\pub \sqsubseteq \pub$, we must further have that $\mathcal{V}(\mathbb{B})(v'_1 \sim_\pub v'_2)$.
+  But this is only possible if $v'_1 = v'_2$, which means $e[x \mapsto v_1] \cong_\beta e[x \mapsto v_2]$ as desired.
+\end{proof}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:

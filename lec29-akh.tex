@@ -1,0 +1,224 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+
+\setsansfont{Fira Code}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\title{Categories}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{29}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item We now turn to our second form of denotational semantics: categories.
+\item This is more traditionally viewed as a form of denotational semantics than logical relations are.
+  \begin{itemize}
+  \item Traditionally, logical relations were seen as a proof method rather than a denotational semantics
+  \item However, this view is changing
+  \item There are some purists who will not refer to either logical relations or categories as denotational semantics, but they're unusual.
+  \end{itemize}
+\item Most of the time we spend on category theory will be spent on definitions.
+  This is largely just the way learning category theory goes; we will see some minor theorems and examples.
+  It's important not to get too overwhelmed with definitions!
+\item In this lecture, we focus on the idea of a category, see some examples, and start to understand why it's useful in semantics.
+\end{itemize}
+
+\section{Categories, Defined}
+\label{sec:categories-defined}
+
+\begin{itemize}
+\item Category theory is the mathematical study of compositionality.
+\item As such categories are an algebraic object with composition as its main operation.
+\item If this is the first time you've seen an algebraic definition, think of it like a record: anything that has \emph{all} of the operations and properties defined is a category.
+\end{itemize}
+
+\begin{defn}[Category]
+  A \emph{category}~$\mathcal{C}$ consists of:
+  \begin{itemize}
+  \item A collection $\obj{\mathcal{C}}$ of objects.
+  \item For every pair $X, Y \in \obj{\mathcal{C}}$, a collection $\hom[\mathcal{C}]{X}{Y}$ of \emph{morphisms between $X$ and $Y$}.
+    When the category is obvious from context, we will just write $\hom{X}{Y}$.
+    We also often write $f : X \to Y$ for $f \in \hom{X}{Y}$.
+    We say that $X$ is the \emph{domain} of $X$, while $Y$ is its $\emph{codomain}$.
+  \item For every object $X \in \obj{C}$, a morphism~$\id[X]$ called the \emph{identity} at $X$.
+    If the object is obvious from context, we will often just write $\id$.
+  \item For every triple of objects a \emph{composition} operator $; : \hom{X}{Y} \to \hom{Y}{Z} \to \hom{X}{Z}$.
+    In other words, if $f : X \to Y$ and $g : Y \to Z$, then there is a morphism $f; g : X \to Z$.
+    We sometimes write $g \circ f$ instead; this is common in textbook definitions of categories.
+    These are referred to as ``diagram-order'' and ``function-order'' composition, respectively.
+  \end{itemize}
+  Obeying the following laws:
+  \begin{itemize}
+  \item The identity acts like an identity for composition on both the left and right:
+    $$\id[X]; f = f = f; \id[Y] \;\text{where}\,f : X \to Y$$
+  \item Composition is associative: if $f : W \to X$, $g : X \to Y$, and $h : Y \to Z$, then
+    $$ f; (g; h) = (f; g); h$$
+  \end{itemize}
+\end{defn}
+
+\section{Examples of Categories in Mathematics}
+\label{sec:math-examples-categories}
+
+Let's look at some examples of categories that you might know from mathematics.
+
+\subsection{Sets}
+\label{sec:sets}
+
+The category \Set consists of:
+\begin{itemize}
+\item \textbf{Objects}: All sets
+\item \textbf{Morphisms}: $\hom[\Set]{X}{Y} = Y^X$ the set of functions from $X$ to $Y$.
+  Recall that in sets a function from $X$ to $Y$ is a set $f \subseteq X \times Y$ such that $\forall x \in X, \exists ! y \in Y.\, (x, y) \in f$, and that we write $f(x)$ for the unique $y$ such that $(x, y) \in f$.
+\item \textbf{Identities}: $\id[X] = \{(x, x) \mid x \in X\}$.
+\item \textbf{Composition}: if $f : X \to Y$ and $g : Y \to Z$, then $f; g = \{ (x, z) \mid \exists y.\, (x, y) \in f \land (y, z) \in g\}$.
+\end{itemize}
+
+We need to show that these satisfy the category laws.
+First, note that
+$$f; \id[Y] = \{(x, y_2) \mid \exists y_1.\, (x, y_1) \in f \land (y_1, y_2) \in \id[Y]\} = \{(x, y) \mid (x, y) \in f\} = f$$
+Second,
+$$\id[X]; f = \{(x_1, y) \mid \exists x_2.\, (x_1, x_2) \in id[X] \land (x_2, y) \in f\} = \{(x, y) \mid (x, y) \in f\} = f$$
+
+Finally,
+$$
+\begin{array}{ll}
+  f; (g; h) &= \{(w, z) \mid \exists x.\, (w, x) \in f \land (x, z) \in g; h\}\\
+            &= \{(w, z) \mid \exists x.\, (w, x) \in f \land \exists y.\, (x, y) \in g \land (y, z) \in h\}\\
+            &= \{(w, x) \mid \exists x, y. (w, x) \in f \land(x, y) \in g \land (y, z) \in h\}\\
+            &= \{(w, x) \mid \exists y. (\exists x. (w, x) \in f \land(x, y) \in g) \land (y, z) \in h\}\\
+            &=\{(w, x) \mid \exists y.\, (w, y) \in f; g \land (y, z) \in h\}\\
+            &=(f; g); h
+\end{array}
+$$
+
+\subsection{Relations}
+\label{sec:relations}
+
+The category \Rel consists of:
+\begin{itemize}
+\item \textbf{Objects}: All sets
+\item \textbf{Morphisms}: $\hom[\Rel]{X}{Y} = \{R \mid R \subseteq X \times Y\}$ relations between $X$ and $Y$.
+\item \textbf{Identities}: $\id[X] = \{(x, x) \mid x \in X\}$
+\item \textbf{Composition}: if $f : X \to Y$ and $g : Y \to Z$, then $f; g = \{ (x, z) \mid \exists y.\, (x, y) \in f \land (y, z) \in g\}$.
+\end{itemize}
+
+Since identities and composition are defined just as in \Set, we don't have any new proofs to do.
+
+\subsection{Types}
+\label{sec:types}
+
+The category \Type consists of:
+\begin{itemize}
+\item \textbf{Objects}: Types in extended STLC (STLC + unit, products, and sums)
+\item \textbf{Morphisms}: $\hom[\Type]{\tau}{\sigma} = \{ [e]_{\cong_{\alpha,\beta\eta}} \mid \exists x.\, x : \tau  \vdash e : \sigma\}$ $\alpha,\beta,\eta$-equivalence classes of terms with a single free variable.
+\item \textbf{Identities}: $\id[\tau] = [x]_{\cong_{\alpha,\beta,\eta}}$.
+\item \textbf{Composition}: let $e$ and $e'$ be such that $x : \tau \vdash e : \sigma$ and $y : \sigma \vdash e' : \rho$.
+  Then $e; e' = e'[y \mapsto e]$.
+\end{itemize}
+
+Composition with the identity on the left is then $e[x \mapsto x] = e$, while composition on the right is $x[x \mapsto e] = e$.
+$$
+\begin{array}{ll}
+  e_1; (e_2; e_3 ) &= (e_3 [y \mapsto e_2]) [x \mapsto e_1]\\
+                   &= (e_3[y \mapsto e_2 [x \mapsto e_1]]~~~\text{(because $x \notin \text{fv}(e_3)$)}\\
+                   &=(e_1; e_2); e_3
+\end{array}
+$$
+
+\section{Opposite Categories}
+\label{sec:opposite-categories}
+
+\begin{itemize}
+\item For every category~$\mathcal{C}$ there is an ``opposite'' category $\op{\mathcal{C}}$ where all of the morphisms are flipped.
+\item More precisely, we get the following:
+  \begin{defn}[Opposite Category]
+    For a category~$\mathcal{C}$, the category~$\op{\mathcal{C}}$ has:
+    \begin{itemize}
+    \item \textbf{Objects}: The objects of $\mathcal{C}$
+    \item \textbf{Morphisms}: $\hom[\op{\mathcal{C}}]{X}{Y} = \hom[\mathcal{C}]{Y}{X}$
+    \item \textbf{Identities}: As in $\mathcal{C}$
+    \item \textbf{Composition}: Reversed from $\mathcal{C}$: $f;g$ in $\op{\mathcal{C}}$ is $g; f$ in $\mathcal{C}$.
+    \end{itemize}
+    Since identities and composition are defined in $\mathcal{C}$, we don't have to prove anything more.
+  \end{defn}
+\item This is a very simple definition, but it will turn out to be incredibly valuable.
+\item In particular, we will see next time that the notion of ``duality'' that we talked about when defining type constructions can be formalized via opposite categories.
+\end{itemize}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
