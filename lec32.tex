@@ -1,0 +1,259 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+\usepackage{agda}
+
+\usepackage{newunicodechar}
+\newunicodechar{₁}{\ensuremath{{}_{1}}}
+\newunicodechar{₂}{\ensuremath{{}_{2}}}
+\newunicodechar{∷}{\ensuremath{\mathrel{::}}}
+\newunicodechar{∎}{\ensuremath{\textsf{\blacksquare}}}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\renewcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\newtheorem{ex}{Example}
+
+\title{Functors and Transformations}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{32}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+We started lecture by making the observation that there is a tight connection between programming languages and category theory.
+Of course, as we learned earlier, programming languages can be modeled as categories.
+Additionally, in the previous lecture we learned about Closed Cartesian Categories (CCC), which themselves can be thought of as programming languages.
+
+We also made the observation that, when considering a category, we are not really interested in the objects in that category.
+Rather, we are more interested in the morphisms, or the transformations between objects.
+The morphisms are what give structure to a category.
+
+In this lecture, we add more layers of abstraction to categories in the form of \emph{functors}, which are transformations between categories, and \emph{natural transformations}, which are transformations between functors.
+
+\section{Functors}
+
+Informally, a \emph{functor} is a structure-preserving mapping between categories.
+That is, a functor maps one category to another so that the connections between objects are preserved.
+
+\begin{defn}[Functor]
+  A functor $F : \mathcal{C} \to \mathcal{D}$ consists of:
+
+  \begin{itemize}
+    \item A transformation between objects $X \mapsto \app{F}{X}$.
+    \item A transformation between morphisms $f : A \to B \mapsto \app{F}{f} : \app{F}{A} \to \app{F}{X}$,
+    
+    \;where $f$ is in $\hom[\mathcal{C}]{A}{B}$ and $\app{F}{f}$ is in $\hom[\mathcal{D}]{\app{F}{A}}{\app{F}{B}}$.
+
+    \item Subject to:
+    \begin{itemize}
+      \item $\app{F}{(\id[X])} = \id[\app{F}{X}]$
+      \item $\app{F}{(f ; g)} = \app{F}{f}; \app{F}{g}$
+    \end{itemize}
+  \end{itemize}
+\end{defn}
+
+In the context of programming languages, we can define a functor $F$ to convert types in language $\mathcal{C}$ to types in language $\mathcal{D}$.
+Or, $F$ can be a transformation that converts programs from $\mathcal{C}$ to $\mathcal{D}$.
+
+We call a functor that maps a category to itself, $F : \mathcal{C} \to \mathcal{C}$, an \emph{endofunctor}.\\
+
+Let us consider some examples.
+
+\begin{ex}
+  For every $\mathcal{C}$, there is a functor $\id[\mathcal{C}] : \mathcal{C} \to \mathcal{C}$, where
+
+  \begin{mathpar}
+    \begin{array}{ccc}
+      \id[\mathcal{C}](X) = X && \app{\id[\mathcal{C}]}{f} = f
+    \end{array}
+  \end{mathpar}
+\end{ex}
+
+\begin{ex}
+  Let $F : \mathcal{C} \to \mathcal{D}$ and $G : \mathcal{D} \to \mathcal{E}$. Then,
+
+  \begin{mathpar}
+    \begin{array}{ccc}
+      F ; G : \mathcal{C} \to \mathcal{E} && \app{(F ; G)}{X} = \app{G}{(\app{F}{X})} \\
+      && \app{(F ; G)}{f} = \app{G}{(\app{F}{f})}
+    \end{array}
+  \end{mathpar}
+\end{ex}
+
+\begin{ex}
+  There is a category \Cat of all categories where the morphisms are functors.
+\end{ex}
+
+\begin{ex}
+  Consider the \textsf{list} type in Agda: $\textsf{list : Type} \to \textsf{Type}$.\\
+
+  The type \textsf{list X} is the type of \textsf{list}s where every element has type \textsf{X}.\\
+
+  If \textsf{f} is a function, then \textsf{list f} corresponds to \textsf{map f}, where \textsf{map} is the \textsf{map} function for \textsf{list}s.
+\end{ex}
+
+\section{Natural Transformations}
+
+\begin{defn}[Natural Transformation]
+  If $F, G : \mathcal{C} \to \mathcal{D}$, then a \emph{natural transformation} $\alpha : F \Rightarrow G$ consists of a collection of morphisms $\alpha_X : \app{F}{X} \to \app{G}{X}$, where the following diagram must commute for every $f : X \to Y$ in $\mathcal{C}$:
+
+  \begin{center}
+    \begin{tikzcd}
+      F\,X \ar[r, "F\,f"] \ar[d, "\alpha_X"'] & F\,Y \ar[d, "\alpha_Y"]\\
+      G\,X \ar[r,"G\,f"'] & G\,Y
+    \end{tikzcd}
+  \end{center}
+\end{defn}
+
+Let us consider some examples.
+
+\begin{ex}
+  Consider the \textsf{list} and \textsf{tree} types.\\
+
+  If we can define a function $\alpha$ that translates \textsf{tree X} to \textsf{list X}, for any \textsf{X}, then $\alpha$ is a natural transformation from \textsf{tree} to \textsf{list}.
+  
+  \begin{center}
+    \begin{tikzcd}
+      \textsf{tree X} \ar[r, "\textsf{tree f}"] \ar[d, "\alpha_X"'] & \textsf{tree Y} \ar[d, "\alpha_Y"]\\
+      \textsf{list X} \ar[r,"\textsf{list f}"'] & \textsf{list Y}
+    \end{tikzcd}
+  \end{center}
+\end{ex}
+
+The following is a free theorem: any polymorphic function from \textsf{tree} to \textsf{list} is a natural transformation.
+In fact, this is true for any two functors defined as variants.
+
+\begin{ex}
+  Let $F : \mathcal{C} \to \mathcal{D}$.
+  Then:
+
+  \begin{mathpar}
+    \begin{array}{ccc}
+      \id[F] : F \Rightarrow F && (\id[F])_X = \id[FX]
+    \end{array}
+  \end{mathpar}
+
+  \begin{center}
+    \begin{tikzcd}
+      F\,X \ar[r, "F\,f"] \ar[d, "\mathbbm{1}_{FX}"'] & F\,Y \ar[d, "\mathbbm{1}_{FY}"]\\
+      F\,X \ar[r,"F\,f"'] & F\,Y
+    \end{tikzcd}
+  \end{center}
+\end{ex}
+
+\begin{ex}
+  Let $F : \mathcal{C} \to \mathcal{D}$, $G : \mathcal{C} \to \mathcal{D}$, $H : \mathcal{C} \to \mathcal{D}$, and
+
+  \begin{mathpar}
+    \begin{array}{ccc}
+      \alpha : F \Rightarrow G && \beta : G \Rightarrow H
+    \end{array}
+  \end{mathpar}
+
+  We can represent this pictorially with the following diagram:
+
+  \begin{center}
+    \begin{tikzcd}
+      F\,X \ar[r, "\alpha_X"] \ar[d, "F\,f"'] & G\,X \ar[r, "\beta_X"] \ar[d, "G\,f"] & H\,X \ar[d, "H\,f"]\\
+      F\,Y \ar[r,"\alpha_Y"'] & G\,Y \ar[r, "\beta_Y"] & H\,Y
+    \end{tikzcd}
+  \end{center}
+
+  We also know that:
+
+  \begin{mathpar}
+    \begin{array}{ccc}
+      \alpha ; \beta : F \Rightarrow H && (\alpha ; \beta)_X = \alpha_X ; \beta_X
+    \end{array}
+  \end{mathpar}
+
+  So we can update our diagram to:
+
+  \begin{center}
+    \begin{tikzcd}
+      F\,X \ar[r, "\alpha_X"] \ar[rr, bend left, "(\alpha ; \beta)_X"] \ar[d, "F\,f"'] & G\,X \ar[r, "\beta_X"] \ar[d, "G\,f"] & H\,X \ar[d, "H\,f"]\\
+      F\,Y \ar[r,"\alpha_Y"'] \ar[rr, bend right, "(\alpha ; \beta)_Y"] & G\,Y \ar[r, "\beta_Y"] & H\,Y
+    \end{tikzcd}
+  \end{center}
+
+  This entire diagram commutes by the \emph{pasting argument}.
+  Informally, the pasting argument says that putting together commuting diagrams results in a larger commuting diagram.
+\end{ex}
+
+\end{document}
