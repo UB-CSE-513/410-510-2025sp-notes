@@ -232,7 +232,7 @@ But we can always consider $\unit$ to be a program which may log data, but doesn
 \item Every effectful program $x : \tau \vdash e : \sigma \mid \logeff$ can be transformed into a program $\capture{e}$ such that $x : \tau \vdash e : M\,\sigma \mid \pureeff$.
   \begin{itemize}
   \item The resulting program collects all of its logged data in its output.
-  \item Thus, $\hom[\mathcal{E}](X, Y) = \hom[\mathcal{P}](X, M\,Y)$
+  \item Thus, $\hom[\mathcal{E}]{X}{Y} = \hom[\mathcal{P}]{X}{M\,Y}$
   \end{itemize}
 \item Moreover, a program $x : \tau \vdash e : M\,\sigma \mid \varepsilon$ can be transformed into a program $x : M\,\tau \vdash \bind{e} : M\,\sigma \mid \varepsilon$.
   \begin{itemize}
