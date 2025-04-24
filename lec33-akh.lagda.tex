@@ -246,7 +246,7 @@ But we can always consider $\unit$ to be a program which may log data, but doesn
   A \emph{monad} on a category $\mathcal{C}$ is an endofunctor $M : \mathcal{C} \to \mathcal{C}$ along with a natural transformation $\eta : \id[\mathcal{C}] \Rightarrow M$ and $\mu : M; M \Rightarrow M$ such that the following diagrams always commute:
   \begin{center}
     \begin{tikzcd}
-      M\, X \ar[r, "\eta_X"] \ar[d,"M\,\eta_X"'] \ar[dr,dash,"{\id[X]}"] & M\, M\, X \ar[d, "\mu_X"] \\
+      M\, X \ar[r, "\eta_{M\,X}"] \ar[d,"M\,\eta_X"'] \ar[dr,dash,"{\id[MX]}"] & M\, M\, X \ar[d, "\mu_X"] \\
       M\,M\,X \ar[r, "\mu_X"'] & M \, X
     \end{tikzcd}
   \end{center}
