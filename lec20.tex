@@ -1,0 +1,172 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\setsansfont{Fira Code}
+\usepackage{newunicodechar}
+\newunicodechar{∣}{\ensuremath{\mid}}
+\usepackage{stmaryrd}
+
+\newunicodechar{∣}{\ensuremath{\mid}}
+\newunicodechar{′}{\ensuremath{{}^\prime}}
+\newunicodechar{ˡ}{\ensuremath{{}^{\textsf{l}}}}
+\newunicodechar{ʳ}{\ensuremath{{}^{\textsf{r}}}}
+\newunicodechar{ᵣ}{\ensuremath{{}_{\textsf{r}}}}
+\newunicodechar{⊗}{\ensuremath{\otimes}}
+\newunicodechar{∷}{\ensuremath{\mathrel{::}}}
+\newunicodechar{∀}{\ensuremath{\textsf{\forall}}}
+\newunicodechar{∎}{\ensuremath{\textsf{\blacksquare}}}
+\newunicodechar{ℕ}{\ensuremath{\mathbb{N}}}
+\newunicodechar{≤}{\ensuremath{\textsf{\le}}}
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\title{Subtyping}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{20}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\section{System for Records}
+Labels $\ell$ \newline
+Example: $\{x=0; \; y=1\}$ $\{x:\mathbb{N}; \; y:\mathbb{N}\}$ \newline \newline
+Types $\tau$ $\mathrel{::}$= $unit$ $\vert$ $\tau_1 \rightarrow \tau_2$ $\vert$
+$\tau_1 \times \tau_2$ $\vert$ $\tau_1 + \tau_2$ $\vert$ 
+$\{ \ell_1 : \tau_1 ; \; \dots ; \; \ell_n : \tau_n \}$ \newline \newline
+Expressions $e$ $\mathrel{::}$= $\dots$ $\vert$ $\{\ell_1 = e_1; \; \dots ; \; \ell_n = e_n \}$ 
+$\vert$ $e.\ell$ \newline \newline
+$\{ \ell_1 = e_1 ; \dots ; \ell_n = e_n \} .\ell_i \rightarrow_\beta e_i$ \newline 
+This is an example of an expression of the form $e.\ell$, which uses beta evaluation to show that it just returns the expression associated with the label.
+So $e.\ell_i$ just returns the expression in $e$ associated with label $\ell_i$ which is $e_i$.
+As another example, if we used $\ell_n$ instead of $\ell_i$ then we would just get $e_n$ instead of $e_i$. \newline \newline
+$e \equiv_\eta \{ \ell_1 = e.\ell_1; \dots ; \ell_n = e.\ell_n \}$ \newline
+This is valid because projecting all of the fields in the record just gives the original record.
+You would end up with a record that is identical to the original with $\{ \ell_1 = e_1; \dots \ell_n = e_n \}$ since $e.\ell_i$ gives $e_i$,
+meaning for example in the first label $\ell_1 = e.\ell_1$ we just get $\ell_1 = e_1$. Thus they are $\eta$ equivalent. \newline
+
+\section{Record Rules}
+
+\begin{mathpar}
+  \infer*[left=Record-I]{\forall i \in \{ 1 , \dots , n \}. \Gamma \vdash e_i : \tau_i}{\Gamma \vdash \{ \ell_1 = e_1; \dots ; \ell_n = e_n \} : \{\ell_1 : \tau_1 ; \dots ; \ell_n : \tau_n \}}
+\end{mathpar}
+
+\noindent This rule is for creating a well-typed record.
+For any integer $i$ from 1 to $n$, $e_i : \tau_i$ must be well-typed in $\Gamma$.
+If it is well-typed for all $i$,
+then a record containing all labels and expressions from $\ell_1 = e_1$ to $\ell_n = e_n$, ($\{\ell_1 = e_1 ; \dots ; \ell_n = e_n \}$),
+of type $\{\ell_1 : \tau_1 ; \dots ; \ell_n : \tau_n \}$is well-typed in $\Gamma$.
+
+\begin{mathpar}
+  \infer*[left=Record-E]{\Gamma \vdash e : \{ \ell_1 : \tau_1 ; \dots ; \ell_n : \tau_n \}}{\Gamma \vdash e.\ell_i : \tau_i}
+\end{mathpar}
+
+\noindent If you have a record $e$ that is well-typed in $\Gamma$,
+then any arbitrarily chosen label in that record of its matching type,
+is well-typed in $\Gamma$. Meaning label $i$ is of type $\tau_i$ in the record and is well-typed in $\Gamma$. \newline
+
+\section{Subtyping}
+The relation $\subtype$, which is used like this: $\tau \subtype \tau'$ states that every value of $\tau$ is a value of $\tau'$ and that if someone asks for a $\tau'$,
+a value of $\tau$ is valid to be used instead.
+However, not every value of $\tau'$ is a value of $\tau$. \newline \newline
+This gives us the Liskov Substitution Principle: \newline
+If $\tau \subtype \tau'$, then everywhere a $\tau'$ is used, a $\tau$ could just as well be used.
+\newline \newline
+$\subtype$ is Reflexive and Transitive meaning it is a pre-order on types.
+
+\section{Subtype Rules}
+
+\begin{mathpar}
+  \infer*[left=Unit Refl]{\\}{unit \subtype unit}
+\end{mathpar}
+
+\noindent This rule is here to show that the subtype relation is reflexive but also that it holds for type $unit$
+
+\begin{mathpar}
+  \infer*[left=ProdSub]{\tau_1 \subtype \tau_1' \\ \tau_2 \subtype \tau_2'}{\tau_1 \times \tau_2 \subtype \tau_1' \times \tau_2'}
+\end{mathpar}
+
+\noindent This rule shows that subtyping holds for product types.
+If $\tau_1 \subtype \tau_1'$ and $\tau_2 \subtype \tau_2'$,
+then the product made up of $\tau_1$ and $\tau2$ is a subtype of the product made up of $\tau_1'$ and $\tau_2'$.
+This holds as long as the types match up, since $\tau_1$ is on the left side of the product and $\tau_1'$ is also on the left, they match.
+However, if the second product was flipped to be $\tau_2' \times \tau_1'$ but the first product stayed the same,
+then it would not necessarily hold since $\tau_1$ is not known to be a subtype of $\tau_2'$.
+
+\begin{mathpar}
+  \infer*[left=SumSub]{\tau_1 \subtype \tau_1' \\ \tau_2 \subtype \tau_2'}{\tau_1 + \tau_2 \subtype \tau_1' + \tau_2'}
+\end{mathpar}
+
+\noindent This rule shows that subtyping holds for sum types. Sum types are like or statements,
+so saying $\tau_1 + \tau_2$ is the same as saying either $\tau_1$ or $\tau_2$.
+Thinking about the bottom of the rule this way, we can see that it must be true.
+Either $\tau_1$ or $\tau_2$ is a subtype of either $\tau_1'$ or $\tau_2'$.
+If $\tau_1$ is chosen, then it is a subtype of either $\tau_1'$ or $\tau_2'$,
+which is given to be true based on the top of the rule where $\tau_1$ is a subtype of $\tau_1'$.
+The same logic works for $\tau_2$ since it is a subtype of $\tau_2'$.
+
+\begin{mathpar}
+  \infer*[left=ArrSub]{\tau_1' \subtype \tau_1 \\ \tau_2 \subtype \tau_2'}{\tau_1 \rightarrow \tau_2 \subtype \tau_1' \rightarrow \tau_2'}
+\end{mathpar}
+
+\noindent This rule shows that subtyping holds for arrow types ($\tau_1 \rightarrow \tau_2$).
+In the top we can see there is contravariance for the first relation since $\tau_1' \subtype \tau_1$ now instead of the other way around like the other rules.
+Based on the Liskov Substitution Principle and the Sub rule defined below,
+we can replace some of the types in the bottom of the rule to make it more clear.
+Since $\tau_1'$ is a subtype of $\tau_1$ that means anywhere where a $\tau_1$ is required,
+a $\tau_1'$ can also be used, so now we have $\tau_1' \rightarrow \tau_2 \subtype \tau_1' \rightarrow \tau_2'$.
+Now we apply the same logic with $\tau_2 \subtype \tau_2'$ and replace $\tau_2'$ with $\tau_2$ to get $\tau_1' \rightarrow \tau_2 \subtype \tau_1' \rightarrow \tau_2$ which holds by reflexivity.
+
+\begin{mathpar}
+  \infer*[left=RecordSub]{\exists f: \{ 1,\dots,m \} \hookrightarrow \{ 1,\dots,n \}.\forall i \in \{ 1,\dots,m \}.\ell_{f(i)} = \ell_i' \wedge \tau_{f(i)} \subtype \tau_i'}{\{ \ell_1 : \tau_1; \dots ; \ell_n : \tau_n \} \subtype \{ \ell_1' : \tau_1' ; \dots ; \ell_m' ; \tau_m' \}}
+\end{mathpar}
+
+\noindent This is the last rule for showing that subtyping holds for types.
+It shows that subtyping holds for record types. The rule uses an injective function $f$ to match labels.
+Since $f$ is an injective function, $m < n$. $\ell_{f(i)} = \ell_i'$ means there is a label that we get using the function $f$ on $i$
+which matches up with a label corresponding to $i$ which is at most $m$.
+Then we are given that the type given by calling function $f$ on $i$ is a subtype of the type corresponding to $i$ which is at most $m$.
+We use this to create the bottom of the rule which says that a record with $n$ labels obtainable using function $f$ is a subtype of the record containing $m$ labels corresponding directly to $i$.
+So a record is a subtype of another record if all of the label's types are subtypes of the corresponding label in the supertype record's types,
+and at least all of the labels contained in the supertype are in the subtype, but there can be more labels in the subtype than the supertype.
+
+\begin{mathpar}
+  \infer*[left=Sub]{\Gamma \vdash e : \tau \\ \tau \subtype \tau'}{\Gamma \vdash e : \tau'}
+\end{mathpar}
+
+\noindent This is a simple rule which applies the logic of the Liskov Substitution Principle to apply the supertype to an expression with the type of the subtype.
+$e$ is of type $\tau$ and $\tau \subtype \tau'$. This means a $\tau$ can be used in place of anywhere where a $\tau'$ is needed.
+So we are just saying that $e$ is of type $\tau'$ to be more specific than saying $e$ is of type $\tau$. \newline
+\newline
+We can choose to bake the subtyping rules into the typing rules.
+It requires us to change the Record-I rule but makes it easier to prove things about subtypes involving substitution.
+The new Record-I rule is as follows:
+
+\begin{mathpar}
+  \infer*[left=Record-I]{\exists f: \{ 1,\dots,n \} \hookrightarrow \{ 1,\dots,m \}.\forall i \in \{ 1,\dots,m \}.\ell_{f(i)} = \ell_i' \wedge \Gamma \vdash e_{f(i)} : \tau_i}{\Gamma \vdash \{ \ell_1 = e_1; \dots ; \ell_m = e_m \} : \{ \ell_1' : \tau_1 ; \dots ; \ell_n' ; \tau_n \}}
+\end{mathpar}
+
+\noindent The rule is similar to RecordSub, but is focused on well-typing of the expressions instead of subtyping.
+It still uses the function $f$ to match up labels in the record expression with their labels in the record type. \newline
+
+\section{Extra Info}
+$\tau_1 \subtype \tau_2 \wedge \tau_2 \subtype \tau_1 \stackrel{\triangle}{\iff} \tau_1 \equiv \tau_2$ \newline
+Fairly straight forward, just states that if two different types are subtypes of each other, then they must be equal,
+and the other way around, if two different types are equivalent, then they are subtypes of each other. \newline \newline
+$\{ x : \mathbb{N} ; y : \mathbb{N} \} \equiv \{ y : \mathbb{N} : x : \mathbb{N} ; \}$ \newline
+This just is just showing that the order that entries of a record are in, does not have an effect on the equivalence of them.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% TeX-command-default: "Make"
+%%% End:
