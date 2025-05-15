@@ -1,0 +1,208 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+
+\setsansfont{Fira Code}
+
+\newcommand{\real}{\ensuremath{\mathbb{R}}\xspace}
+\newcommand{\complex}{\ensuremath{\mathbb{C}}\xspace}
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+\newcommand{\binval}[4]{\ensuremath{\mathcal{V}(#1 \at #2)(#3 \sim #4)}}
+\newcommand{\binexpr}[4]{\ensuremath{\mathcal{E}(#1 \at #2)(#3 \sim #4)}}
+\newcommand{\bintypectxt}[2]{\ensuremath{\mathcal{T}(#1)(#2)}}
+\newcommand{\binctxt}[4]{\ensuremath{\mathcal{K}(#1 \at #2)(#3 \sim #4)}}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\send}[2]{\ensuremath{\textsf{send}\ #1\ \textsf{to}\ #2}}
+\newcommand{\recv}[3]{\ensuremath{\textsf{receive}\ #1\ \textsf{from}\ #2\ \textsf{in}\ #3}}
+\newcommand{\choosefor}[2]{\ensuremath{\textsf{choose}~#1 \mathrel{\textsf{for}} #2}}
+\newcommand{\letchoose}[3]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2; \Right \Rightarrow #3)}}
+\newcommand{\senda}[2]{#1 \rightsquigarrow #2}
+\newcommand{\recva}[2]{#1 \leftsquigarrow #2}
+\newcommand{\choosea}[2]{[#1] \rightsquigarrow #2}
+\newcommand{\letchoosea}[2]{[#1] \leftsquigarrow #2}
+
+\title{Asynchrony}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{35}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+\begin{itemize}
+\item Last time we discussed the first \textbf{concurrent $\lambda$~calculus}.
+\item During the communcation, sender and receiver can move to the next state
+      only when sender is ready to send and receiver is ready to receive.
+\item This leads to the \textbf{global synchrony}, However, consider the following program:
+      \[
+        p \triangleright \send{3}{q}; \recv{x}{q}{x} \parallel q \triangleright \send{4}{p}; \recv{x}{p}{x}
+      \]
+\item Since both $p$ and $q$ are waiting for each other to receive when they are ready to send,
+      this program will never go to the next state, which is a \textbf{deadlock}.
+\end{itemize}
+
+\section{Some definitions}\label{sec:asyn-defs}
+To avoid confusion between different people doing research in concurrency,
+we will use the following definitions for the rest of the lecture:
+\begin{itemize}
+\item \textbf{Concurrency}: The property of a system or language that allows multiple
+      actions to be occur at the same logical time.
+\item \textbf{Parallelism}: The property of a system or language that allows multiple
+      actions to be occur at the same physical time (or wall-clock time).
+\item \textbf{Synchrony}: The property of communication that requires the entire communication
+      to be completed before any participant can move to the next state.
+\item \textbf{Asynchrony}: The property of communication that allows participants to
+      move to the next state before the entire communication is completed.
+\end{itemize}
+Concurrency and parallelism can exist without each other,
+although usually parallelism comes with concurrency.
+Also, note that asynchrony and synchrony here are different from
+the same terms in the context of distributed systems.
+
+\section{Asynchronous networks} \label{sec:asyn-networks}
+\begin{itemize}
+\item So we need to add more semantics to the network layer to allow
+      the sender and receiver to move to the next state independently.
+\item The solution is to use a \textbf{queue} $Q_{pq}$ to describe the messages
+      from the sender $p$ to the receiver $q$. Queues act as buffers that allow
+      the sender to send messages even if the receiver is not ready to
+      receive them. This way, the sender can continue its execution.
+\item This can prevent some deadlocks like the one above, but not all, and
+      we will talk about that later.
+\item We define the syntax of the messages and queues as follows:
+      \begin{syntax}
+        \category[Messages]{m} \alternative{n} \alternative{[d]}
+        \category[Queues]{Q} \alternative{m_1 m_2 \ldots m_n}
+      \end{syntax}
+\item We use $mQ$ to denote the queue $Q$ with message $m$ at the head of the queue,
+      and $Qm$ to denote the queue $Q$ with message $m$ at the tail of the queue.
+\item We also define the network as follows:
+      \begin{syntax}
+            \category[Networks]{\mathcal{N}} \alternative{p_1 \triangleright e_1 \parallel \dots \parallel p_n \triangleright e_n; p_1 p_2 \triangleright Q_{12}; p_1 p_3 \triangleright Q_{13}; \dots; p_{n-1} p_n \triangleright Q_{(n-1)n}}
+      \end{syntax}
+\item Some notations:
+      \begin{itemize}
+        \item $\mathcal{N}(p)$: process $p$ is running in the network
+        \item $\mathcal{N}[p \mapsto e]$: the network like $\mathcal{N}$ but the process $p$ is running $e$
+        \item $\mathcal{N}(pq)$: the queue from $p$ to $q$ in the network
+        \item $\mathcal{N}[pq \mapsto Q]$: the network like $\mathcal{N}$ but with the queue from $p$ to $q$ is updated to $Q$
+      \end{itemize}
+\item Now, we can treat the network is a collection of processes and two directed queues
+      between each pair of processes.
+      \begin{mathpar}
+            \infer{\mathcal{N}(p) \xrightarrow{\varepsilon} e}{\mathcal{N} \to\mathcal{N}[p \mapsto e]} \\
+            \infer{\mathcal{N}(p) \xrightarrow{\senda{v}{q}} e\\ \mathcal{N}(pq) = Q}{\mathcal{N} \to \mathcal{N}[p \mapsto e, pq \mapsto Qv]} \and
+            \infer{\mathcal{N}(p) \xrightarrow{\choosea{d}{q}} e\\ \mathcal{N}(pq) = Q}{\mathcal{N} \to \mathcal{N}[p \mapsto e, pq \mapsto Q[d]]} \\
+            \infer{\mathcal{N}(p) \xrightarrow{\recva{v}{q}} e \\ \mathcal{N}(qp) = vQ}{\mathcal{N} \to \mathcal{N}[p \mapsto e, qp \mapsto Q]}\and
+            \infer{\mathcal{N}(p) \xrightarrow{\letchoosea{d}{q}} e\\ \mathcal{N}(qp) = [d]Q}{\mathcal{N} \to \mathcal{N}[p \mapsto e, qp \mapsto Q]}
+      \end{mathpar}
+\item Here, when $p$ sends out the message, process $q$ is no longer involved in the computation,
+      instead we push the message to the end of $Q$.
+\item When $p$ receives the message, if there is a message in the queue,
+      it must looks like $mQ$.
+\end{itemize}
+
+\section{Asynchrony refines synchrony}
+\begin{itemize}
+\item We can see that the asynchronous network is a refinement of the synchronous network.
+\item The synchronous network is just a special case of the asynchronous network
+      where the queues are always empty.
+\begin{thm}
+      If asynchronous network $\mathcal{N}_a$ refines synchronous network $\mathcal{N}_s$,
+      $\mathcal{N}_s \rightarrow \mathcal{N}_{s'}$, then $\exists \mathcal{N}_{a'}$ such that
+      $\mathcal{N}_{a'}$ refines $\mathcal{N}_{s'}$ with empty queues and $\mathcal{N}_a \rightarrow^\ast \mathcal{N}_{a'}$.
+\end{thm}
+\begin{proof}
+      By case analysis on the evidence for $\mathcal{N}_s \rightarrow \mathcal{N}_{s'}$, there is
+      only one interesting case:
+      \begin{mathpar}
+            \infer
+            {\mathcal{N}_s(p) \xrightarrow{\senda{v}{q}} e_1 \\ \mathcal{N}_s(q) \xrightarrow{\recva{v}{q}} e_2}
+            {\mathcal{N}_s \to \mathcal{N}_s[p \mapsto e_1, q \mapsto e_2]}
+      \end{mathpar}
+      In $\mathcal{N}_a$, we can have the following transition:
+      \begin{mathpar}
+            \infer
+            {\mathcal{N}_a(p) \xrightarrow{\senda{v}{q}} e_1 \\ \mathcal{N}_a(pq) = [\cdot]}
+            {\mathcal{N}_a \to \mathcal{N}_a[p \mapsto e_1, pq \mapsto v]}
+      \end{mathpar}
+      But, we have:
+      \begin{mathpar}
+            \infer
+            {(\mathcal{N}_a[p \mapsto e_1, pq \mapsto v])(q) \xrightarrow{\recva{v}{q}} e_2 \\ (\mathcal{N}_a[p \mapsto e_1, pq \mapsto v])(pq) = v}
+            {\mathcal{N}_a[p \mapsto e_1, pq \mapsto v] \to \mathcal{N}_a[p \mapsto e_1, q \mapsto e_2, v \mapsto [\cdot]]}
+      \end{mathpar}
+      We ignore the empty queue, this is the same as $\mathcal{N}_{s'}$.
+\end{proof}
+
+\item So, for all the programs that are valid in the synchronous network,
+      we can run them in the asynchronous network starting with empty queues,
+      but not the other way around (seethe example at the beginning of the lecture).
+\item However, this does not guarantee that there will be no deadlocks in the
+      asynchronous network. For example, consider the following example:
+      \[
+        \recv{x}{q}{x} \parallel \recv{y}{p}{y}
+      \]
+\item In this program, both processes are waiting for each other to send messages,
+      and they will never be able to move to the next state even within the asynchronous network.
+\end{itemize}
+
+\end{document}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
