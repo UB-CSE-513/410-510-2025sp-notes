@@ -1,0 +1,315 @@
+\documentclass{lecturenotes}
+
+\usepackage[colorlinks,urlcolor=blue]{hyperref}
+\usepackage{doi}
+\usepackage{xspace}
+\usepackage{fontspec}
+\usepackage{enumerate}
+\usepackage{mathpartir}
+\usepackage{pl-syntax/pl-syntax}
+\usepackage{forest}
+\usepackage{stmaryrd}
+\usepackage{epigraph}
+\usepackage{xspace}
+\usepackage{bbm}
+\usepackage{tikz-cd}
+\usepackage{unicode-math}
+
+\setsansfont{Fira Code}
+\setmathfont{AsanaMath}
+
+\newcommand{\abs}[2]{\ensuremath{\lambda #1.\,#2}}
+\newcommand{\tabs}[3]{\ensuremath{\lambda #1 \colon #2.\,#3}}
+\newcommand{\dbabs}[1]{\ensuremath{\lambda.\,#1}}
+\newcommand{\dbind}[1]{\ensuremath{\text{\textasciigrave}#1}}
+\newcommand{\app}[2]{\ensuremath{#1\;#2}}
+\newcommand{\utype}{\textsf{unit}\xspace}
+\newcommand{\unit}{\ensuremath{\textsf{(}\mkern0.5mu\textsf{)}}}
+\newcommand{\prodtype}[2]{\ensuremath{#1 \times #2}}
+\newcommand{\pair}[2]{\ensuremath{(#1, #2)}}
+\newcommand{\projl}[1]{\ensuremath{\pi_1\mkern2mu#1}}
+\newcommand{\projr}[1]{\ensuremath{\pi_2\mkern3mu#1}}
+\newcommand{\sumtype}[2]{\ensuremath{#1 + #2}}
+\newcommand{\injl}[1]{\ensuremath{\textsf{inj}_1\mkern2mu#1}}
+\newcommand{\injr}[1]{\ensuremath{\textsf{inj}_2\mkern3mu#1}}
+\newcommand{\case}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\injl{#2} \Rightarrow #3;\mkern5mu\injr{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\vtype}{\textsf{void}\xspace}
+\newcommand{\vcase}[1]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\textsf{end}}}
+\newcommand{\rectype}[2]{\ensuremath{\mu #1.\,#2}}
+\newcommand{\roll}[1]{\textsf{roll}\mkern2mu#1}
+\newcommand{\unroll}[1]{\textsf{unroll}\mkern2mu#1}
+\newcommand{\fatype}[2]{\ensuremath{\forall #1.\,#2}}
+\newcommand{\Abs}[2]{\Lambda #1.\,#2}
+\newcommand{\App}[2]{#1\;[#2]}
+\newcommand{\extype}[2]{\ensuremath{\exists #1.\,#2}}
+\newcommand{\pack}[3]{\ensuremath{\textsf{pack}\mkern5mu#1\mathrel{\textsf{as}}#2\mathrel{\textsf{in}}#3}}
+\newcommand{\unpack}[4]{\ensuremath{\textsf{unpack}\mkern5mu#1\mathrel{\textsf{as}} #2, #3 \mathrel{\textsf{in}} #4}}
+\newcommand{\ltype}[1]{\ensuremath{\textsf{list}\mkern3mu#1}}
+\newcommand{\nillist}{\ensuremath{[\,]}}
+\newcommand{\conslist}[2]{\ensuremath{#1 \mathop{::} #2}}
+\newcommand{\lcase}[5]{\ensuremath{\textsf{case}\mkern5mu#1\mkern5mu\textsf{of}\mkern5mu\nillist\Rightarrow#2; \mkern5mu\conslist{#3}{#4} \Rightarrow #5\mkern5mu\textsf{end}}}
+\newcommand{\logn}[1]{\ensuremath{\textsf{log}\mkern3mu#1}}
+\renewcommand{\tt}{\textsf{true}\xspace}
+\newcommand{\ff}{\textsf{false}\xspace}
+\newcommand{\ite}[3]{\ensuremath{\textsf{if}~#1 \mathrel{\textsf{then}} #2 \mathrel{\textsf{else}} #3}}
+\newcommand{\send}[2]{\ensuremath{\textsf{send}~#1 \mathrel{\textsf{to}} #2}}
+\newcommand{\recv}[3]{\ensuremath{\textsf{receive}~#1 \mathrel{\textsf{from}} #2} \mathrel{\textsf{in}} #3}
+\newcommand{\Left}{\textsf{left}\xspace}
+\newcommand{\Right}{\textsf{right}\xspace}
+\newcommand{\choosefor}[2]{\ensuremath{\textsf{choose}~#1 \mathrel{\textsf{for}} #2}}
+\newcommand{\letchoose}[3]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2; \Right \Rightarrow #3)}}
+\newcommand{\letchooseL}[2]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Left \Rightarrow #2)}}
+\newcommand{\letchooseR}[2]{\ensuremath{\textsf{let}~#1 \mathrel{\textsf{choose}} (\Right \Rightarrow #2)}}
+\newcommand{\ret}[1]{\ensuremath{\textsf{ret}(#1)}}
+
+
+\newcommand{\capture}[1]{\ensuremath{\lfloor #1 \rfloor}}
+\newcommand{\bind}[1]{\ensuremath{\textsf{bind}(#1)}}
+
+\newcommand{\pureeff}{\textsf{pure}\xspace}
+\newcommand{\logeff}{\textsf{log}\xspace}
+
+\newcommand{\FV}{\text{FV}}
+\newcommand{\BV}{\text{BV}}
+
+\newcommand{\toform}[1]{\ensuremath{\lceil #1 \rceil}}
+\newcommand{\totype}[1]{\ensuremath{\lfloor #1 \rfloor}}
+
+\newcommand{\neutral}[1]{#1\;\text{ne}}
+\newcommand{\nf}[1]{#1\;\text{nf}}
+
+\newcommand{\subtype}{\ensuremath{\mathrel{\mathord{<}\mathord{:}}}}
+
+\newcommand{\pub}{\text{public}}
+\newcommand{\priv}{\text{secret}}
+
+\newcommand{\at}{\ensuremath{\mathrel{@}}}
+
+\newcommand{\obj}[1]{\ensuremath{\mathcal{O}(#1)}}
+\renewcommand{\hom}[3][]{\ensuremath{\text{Hom}_{#1}(#2, #3)}}
+\newcommand{\id}[1][]{\ensuremath{\mathbbm{1}_{#1}}}
+
+\newcommand{\Set}{\textbf{Set}\xspace}
+\newcommand{\Rel}{\textbf{Rel}\xspace}
+\newcommand{\Type}{\textbf{Type}\xspace}
+\newcommand{\Cat}{\textbf{Cat}\xspace}
+
+\newcommand{\op}[1]{\ensuremath{{#1}^{\text{op}}}}
+
+\newcommand{\prodmor}[2]{\ensuremath{\langle #1, #2 \rangle}}
+\newcommand{\inl}{\text{inl}\xspace}
+\newcommand{\inr}{\text{inr}\xspace}
+\newcommand{\coprodmor}[2]{\ensuremath{[ #1, #2 ]}}
+
+\newcommand{\sendrecv}[4]{\ensuremath{#1.#2 \rightsquigarrow #3.#4}}
+\newcommand{\syncmsg}[3]{\ensuremath{#1.[#2] \rightsquigarrow #3}}
+\newcommand{\chorif}[4]{\ensuremath{\textsf{if}~#1.#2 \mathrel{\textsf{then}} #3 \mathrel{\textsf{else}} #4}}
+
+\newcommand{\sendrecva}[3]{\ensuremath{#1.#2 \rightsquigarrow #3}}
+\newcommand{\syncmsga}[3]{\ensuremath{#1.[#2] \rightsquigarrow #3}}
+\newcommand{\senda}[2]{\ensuremath{#1 \rightsquigarrow #2}}
+\newcommand{\recva}[2]{\ensuremath{#1 \leftsquigarrow #2}}
+\newcommand{\sendsynca}[2]{\ensuremath{[#1] \rightsquigarrow #2}}
+\newcommand{\recvsynca}[2]{\ensuremath{[#1] \leftsquigarrow #2}}
+
+\newcommand{\projection}[2]{\ensuremath{\llbracket #1 \rrbracket_{#2}}}
+
+\title{Choreographies, Part I}
+\coursenumber{CSE 410/510}
+\coursename{Programming Language Theory}
+\lecturenumber{37}
+\semester{Spring 2025}
+\professor{Professor Andrew K. Hirsch}
+
+\begin{document}
+\maketitle
+
+During last class, we made the observation that we can build a data type system for concurrent lambda calculi, but they are of limited usefulness.
+Such a type system allows us to prove type preservation, but not progress--in fact, we can write well-typed deadlocking code in the concurrent lambda calculi we have discussed in class!
+
+The problem is that in concurrent lambda calculi, it is not good enough to know that the shape of the data is correct.
+A data type system makes no guarantees about the pattern of communication described in a program (only the type of the data sent).
+A solution to this problem is to build a \emph{session type} system, which is a type system that allows us to describe the communications that occur over a channel and in what order, though we will not discuss this in detail in this course.
+
+Another solution to this problem is \emph{choreographic programming}.
+Before we dive into choreographic programming, observe that when programmers discuss concurrent programs on a whiteboard, they have a \emph{global} view of the system and the interactions between participants.
+When describing a concurrent program on a whiteboard, we typically don't write what we want each participant to do separately.
+Instead, we assume that the low-level details of how the sends and receives get matched up between the participants will get figured out and we just reason about the program at a global level.
+Choreographic programming allows programmers to write concurrent programs in this global view, which then get compiled into the actual programs that get run by the participants.
+
+\section{What is Choreographic Programming?}
+
+Choreographic programming is a paradigm for writing concurrent programs where the communications between participants are described in a single, global program.
+A simple choreographic program (also called a \emph{choreography}), might look like this:
+
+\begin{mathpar}
+  \begin{array}{l}
+    \sendrecv{Bob}{42}{Alice}{x};\\
+    \sendrecv{Alice}{x + 5}{Bob}{y}
+  \end{array}
+\end{mathpar}
+
+In the first line (pronounced "$Bob$ sends $42$ to $Alice$"), the participant $Bob$ sends the integer $42$ to the participant $Alice$, who stores it in $Alice$'s local variable $x$.
+In the second line, $Alice$ adds $5$ to $x$ and sends the result to $Bob$, who stores it in $Bob$'s local variable $y$.
+
+A choreography then gets \emph{projected} into local programs for each participant in the system through a process called \emph{endpoint projection} (EPP).
+These local programs are what actually gets run by the participants.
+
+Note that the sending and receiving of a message are both described in a single communication construct, $\rightsquigarrow$.
+This means that choreographic programs are \emph{deadlock-free by construction}, i.e., we cannot write a choreography that deadlocks.
+This is because we cannot write a choreography that describes a message send without its corresponding receive since sends and their corresponding receives are packaged up together through the $\rightsquigarrow$ construct.
+To ensure that the projections of a choreography do not deadlock, we need to prove that EPP is correct.
+
+\section{A Simple Choreographic Language}
+
+We will now describe a simple choreographic language that is surprisingly powerful.
+
+\subsection{Syntax}
+
+\begin{syntax}
+  \category[Actions]{\alpha} \alternative{\varepsilon} \alternative{\sendrecva{p}{m}{q}} \alternative{\syncmsga{p}{d}{q}}
+  \category[Messages]{m} \alternative{x} \alternative{\tilde{n}} \alternative{\tt} \alternative{\ff}
+  \category[Choreographies]{\mathcal{C}} \alternative{p.m} \alternative{\sendrecv{p}{m}{q}{x}; \mathcal{C}} \alternative{\syncmsg{p}{d}{q}; \mathcal{C}} \alternative{\chorif{p}{m}{\mathcal{C}_1}{\mathcal{C}_2}}
+\end{syntax}
+
+Our choreographic language allows for two types of messages to be sent.
+In $\sendrecv{p}{m}{q}{x}; \mathcal{C}$, participant $p$ can send any message $m$ to $q$, who stores it in local variable $x$.
+In $\syncmsg{p}{d}{q}; \mathcal{C}$, $p$ sends a \emph{synchronization label} to $q$.
+The synchronization label $d$ can either be $\Left$ or $\Right$ and the label sent tells $q$ which branch of a conditional was taken by $p$.
+
+Note that each participant has their own \emph{namespace} of variables.
+So, for instance, if $p$ and $q$ are different participants, the $x$ in $p.x$ is different from the $x$ in $q.x$.
+This is because each $x$ is in a different namespace.
+
+\subsection{Substitution}
+
+Next, we define variable substitution.
+In the definition below, $\mathcal{C}[p \mid x \mapsto m]$ means that the variable $x$ in the namespace of $p$ is replaced with $m$.
+Note that there is no notion of namespaces in messages, so $m'[x \mapsto m]$ means we replace variable $x$ in $m'$ with $m$.
+
+{  \def\oldarraystretch{\arraystretch}
+  \def\arraystretch{1.5}
+  $$
+  \mathcal{C}[p \mid x \mapsto m] = \left\{
+    \begin{array}{ll}
+      p.(m' [x \mapsto m]) & \mathcal{C} = p.m'\\
+      q.m' & \mathcal{C} = q.m' \land p \neq q\\
+      \sendrecv{q}{m'}{p}{x}; \mathcal{C}' & \mathcal{C} = \sendrecv{p}{m'}{q}{y}; \mathcal{C}' \land p \neq q\\
+      \sendrecv{p}{(m'[x \mapsto m])}{p}{x}; \mathcal{C}' & \mathcal{C} = \sendrecv{p}{m'}{p}{x}; \mathcal{C}'\\
+      \sendrecv{p}{(m'[x \mapsto m])}{q}{y}; (\mathcal{C}' [p \mid x \mapsto m]) & \mathcal{C} = \sendrecv{p}{m'}{q}{y}; \mathcal{C}' \land (p \neq q \lor x \neq y)\\
+      \sendrecv{q}{(m'[x \mapsto m])}{r}{y}; (\mathcal{C}' [p \mid x \mapsto m]) & \mathcal{C} = \sendrecv{q}{m'}{r}{y}; \mathcal{C}' \land p \neq q \land (p \neq r \lor x \neq y)\\
+      \syncmsg{q}{d}{r}; (\mathcal{C}'[p \mid x \mapsto m]) & \mathcal{C} = \syncmsg{q}{d}{r}; \mathcal{C}'\\[1em]
+      {\def\arraystretch{1}
+      \hspace{-0.7em}\begin{array}[t]{l}\textsf{if}~p.(m' [x \mapsto m])\\
+        \textsf{then}~\mathcal{C}_1[p \mid x \mapsto m]\\
+        \textsf{else}~\mathcal{C}_2[p \mid x \mapsto m]
+      \end{array}}
+      & \mathcal{C} = \chorif{p}{m'}{\mathcal{C}_1}{\mathcal{C}_2}\\
+      {\def\arraystretch{1}
+      \hspace{-0.7em}\begin{array}[t]{l}
+        \textsf{if}~q.m'\\
+        \textsf{then}~\mathcal{C}_1[p \mid x \mapsto m]\\
+        \textsf{else}~\mathcal{C}_2[p \mid x \mapsto m]
+      \end{array}
+      }
+      & \mathcal{C} = \chorif{q}{m'}{\mathcal{C}_1}{\mathcal{C}_2} \land q \neq p\\
+    \end{array}
+  \right.
+  $$
+}
+
+\subsection{Semantics}
+
+Next, we define the semantics of our language.
+The semantics is defined with a labeled transition system (LTS) where the label is the action that occurs in the step.
+
+\begin{mathpar}
+  \sendrecv{p}{m}{q}{x}; \mathcal{C} \xrightarrow{\sendrecva{p}{m}{q}} \mathcal{C}[q \mid x \mapsto m] \and
+  \infer{\mathcal{C} \xrightarrow{\alpha} \mathcal{C}' \\ p, q \not\in\text{pn}(\alpha)}{\sendrecv{p}{m}{q}{x}; \mathcal{C} \xrightarrow{\alpha} \sendrecv{p}{m}{q}{x}; \mathcal{C}'} \\
+  \syncmsg{p}{d}{q}; \mathcal{C} \xrightarrow{\syncmsga{p}{d}{q}} \mathcal{C} \and
+  \infer{\mathcal{C} \xrightarrow{\alpha} \mathcal{C}'\\ p, q \not\in\text{pn}(\alpha)}{\syncmsg{p}{d}{q}; \mathcal{C} \xrightarrow{\alpha} \syncmsg{p}{d}{q}; \mathcal{C}'}\\
+  \chorif{p}{\tt}{\mathcal{C}_1}{\mathcal{C}_2} \xrightarrow{\varepsilon} \mathcal{C}_1 \and
+  \chorif{p}{\ff}{\mathcal{C}_1}{\mathcal{C}_2} \xrightarrow{\varepsilon} \mathcal{C}_2 \and
+\end{mathpar}
+
+Note that our choreographic language allows out-of-order execution:
+
+\begin{mathpar}
+  \infer{\mathcal{C} \xrightarrow{\alpha} \mathcal{C}' \\ p, q \not\in\text{pn}(\alpha)}{\sendrecv{p}{m}{q}{x}; \mathcal{C} \xrightarrow{\alpha} \sendrecv{p}{m}{q}{x}; \mathcal{C}'} \and
+  \infer{\mathcal{C} \xrightarrow{\alpha} \mathcal{C}'\\ p, q \not\in\text{pn}(\alpha)}{\syncmsg{p}{d}{q}; \mathcal{C} \xrightarrow{\alpha} \syncmsg{p}{d}{q}; \mathcal{C}'}
+\end{mathpar}
+
+Intuitively, these two rules say that any pair of communications that can happen next and involve different participants can occur in any order.
+So, for instance, in $\sendrecv{p}{42}{q}{x}; \sendrecv{r}{5}{s}{x}; s.x$, the communications can occur in either order.
+However, in $\sendrecv{p}{42}{q}{x}; \sendrecv{q}{x}{s}{y}; s.y$, $\sendrecv{p}{42}{q}{x}$ must occur before $\sendrecv{q}{x}{s}{y}$, since both communications involve $q$.
+
+\subsection{Endpoint Projection (EPP)}
+
+Finally, we explain the process by which choreographies are projected to each participant.
+First, we define the target language that we are projecting the choreographies to, which we call the \emph{network language}.
+Programs in the network language are what actually get run by the participants.
+The syntax is as follows.
+
+\begin{syntax}
+  \category[Expressions]{e} \alternative{\unit} \alternative{\ret{m}} \alternative{\send{m}{p}; e} \alternative{\recv{x}{p}{e}} \alternative{\choosefor{d}{p}; e}\\
+  \alternative{\letchoose{p}{e_1}{e_2}}\\ \alternative{\letchooseL{p}{e}} \alternative{\letchooseR{p}{e}}\\
+  \alternative{\ite{e_1}{e_2}{e_3}}
+  \category[Actions]{a} \alternative{\varepsilon} \alternative{\senda{m}{p}} \alternative{\recva{m}{p}} \alternative{\sendsynca{d}{p}} \alternative{\recvsynca{d}{p}}
+\end{syntax}
+
+And the semantics, described using an LTS, is as follows.
+
+\begin{mathpar}
+  \send{m}{p}; e \xrightarrow{\senda{m}{p}} e \and
+  \recv{x}{p}{e} \xrightarrow{\recva{m}{p}} e[x \mapsto m] \and
+  \choosefor{d}{p}; e \xrightarrow{\sendsynca{d}{p}} e \\
+  \letchoose{p}{e_1}{e_2} \xrightarrow{\recvsynca{\Left}{p}} e_1 \and
+  \letchoose{p}{e_1}{e_2} \xrightarrow{\recvsynca{\Right}{p}} e_2 \\
+  \letchooseL{p}{e} \xrightarrow{\recvsynca{\Left}{p}} e_1 \and
+  \letchooseR{p}{e} \xrightarrow{\recvsynca{\Right}{p}} e_1\\
+  \ite{\ret{\tt}}{e_1}{e_2} \xrightarrow{\varepsilon} e_1 \and
+  \ite{\ret{\ff}}{e_1}{e_2} \xrightarrow{\varepsilon} e_2
+\end{mathpar}
+
+Observe that it is possible to have a network program in which a participant offers a choice of only one label to an outside participant:
+
+\begin{mathpar}
+  \letchooseL{p}{e} \xrightarrow{\recvsynca{\Left}{p}} e_1 \and
+  \letchooseR{p}{e} \xrightarrow{\recvsynca{\Right}{p}} e_1
+\end{mathpar}
+
+This may look strange.
+We define the network language in this way because some bookkeeping is needed during endpoint projection, as we will see next.
+
+Now, we will define endpoint projection.
+We introduce the notation $\projection{\mathcal{C}}{p}$, which is $p$'s instructions in the choreography $\mathcal{C}$.
+
+$$
+\projection{\mathcal{C}}{p} = \left\{\begin{array}{ll}
+  \ret{m} & \mathcal{C} = p.m\\
+  \unit & \mathcal{C} = q.m \land p \neq q\\
+  \send{m}{q}; \projection{\mathcal{C}'}{p} & \mathcal{C} = \sendrecv{p}{m}{q}{x}; \mathcal{C}' \land p \neq q\\
+  \recv{x}{q}{\projection{\mathcal{C}'}{p}} & \mathcal{C} = \sendrecv{q}{m}{p}{x}; \mathcal{C}' \land p \neq q\\
+  \projection{\mathcal{C}'}{p} & \mathcal{C} = \sendrecv{q}{m}{r}{x}; \mathcal{C}' \land p \neq q \land p \neq r\\
+  \choosefor{d}{q}; \projection{\mathcal{C}'}{p} & \mathcal{C} = \syncmsg{p}{d}{q}; \mathcal{C}' \land p \neq q\\
+  \letchooseL{q}{\projection{\mathcal{C}'}{p}} & \mathcal{C} = \syncmsg{q}{\Left}{p}; \mathcal{C}' \land p \neq q\\
+  \letchooseR{q}{\projection{\mathcal{C}'}{p}} & \mathcal{C} = \syncmsg{q}{\Right}{p}; \mathcal{C}' \land p \neq q\\
+  \projection{\mathcal{C}'}{p} & \mathcal{C} = \sendrecv{q}{d}{r}; \mathcal{C}' \land p \neq q \land p \neq r\\
+  \ite{\ret{m}}{\projection{\mathcal{C}_1}{p}}{\projection{\mathcal{C}_2}{p}} & \mathcal{C} = \chorif{p}{m}{\mathcal{C}_1}{\mathcal{C}_2}\\
+  \projection{\mathcal{C}_1}{p} \sqcup \projection{\mathcal{C}_2}{p} & \mathcal{C} = \chorif{q}{m}{\mathcal{C}_1}{\mathcal{C}_2} \land p \neq q\\
+  \text{undefined} & \text{otherwise}
+  \end{array}\right.
+$$
+
+Note that EPP is a partial function--it can fail if none of the cases match.
+We also see a strange operator, $\sqcup$, in the definition.
+This is the \emph{merge} operator.
+This operator is needed to account for \emph{knowledge of choice}, which will be discussed next class.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% TeX-engine: luatex
+%%% End:
